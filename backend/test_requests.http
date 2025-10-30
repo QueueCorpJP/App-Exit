@@ -1,0 +1,78 @@
+### サインアップ API テスト
+POST http://localhost:8080/api/auth/register
+Content-Type: application/json
+
+{
+  "email": "test@example.com",
+  "password": "password123",
+  "display_name": "テストユーザー",
+  "role": "buyer",
+  "party": "individual",
+  "age": 25
+}
+
+###
+
+### サインイン API テスト
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "test@example.com",
+  "password": "password123"
+}
+
+###
+
+### 組織ユーザーのサインアップ
+POST http://localhost:8080/api/auth/register
+Content-Type: application/json
+
+{
+  "email": "company@example.com",
+  "password": "password123",
+  "display_name": "株式会社テスト",
+  "role": "seller",
+  "party": "organization"
+}
+
+###
+
+### ヘルスチェック
+GET http://localhost:8080/health
+
+###
+
+### プロフィール作成 (POST /api/auth/profile)
+# 前提: ログイン後に取得したaccess_tokenを使用
+POST http://localhost:8080/api/auth/profile
+Content-Type: application/json
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
+
+{
+  "display_name": "山田太郎",
+  "role": "buyer",
+  "party": "individual",
+  "age": 30
+}
+
+###
+
+### プロフィール取得 (GET /api/auth/profile)
+GET http://localhost:8080/api/auth/profile
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
+
+###
+
+### プロフィール更新 (PUT /api/auth/profile)
+PUT http://localhost:8080/api/auth/profile
+Content-Type: application/json
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
+
+{
+  "display_name": "山田花子",
+  "age": 28,
+  "icon_url": "https://example.com/avatar.jpg"
+}
+
+###
