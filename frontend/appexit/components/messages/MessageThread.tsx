@@ -1,0 +1,236 @@
+'use client';
+
+import { useState } from 'react';
+import { MessageWithSender, ThreadDetail } from '@/lib/api-client';
+import { Image as ImageIcon, X } from 'lucide-react';
+
+interface MessageThreadProps {
+  threadDetail: ThreadDetail | null;
+  messages: MessageWithSender[];
+  currentUserId: string;
+  onSendMessage: (text: string, imageFile?: File | null) => Promise<void>;
+  isSending: boolean;
+}
+
+export default function MessageThread({
+  threadDetail,
+  messages,
+  currentUserId,
+  onSendMessage,
+  isSending,
+}: MessageThreadProps) {
+  const [newMessage, setNewMessage] = useState('');
+  const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+
+  const formatTime = (timeString: string) => {
+    const date = new Date(timeString);
+    const now = new Date();
+    const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
+
+    if (diffInMinutes < 1) return 'たった今';
+    if (diffInMinutes < 60) return `${diffInMinutes}分前`;
+
+    const diffInHours = Math.floor(diffInMinutes / 60);
+    if (diffInHours < 24) return `${diffInHours}時間前`;
+
+    const diffInDays = Math.floor(diffInHours / 24);
+    if (diffInDays < 7) return `${diffInDays}日前`;
+
+    return date.toLocaleDateString('ja-JP', { month: 'short', day: 'numeric' });
+  };
+
+  const getOtherParticipant = () => {
+    if (!threadDetail) return null;
+    return threadDetail.participants.find(p => p.id !== currentUserId);
+  };
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removeImage = () => {
+    setSelectedImageFile(null);
+    setImagePreview(null);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if ((!newMessage.trim() && !selectedImageFile) || isSending) return;
+
+    const messageText = newMessage.trim();
+    const imageFile = selectedImageFile;
+    setNewMessage('');
+    setSelectedImageFile(null);
+    setImagePreview(null);
+
+    try {
+      await onSendMessage(messageText, imageFile);
+    } catch (err) {
+      // エラー時はメッセージを復元
+      setNewMessage(messageText);
+      if (imageFile) {
+        setSelectedImageFile(imageFile);
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setImagePreview(reader.result as string);
+        };
+        reader.readAsDataURL(imageFile);
+      }
+    }
+  };
+
+  if (!threadDetail) {
+    return (
+      <div className="flex-1 flex items-center justify-center bg-gray-50">
+        <div className="text-center text-gray-500">
+          <p>会話を選択してください</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex-1 flex flex-col h-full overflow-hidden">
+      {/* チャットヘッダー */}
+      <div className="p-4 border-b border-gray-200 bg-white flex-shrink-0">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
+                {getOtherParticipant()?.icon_url ? (
+                  <img
+                    src={getOtherParticipant()!.icon_url || ''}
+                    alt={getOtherParticipant()!.display_name}
+                    className="w-full h-full rounded-full object-cover"
+                  />
+                ) : (
+                  <span>👤</span>
+                )}
+              </div>
+            </div>
+            <div>
+              <h2 className="font-semibold">
+                {getOtherParticipant()?.display_name || 'ユーザー'}
+              </h2>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* メッセージエリア */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-white pb-8">
+        {messages.length === 0 ? (
+          <div className="text-center text-gray-500 mt-8">
+            <p>メッセージがありません</p>
+            <p className="text-sm mt-2">最初のメッセージを送信しましょう</p>
+          </div>
+        ) : (
+          messages.map((message) => {
+            const isOwnMessage = message.sender_user_id === currentUserId;
+            const isSendingMessage = (message as any).is_sending;
+            return (
+              <div
+                key={message.id}
+                className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
+              >
+                <div
+                  className={`max-w-[70%] rounded-2xl px-4 py-2 ${
+                    isOwnMessage
+                      ? isSendingMessage
+                        ? 'bg-blue-400 text-white opacity-70'
+                        : 'bg-blue-500 text-white'
+                      : 'bg-gray-100 text-gray-900'
+                  }`}
+                >
+                  {!isOwnMessage && (
+                    <p className="text-xs mb-1 opacity-70">{message.sender_name}</p>
+                  )}
+                  {message.type === 'image' && message.image_url && (
+                    <img
+                      src={message.image_url}
+                      alt="送信画像"
+                      className="max-w-full max-h-64 rounded-lg mb-2"
+                    />
+                  )}
+                  {message.text && (
+                    <p className="text-sm whitespace-pre-wrap">{message.text}</p>
+                  )}
+                  <div className="flex items-center gap-1 mt-1">
+                    <p className={`text-xs ${isOwnMessage ? 'opacity-70' : 'text-gray-500'}`}>
+                      {formatTime(message.created_at)}
+                    </p>
+                    {isSendingMessage && (
+                      <span className="text-xs opacity-70">• 送信中...</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* メッセージ入力エリア */}
+      <div className="px-4 py-3 border-t border-gray-200 bg-white flex-shrink-0">
+        <form onSubmit={handleSubmit} className="space-y-3">
+          {/* 画像プレビュー */}
+          {imagePreview && (
+            <div className="relative inline-block">
+              <img src={imagePreview} alt="Preview" className="max-h-32 rounded-lg border border-gray-300" />
+              <button
+                type="button"
+                onClick={removeImage}
+                className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
+          <div className="flex items-end gap-3">
+            <div className="flex-1 relative">
+              <input
+                type="text"
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                placeholder="新しいメッセージを作成"
+                disabled={isSending}
+                className="w-full px-4 py-3 pr-20 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none disabled:opacity-50"
+              />
+              <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex gap-2">
+                <label className="p-1 hover:bg-gray-100 rounded-full cursor-pointer">
+                  <ImageIcon className="w-5 h-5 text-gray-500" />
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageSelect}
+                    className="hidden"
+                    disabled={isSending}
+                  />
+                </label>
+                <button
+                  type="submit"
+                  disabled={(!newMessage.trim() && !selectedImageFile) || isSending}
+                  className="p-1 hover:bg-gray-100 rounded-full disabled:opacity-50"
+                >
+                  <svg className="w-5 h-5 text-blue-500" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}

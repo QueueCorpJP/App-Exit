@@ -1,0 +1,110 @@
+// Next.jsのinstrumentationフック
+export async function register() {
+  if (process.env.NEXT_RUNTIME === 'nodejs') {
+    // Node.js環境でのみfsとpathをインポート
+    const fs = await import('fs');
+    const path = await import('path');
+
+    // Supabaseの初期化パターンを検出する関数
+    function detectSupabaseInitialization() {
+      const supabasePatterns = [
+        /createClient\s*\(/,
+        /supabase\s*=\s*createClient/,
+        /@supabase\/supabase-js/,
+        /new\s+SupabaseClient/,
+        /supabaseUrl.*supabaseAnonKey/
+      ];
+
+      const projectRoot = path.join(process.cwd());
+      const foundFiles: string[] = [];
+
+      function scanDirectory(dir: string) {
+        try {
+          const files = fs.readdirSync(dir);
+
+          for (const file of files) {
+            const filePath = path.join(dir, file);
+            const stat = fs.statSync(filePath);
+
+            if (stat.isDirectory() && !file.startsWith('.') && file !== 'node_modules') {
+              scanDirectory(filePath);
+            } else if (file.endsWith('.ts') || file.endsWith('.tsx') || file.endsWith('.js') || file.endsWith('.jsx')) {
+              try {
+                const content = fs.readFileSync(filePath, 'utf-8');
+
+                // Supabaseの初期化パターンをチェック
+                const hasSupabaseInit = supabasePatterns.some(pattern => pattern.test(content));
+
+                if (hasSupabaseInit) {
+                  const relativePath = path.relative(projectRoot, filePath);
+                  foundFiles.push(relativePath);
+                }
+              } catch (error) {
+                // ファイル読み取りエラーは無視
+              }
+            }
+          }
+        } catch (error) {
+          // ディレクトリ読み取りエラーは無視
+        }
+      }
+
+      scanDirectory(projectRoot);
+      return foundFiles;
+    }
+
+    // 重複検出とログ出力
+    function checkSupabaseDuplication() {
+      console.log('🔍 Supabaseの初期化重複チェックを開始します...');
+
+      const supabaseFiles = detectSupabaseInitialization();
+
+      if (supabaseFiles.length === 0) {
+        console.log('✅ Supabaseの初期化が見つかりませんでした。');
+        return;
+      }
+
+      if (supabaseFiles.length === 1) {
+        console.log(`✅ Supabaseの初期化は1つのファイルでのみ検出されました: ${supabaseFiles[0]}`);
+        return;
+      }
+
+      // 重複が検出された場合
+      console.log('⚠️  Supabaseの初期化が複数のファイルで検出されました！');
+      console.log('📁 重複しているファイル:');
+
+      supabaseFiles.forEach((file, index) => {
+        console.log(`   ${index + 1}. ${file}`);
+      });
+
+      console.log('\n💡 推奨事項:');
+      console.log('   - Supabaseクライアントは1つのファイル（例: lib/supabase.ts）で初期化してください');
+      console.log('   - 他のファイルではそのクライアントをインポートして使用してください');
+      console.log('   - 重複する初期化コードを削除してください');
+
+      // 詳細な重複箇所の表示
+      console.log('\n📋 各ファイルの詳細:');
+      supabaseFiles.forEach(file => {
+        try {
+          const fullPath = path.join(process.cwd(), file);
+          const content = fs.readFileSync(fullPath, 'utf-8');
+          const lines = content.split('\n');
+
+          console.log(`\n📄 ${file}:`);
+          lines.forEach((line, index) => {
+            if (line.includes('createClient') ||
+                line.includes('@supabase/supabase-js') ||
+                line.includes('supabaseUrl') ||
+                line.includes('supabaseAnonKey')) {
+              console.log(`   行 ${index + 1}: ${line.trim()}`);
+            }
+          });
+        } catch (error) {
+          console.log(`   ❌ ファイル読み取りエラー: ${file}`);
+        }
+      });
+    }
+
+    checkSupabaseDuplication();
+  }
+}

@@ -1,0 +1,507 @@
+'use client';
+
+import { useState } from 'react';
+import Image from 'next/image';
+import { useRouter } from 'next/navigation';
+import { apiClient } from '@/lib/api-client';
+import { uploadImage } from '@/lib/storage';
+
+interface FormData {
+  type: 'board' | 'transaction' | 'secret';
+  title: string;
+  body: string;
+  coverImagePath: string; // URLではなくStorage内のパスを保存
+  price: string;
+
+  // Post details (transaction/secret only)
+  appName: string;
+  appCategory: string;
+  monthlyRevenue: string;
+  monthlyProfit: string;
+  mau: string;
+  dau: string;
+  storeUrl: string;
+  techStack: string;
+  notes: string;
+}
+
+export default function ProjectCreatePage() {
+  const router = useRouter();
+  const [formData, setFormData] = useState<FormData>({
+    type: 'transaction',
+    title: '',
+    body: '',
+    coverImagePath: '',
+    price: '',
+    appName: '',
+    appCategory: '',
+    monthlyRevenue: '',
+    monthlyProfit: '',
+    mau: '',
+    dau: '',
+    storeUrl: '',
+    techStack: '',
+    notes: ''
+  });
+
+  const [previewImage, setPreviewImage] = useState<string>('');
+  const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
+  const [currentStep, setCurrentStep] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+
+  const categories = [
+    'ソーシャル',
+    'EC・マーケットプレイス',
+    'ゲーム',
+    'ユーティリティ',
+    '生産性',
+    'エンターテイメント',
+    'ヘルスケア',
+    '教育',
+    'ビジネス',
+    'ライフスタイル',
+    'その他'
+  ];
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // ファイルを保存してプレビューを表示
+      setSelectedImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPreviewImage(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+
+    try {
+      // Check if user has Supabase session (as a backup check)
+      // The main authentication is handled by the backend via HttpOnly cookies
+      const { supabase } = await import('@/lib/supabase');
+      const { data: { session } } = await supabase.auth.getSession();
+
+      console.log('[PROJECT-CREATE] Supabase session:', session ? 'exists' : 'missing');
+
+      if (!session) {
+        alert('ログインセッションが見つかりません。再度ログインしてください。');
+        router.push('/login');
+        return;
+      }
+
+      // 画像をStorageにアップロード
+      let coverImagePath: string | null = null;
+      if (selectedImageFile) {
+        try {
+          setUploadingImage(true);
+          console.log('[PROJECT-CREATE] Uploading image to storage...');
+          coverImagePath = await uploadImage(selectedImageFile, session.user.id);
+          console.log('[PROJECT-CREATE] Image uploaded successfully:', coverImagePath);
+        } catch (error) {
+          console.error('[PROJECT-CREATE] Image upload failed:', error);
+          alert('画像のアップロードに失敗しました。もう一度お試しください。');
+          return;
+        } finally {
+          setUploadingImage(false);
+        }
+      }
+
+      const payload: any = {
+        type: formData.type,
+        title: formData.title,
+        body: formData.body || null,
+        cover_image_url: coverImagePath, // Storage内のパスを保存
+        price: formData.price ? parseInt(formData.price) : null,
+      };
+
+      // Add details for transaction/secret posts
+      if (formData.type === 'transaction' || formData.type === 'secret') {
+        payload.app_name = formData.appName || null;
+        payload.app_category = formData.appCategory || null;
+        payload.monthly_revenue = formData.monthlyRevenue ? parseInt(formData.monthlyRevenue) : null;
+        payload.monthly_profit = formData.monthlyProfit ? parseInt(formData.monthlyProfit) : null;
+        payload.mau = formData.mau ? parseInt(formData.mau) : null;
+        payload.dau = formData.dau ? parseInt(formData.dau) : null;
+        payload.store_url = formData.storeUrl || null;
+        payload.tech_stack = formData.techStack || null;
+        payload.notes = formData.notes || null;
+      }
+
+      console.log('[PROJECT-CREATE] Submitting payload:', payload);
+
+      // Use apiClient which automatically gets token from localStorage
+      const result = await apiClient.post('/api/posts', payload);
+
+      alert('投稿が作成されました!');
+      router.push('/apps');
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '不明なエラー';
+
+      // 401エラーの場合はログインページにリダイレクト
+      if (errorMessage.includes('401') || errorMessage.includes('Unauthorized')) {
+        alert('セッションが無効です。再度ログインしてください。');
+        router.push('/login');
+      } else {
+        alert(`投稿の作成中にエラーが発生しました: ${errorMessage}`);
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const totalSteps = 7;
+  const progress = (currentStep / totalSteps) * 100;
+
+  return (
+    <div className="min-h-screen" style={{ backgroundColor: '#F9F8F7' }}>
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* プログレスバー */}
+        <div className="mb-8">
+          <div className="flex justify-between items-center mb-2">
+            <h1 className="text-2xl font-bold text-gray-900">アプリ投稿を作成</h1>
+            <span className="text-sm text-gray-500">{currentStep} / {totalSteps}</span>
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-2">
+            <div
+              className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+              style={{ width: `${progress}%` }}
+            ></div>
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* ステップ1: アプリ名 */}
+          <div className="bg-white rounded-lg p-6">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <span className="text-blue-600 font-bold text-lg">1</span>
+              </div>
+              <div className="flex-1">
+                <h2 className="text-xl font-bold text-gray-900 mb-2">
+                  投稿タイトル
+                </h2>
+                <p className="text-sm text-gray-600 mb-4">
+                  アプリの名前や簡潔なタイトルを入力してください
+                </p>
+                <input
+                  type="text"
+                  value={formData.title}
+                  onChange={(e) => {
+                    setFormData({ ...formData, title: e.target.value });
+                    if (currentStep === 1 && e.target.value) setCurrentStep(2);
+                  }}
+                  placeholder="例: タスク管理アプリ「TaskMaster」"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  required
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* ステップ2: アプリ名 (詳細) */}
+          <div className="bg-white rounded-lg p-6">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <span className="text-blue-600 font-bold text-lg">2</span>
+              </div>
+              <div className="flex-1">
+                <h2 className="text-xl font-bold text-gray-900 mb-2">
+                  アプリ名
+                </h2>
+                <p className="text-sm text-gray-600 mb-4">
+                  アプリの正式名称を入力してください
+                </p>
+                <input
+                  type="text"
+                  value={formData.appName}
+                  onChange={(e) => {
+                    setFormData({ ...formData, appName: e.target.value });
+                    if (currentStep === 2 && e.target.value) setCurrentStep(3);
+                  }}
+                  placeholder="例: TaskMaster Pro"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  required
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* ステップ3: カテゴリ選択 */}
+          <div className="bg-white rounded-lg p-6">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <span className="text-blue-600 font-bold text-lg">3</span>
+              </div>
+              <div className="flex-1">
+                <h2 className="text-xl font-bold text-gray-900 mb-2">
+                  アプリカテゴリー
+                </h2>
+                <p className="text-sm text-gray-600 mb-4">
+                  アプリの主要カテゴリーを選択してください
+                </p>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {categories.map((category) => (
+                    <button
+                      key={category}
+                      type="button"
+                      onClick={() => {
+                        setFormData({ ...formData, appCategory: category });
+                        if (currentStep === 3) setCurrentStep(4);
+                      }}
+                      className={`px-4 py-3 rounded-lg border-2 transition-all ${
+                        formData.appCategory === category
+                          ? 'border-blue-600 bg-blue-50 text-blue-600 font-semibold'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      {category}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ステップ4: カバー画像 */}
+          <div className="bg-white rounded-lg p-6">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <span className="text-blue-600 font-bold text-lg">4</span>
+              </div>
+              <div className="flex-1">
+                <h2 className="text-xl font-bold text-gray-900 mb-2">
+                  カバー画像
+                </h2>
+                <p className="text-sm text-gray-600 mb-4">
+                  アプリのスクリーンショットやアイコンをアップロードしてください
+                </p>
+
+                {previewImage && (
+                  <div className="mb-4 relative aspect-video rounded-lg overflow-hidden bg-gray-100">
+                    <Image
+                      src={previewImage}
+                      alt="Preview"
+                      fill
+                      className="object-cover"
+                    />
+                  </div>
+                )}
+
+                <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer hover:bg-blue-50/50 transition-colors">
+                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                    <svg className="w-10 h-10 mb-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                    </svg>
+                    <p className="mb-2 text-sm text-gray-500">
+                      <span className="font-semibold">クリックしてアップロード</span>
+                    </p>
+                  </div>
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept="image/*"
+                    onChange={(e) => {
+                      handleImageUpload(e);
+                      if (currentStep === 4) setCurrentStep(5);
+                    }}
+                  />
+                </label>
+              </div>
+            </div>
+          </div>
+
+          {/* ステップ5: 詳細説明 */}
+          <div className="bg-white rounded-lg p-6">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <span className="text-blue-600 font-bold text-lg">5</span>
+              </div>
+              <div className="flex-1">
+                <h2 className="text-xl font-bold text-gray-900 mb-2">
+                  アプリの説明
+                </h2>
+                <p className="text-sm text-gray-600 mb-4">
+                  アプリの機能、特徴、強みなどを詳しく説明してください
+                </p>
+                <textarea
+                  value={formData.body}
+                  onChange={(e) => {
+                    setFormData({ ...formData, body: e.target.value });
+                    if (currentStep === 5 && e.target.value) setCurrentStep(6);
+                  }}
+                  placeholder="アプリの機能、特徴、ユーザーベース、売却理由などを記載してください..."
+                  rows={6}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                  required
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* ステップ6: 財務情報 */}
+          <div className="bg-white rounded-lg p-6">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <span className="text-blue-600 font-bold text-lg">6</span>
+              </div>
+              <div className="flex-1">
+                <h2 className="text-xl font-bold text-gray-900 mb-2">
+                  財務情報・ユーザー数
+                </h2>
+                <p className="text-sm text-gray-600 mb-4">
+                  アプリの財務情報とユーザー数を入力してください
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      月間売上
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.monthlyRevenue}
+                      onChange={(e) => {
+                        setFormData({ ...formData, monthlyRevenue: e.target.value });
+                        if (currentStep === 6 && e.target.value) setCurrentStep(7);
+                      }}
+                      placeholder="1000000"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      月間利益
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.monthlyProfit}
+                      onChange={(e) => setFormData({ ...formData, monthlyProfit: e.target.value })}
+                      placeholder="500000"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      月間アクティブユーザー (MAU)
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.mau}
+                      onChange={(e) => setFormData({ ...formData, mau: e.target.value })}
+                      placeholder="10000"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      日次アクティブユーザー (DAU)
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.dau}
+                      onChange={(e) => setFormData({ ...formData, dau: e.target.value })}
+                      placeholder="3000"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ステップ7: 価格と技術情報 */}
+          <div className="bg-white rounded-lg p-6">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <span className="text-blue-600 font-bold text-lg">7</span>
+              </div>
+              <div className="flex-1">
+                <h2 className="text-xl font-bold text-gray-900 mb-2">
+                  希望売却価格と技術情報
+                </h2>
+                <p className="text-sm text-gray-600 mb-4">
+                  アプリの売却希望価格と技術スタックを入力してください
+                </p>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      希望売却価格
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.price}
+                      onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                      placeholder="10000000"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      技術スタック
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.techStack}
+                      onChange={(e) => setFormData({ ...formData, techStack: e.target.value })}
+                      placeholder="React, Node.js, PostgreSQL"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      ストアURL
+                    </label>
+                    <input
+                      type="url"
+                      value={formData.storeUrl}
+                      onChange={(e) => setFormData({ ...formData, storeUrl: e.target.value })}
+                      placeholder="https://apps.apple.com/..."
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      備考
+                    </label>
+                    <textarea
+                      value={formData.notes}
+                      onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                      placeholder="その他の補足情報があれば記載してください..."
+                      rows={4}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* 送信ボタン */}
+          <div className="flex gap-4 justify-end pt-6">
+            <button
+              type="button"
+              onClick={() => router.push('/')}
+              className="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 font-semibold hover:bg-blue-50/50 transition-colors"
+              disabled={isSubmitting}
+            >
+              キャンセル
+            </button>
+            <button
+              type="submit"
+              disabled={!formData.title || !formData.appName || !formData.body || !formData.price || isSubmitting}
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+            >
+              {uploadingImage ? '画像をアップロード中...' : isSubmitting ? '投稿中...' : 'アプリを投稿'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
