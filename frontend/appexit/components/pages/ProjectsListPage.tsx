@@ -16,7 +16,7 @@ interface ProjectWithImage {
   amountRaised: number;
   tag?: string;
   badge?: string;
-  authorProfile?: AuthorProfile;
+  authorProfile?: AuthorProfile | null;
 }
 
 type PostType = 'all' | 'board' | 'transaction' | 'secret';

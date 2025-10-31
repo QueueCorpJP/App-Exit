@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Button from '@/components/ui/Button'
 import { supabase } from '@/lib/supabase'
+import { getCookie } from '@/utils/auth'
 
 export default function UserTypeSelectionPage() {
   const [role, setRole] = useState<'buyer' | 'seller' | null>(null)

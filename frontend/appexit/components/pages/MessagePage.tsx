@@ -190,16 +190,24 @@ export default function MessagePage({ threadId }: MessagePageProps) {
             participant_ids: [threadId],
           });
 
-          if (!createResponse.success || !createResponse.data) {
-            throw new Error(createResponse.error || 'スレッドの作成に失敗しました');
+          if (!createResponse.success) {
+            throw new Error('スレッドの作成に失敗しました');
+          }
+
+          if (!createResponse.data) {
+            throw new Error('スレッドデータの取得に失敗しました');
           }
 
           console.log('Thread created successfully:', createResponse.data.id);
 
           // 作成したスレッドの詳細を取得
           const threadDetailResponse = await messageApi.getThread(createResponse.data.id);
-          if (!threadDetailResponse.success || !threadDetailResponse.data) {
+          if (!threadDetailResponse.success) {
             throw new Error('スレッド詳細の取得に失敗しました');
+          }
+
+          if (!threadDetailResponse.data) {
+            throw new Error('スレッド詳細データの取得に失敗しました');
           }
 
           const newThread: ThreadWithLastMessage = {

@@ -8,7 +8,7 @@ import StorageImage from './StorageImage';
 interface AuthorProfile {
   id: string;
   display_name: string;
-  icon_url?: string;
+  icon_url?: string | null;
   role: string;
   party: string;
 }
@@ -25,7 +25,7 @@ interface ProjectCardProps {
   tag?: string;
   badge?: string;
   size?: 'small' | 'large';
-  authorProfile?: AuthorProfile;
+  authorProfile?: AuthorProfile | null;
 }
 
 export default function ProjectCard({

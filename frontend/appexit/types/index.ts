@@ -120,6 +120,7 @@ export interface Transaction {
 
 // API レスポンス型
 export interface ApiResponse<T> {
+  success: boolean;
   data?: T;
   error?: string;
   message?: string;

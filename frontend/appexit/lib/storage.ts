@@ -96,7 +96,7 @@ export async function getImageUrls(
     console.log(`[STORAGE] Batch response:`, data);
 
     data.forEach((item) => {
-      if (item.signedUrl) {
+      if (item.signedUrl && item.path) {
         console.log(`[STORAGE] ✓ Generated URL for: ${item.path}`);
         urlMap.set(item.path, item.signedUrl);
       } else {

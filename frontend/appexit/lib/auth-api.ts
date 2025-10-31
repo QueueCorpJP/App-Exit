@@ -24,12 +24,12 @@ export interface Profile {
   role: string;
   party: string;
   display_name: string;
-  age?: number;
-  icon_url?: string;
+  age?: number | null;
+  icon_url?: string | null;
   nda_flag?: boolean;
-  terms_accepted_at?: string;
-  privacy_accepted_at?: string;
-  stripe_customer_id?: string;
+  terms_accepted_at?: string | null;
+  privacy_accepted_at?: string | null;
+  stripe_customer_id?: string | null;
   created_at?: string;
   updated_at?: string;
 }
