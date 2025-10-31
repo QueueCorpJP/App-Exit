@@ -1,16 +1,15 @@
 package handlers
 
 import (
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
 
-	"github.com/supabase-community/supabase-go"
 	"github.com/yourusername/appexit-backend/internal/models"
 	"github.com/yourusername/appexit-backend/internal/utils"
+	"github.com/yourusername/appexit-backend/pkg/response"
 )
 
 // HandlePosts handles GET (list) and POST (create) for posts
@@ -47,9 +46,13 @@ func (s *Server) HandlePostByID(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// ListPosts retrieves a list of posts with optional filters
+// ListPosts retrieves a list of posts with optional filters using Supabase
 func (s *Server) ListPosts(w http.ResponseWriter, r *http.Request) {
-	query := r.URL.Query()
+	fmt.Printf("\n========== LIST POSTS START ==========\n")
+	fmt.Printf("[GET /api/posts] Request received from %s\n", r.RemoteAddr)
+	fmt.Printf("[GET /api/posts] Query params: %v\n", r.URL.Query())
+	
+	urlQuery := r.URL.Query()
 
 	// Build query parameters
 	params := models.PostQueryParams{
@@ -57,152 +60,193 @@ func (s *Server) ListPosts(w http.ResponseWriter, r *http.Request) {
 		Offset: 0,
 	}
 
-	if postType := query.Get("type"); postType != "" {
+	if postType := urlQuery.Get("type"); postType != "" {
 		pt := models.PostType(postType)
 		params.Type = &pt
 	}
-	if authorUserID := query.Get("author_user_id"); authorUserID != "" {
+	if authorUserID := urlQuery.Get("author_user_id"); authorUserID != "" {
 		params.AuthorUserID = &authorUserID
 	}
-	if authorOrgID := query.Get("author_org_id"); authorOrgID != "" {
+	if authorOrgID := urlQuery.Get("author_org_id"); authorOrgID != "" {
 		params.AuthorOrgID = &authorOrgID
 	}
-	if isActiveStr := query.Get("is_active"); isActiveStr != "" {
+	// Default to active posts only if not specified
+	if isActiveStr := urlQuery.Get("is_active"); isActiveStr != "" {
 		isActive := isActiveStr == "true"
 		params.IsActive = &isActive
+	} else {
+		// Default to active posts only
+		isActive := true
+		params.IsActive = &isActive
 	}
-	if limitStr := query.Get("limit"); limitStr != "" {
+	if limitStr := urlQuery.Get("limit"); limitStr != "" {
 		if limit, err := strconv.Atoi(limitStr); err == nil && limit > 0 {
 			params.Limit = limit
 		}
 	}
-	if offsetStr := query.Get("offset"); offsetStr != "" {
+	if offsetStr := urlQuery.Get("offset"); offsetStr != "" {
 		if offset, err := strconv.Atoi(offsetStr); err == nil && offset >= 0 {
 			params.Offset = offset
 		}
 	}
 
-	// Build SQL query
-	sqlQuery := `SELECT id, author_user_id, author_org_id, type, title, body,
-	                   cover_image_url, budget_min, budget_max, price,
-	                   secret_visibility, is_active, created_at, updated_at
-	            FROM posts WHERE 1=1`
-	args := []interface{}{}
-	argIdx := 1
+	// Use Supabase service client for querying posts
+	client := s.supabase.GetServiceClient()
+	query := client.From("posts").
+		Select("*", "", false).
+		Order("created_at", nil)
 
+	// Apply filters
 	if params.Type != nil {
-		sqlQuery += fmt.Sprintf(" AND type = $%d", argIdx)
-		args = append(args, *params.Type)
-		argIdx++
+		query = query.Eq("type", string(*params.Type))
 	}
 	if params.AuthorUserID != nil {
-		sqlQuery += fmt.Sprintf(" AND author_user_id = $%d", argIdx)
-		args = append(args, *params.AuthorUserID)
-		argIdx++
+		query = query.Eq("author_user_id", *params.AuthorUserID)
 	}
 	if params.AuthorOrgID != nil {
-		sqlQuery += fmt.Sprintf(" AND author_org_id = $%d", argIdx)
-		args = append(args, *params.AuthorOrgID)
-		argIdx++
+		query = query.Eq("author_org_id", *params.AuthorOrgID)
 	}
 	if params.IsActive != nil {
-		sqlQuery += fmt.Sprintf(" AND is_active = $%d", argIdx)
-		args = append(args, *params.IsActive)
-		argIdx++
+		isActiveStr := "false"
+		if *params.IsActive {
+			isActiveStr = "true"
+		}
+		query = query.Eq("is_active", isActiveStr)
 	}
 
-	sqlQuery += " ORDER BY created_at DESC"
-	sqlQuery += fmt.Sprintf(" LIMIT $%d OFFSET $%d", argIdx, argIdx+1)
-	args = append(args, params.Limit, params.Offset)
+	// Apply pagination
+	query = query.Range(params.Offset, params.Offset+params.Limit-1, "")
 
-	rows, err := s.db.Query(sqlQuery, args...)
+	// Execute query
+	var postsData []models.Post
+	_, err := query.ExecuteTo(&postsData)
 	if err != nil {
-		http.Error(w, "Failed to query posts", http.StatusInternalServerError)
+		fmt.Printf("[ListPosts] ERROR: Failed to query posts: %v\n", err)
+		response.Success(w, http.StatusOK, []models.PostWithDetails{})
 		return
 	}
-	defer rows.Close()
 
-	posts := []models.Post{}
-	for rows.Next() {
-		var post models.Post
-		err := rows.Scan(
-			&post.ID, &post.AuthorUserID, &post.AuthorOrgID, &post.Type,
-			&post.Title, &post.Body, &post.CoverImageURL,
-			&post.BudgetMin, &post.BudgetMax, &post.Price,
-			&post.SecretVisibility, &post.IsActive,
-			&post.CreatedAt, &post.UpdatedAt,
-		)
-		if err != nil {
-			http.Error(w, "Failed to scan post", http.StatusInternalServerError)
-			return
-		}
-		posts = append(posts, post)
+	// Get all unique author user IDs
+	authorIDs := make(map[string]bool)
+	for _, post := range postsData {
+		authorIDs[post.AuthorUserID] = true
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(posts)
+	// Fetch profiles for all authors
+	profilesMap := make(map[string]*models.AuthorProfile)
+	if len(authorIDs) > 0 {
+		ids := make([]string, 0, len(authorIDs))
+		for id := range authorIDs {
+			ids = append(ids, id)
+		}
+
+		var profiles []models.AuthorProfile
+		_, err := client.From("profiles").
+			Select("id, display_name, icon_url, role, party", "", false).
+			In("id", ids).
+			ExecuteTo(&profiles)
+
+		if err != nil {
+			fmt.Printf("[ListPosts] WARNING: Failed to query profiles: %v\n", err)
+		} else {
+			for i := range profiles {
+				profilesMap[profiles[i].ID] = &profiles[i]
+			}
+		}
+	}
+
+	// Transform to PostWithDetails
+	result := make([]models.PostWithDetails, 0, len(postsData))
+	for _, post := range postsData {
+		result = append(result, models.PostWithDetails{
+			Post:          post,
+			AuthorProfile: profilesMap[post.AuthorUserID],
+		})
+	}
+
+	// 空の配列でも正常に返す
+	if result == nil {
+		result = []models.PostWithDetails{}
+	}
+	response.Success(w, http.StatusOK, result)
 }
 
 // GetPost retrieves a single post by ID with details using Supabase
 func (s *Server) GetPost(w http.ResponseWriter, r *http.Request, postID string) {
-	// Try to get user token if available (for RLS)
-	authHeader := r.Header.Get("Authorization")
-	userToken := strings.TrimPrefix(authHeader, "Bearer ")
+	fmt.Printf("[GET /api/posts/%s] Querying post from Supabase...\n", postID)
 
-	var client *supabase.Client
-	var err error
-	if userToken != "" {
-		client, err = s.supabase.GetClientWithToken(s.config, userToken)
-		if err != nil {
-			client = s.supabase.GetAnonClient()
-		}
-	} else {
-		client = s.supabase.GetAnonClient()
-	}
+	// Use Supabase service client for querying post
+	client := s.supabase.GetServiceClient()
+	var postsData []models.Post
 
-	// Get post
-	fmt.Printf("[GET /api/posts/%s] Querying post from database...\n", postID)
-	var post models.Post
-	_, err = client.From("posts").
+	_, err := client.From("posts").
 		Select("*", "", false).
 		Eq("id", postID).
-		Single().
-		ExecuteTo(&post)
+		Limit(1, "").
+		ExecuteTo(&postsData)
 
 	if err != nil {
 		fmt.Printf("[GET /api/posts/%s] ❌ ERROR: Failed to query post: %v\n", postID, err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	if len(postsData) == 0 {
+		fmt.Printf("[GET /api/posts/%s] ❌ ERROR: Post not found\n", postID)
 		http.Error(w, "Post not found", http.StatusNotFound)
 		return
 	}
 
+	post := postsData[0]
 	fmt.Printf("[GET /api/posts/%s] ✓ Post found: %s\n", postID, post.Title)
+
+	// Fetch author profile
+	var authorProfilePtr *models.AuthorProfile
+	var profiles []models.AuthorProfile
+	_, err = client.From("profiles").
+		Select("id, display_name, icon_url, role, party", "", false).
+		Eq("id", post.AuthorUserID).
+		Limit(1, "").
+		ExecuteTo(&profiles)
+
+	if err != nil {
+		fmt.Printf("[GET /api/posts/%s] ⚠️ Warning: Failed to query author profile: %v\n", postID, err)
+	} else if len(profiles) > 0 {
+		authorProfilePtr = &profiles[0]
+		fmt.Printf("[GET /api/posts/%s] ✓ Author profile found: %s\n", postID, authorProfilePtr.DisplayName)
+	} else {
+		fmt.Printf("[GET /api/posts/%s] ⚠️ Warning: Author profile not found\n", postID)
+	}
 
 	// Get post details if it's a transaction or secret post
 	var details *models.PostDetail
 	if post.Type == models.PostTypeTransaction || post.Type == models.PostTypeSecret {
 		fmt.Printf("[GET /api/posts/%s] Querying post details...\n", postID)
-		var postDetail models.PostDetail
+
+		var postDetails []models.PostDetail
 		_, err := client.From("post_details").
 			Select("*", "", false).
 			Eq("post_id", postID).
-			Single().
-			ExecuteTo(&postDetail)
+			Limit(1, "").
+			ExecuteTo(&postDetails)
 
 		if err != nil {
 			fmt.Printf("[GET /api/posts/%s] ⚠️ Warning: Failed to query post details: %v\n", postID, err)
-			// Continue without details
-		} else {
-			details = &postDetail
+		} else if len(postDetails) > 0 {
+			details = &postDetails[0]
 			fmt.Printf("[GET /api/posts/%s] ✓ Post details found\n", postID)
+		} else {
+			fmt.Printf("[GET /api/posts/%s] ⚠️ Warning: Post details not found\n", postID)
 		}
 	}
 
 	response := models.PostWithDetails{
-		Post:    post,
-		Details: details,
+		Post:          post,
+		Details:       details,
+		AuthorProfile: authorProfilePtr,
 	}
 
-	fmt.Printf("[GET /api/posts/%s] ✅ Returning post with details\n", postID)
+	fmt.Printf("[GET /api/posts/%s] ✅ Returning post with details and author profile\n", postID)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(response)
@@ -368,16 +412,49 @@ func (s *Server) CreatePost(w http.ResponseWriter, r *http.Request) {
 
 	// Retrieve the created post with details
 	fmt.Printf("[POST /api/posts] Retrieving created post with ID: %s\n", postID)
-	s.GetPost(w, r, postID)
+	
+	// Get post details if it's a transaction or secret post
+	var details *models.PostDetail
+	if req.Type == models.PostTypeTransaction || req.Type == models.PostTypeSecret {
+		fmt.Printf("[POST /api/posts] Querying post details...\n")
+		var postDetails []models.PostDetail
+		_, err := impersonateClient.From("post_details").
+			Select("*", "", false).
+			Eq("post_id", postID).
+			Limit(1, "").
+			ExecuteTo(&postDetails)
+
+		if err != nil {
+			fmt.Printf("[POST /api/posts] ⚠️ Warning: Failed to query post details: %v\n", err)
+		} else if len(postDetails) > 0 {
+			details = &postDetails[0]
+			fmt.Printf("[POST /api/posts] ✓ Post details found\n")
+		}
+	}
+
+	response := models.PostWithDetails{
+		Post:    createdPosts[0],
+		Details: details,
+	}
+
 	fmt.Printf("[POST /api/posts] ✅ CreatePost completed successfully\n")
 	fmt.Printf("========== CREATE POST END (SUCCESS) ==========\n\n")
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(response)
 }
 
-// UpdatePost updates an existing post
+// UpdatePost updates an existing post using Supabase
 func (s *Server) UpdatePost(w http.ResponseWriter, r *http.Request, postID string) {
-	// Get user ID from context
+	// Get user ID and impersonate JWT from context
 	userID, ok := r.Context().Value("user_id").(string)
 	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	impersonateJWT, ok := r.Context().Value("impersonate_jwt").(string)
+	if !ok || impersonateJWT == "" {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
@@ -394,85 +471,70 @@ func (s *Server) UpdatePost(w http.ResponseWriter, r *http.Request, postID strin
 		return
 	}
 
-	// Check if post exists and user is the author
-	var authorUserID string
-	var postType models.PostType
-	err := s.db.QueryRow(`
-		SELECT author_user_id, type FROM posts WHERE id = $1
-	`, postID).Scan(&authorUserID, &postType)
+	// Use impersonate client (RLS will check permissions automatically)
+	client := s.supabase.GetAuthenticatedClient(impersonateJWT)
 
-	if err == sql.ErrNoRows {
-		http.Error(w, "Post not found", http.StatusNotFound)
-		return
+	// Check if post exists and get its type
+	type PostInfo struct {
+		AuthorUserID string           `json:"author_user_id"`
+		Type         models.PostType  `json:"type"`
 	}
+	var postsInfo []PostInfo
+	_, err := client.From("posts").
+		Select("author_user_id, type", "", false).
+		Eq("id", postID).
+		Limit(1, "").
+		ExecuteTo(&postsInfo)
+
 	if err != nil {
 		http.Error(w, "Failed to query post", http.StatusInternalServerError)
 		return
 	}
-	if authorUserID != userID {
+	if len(postsInfo) == 0 {
+		http.Error(w, "Post not found", http.StatusNotFound)
+		return
+	}
+	if postsInfo[0].AuthorUserID != userID {
 		http.Error(w, "Forbidden: You are not the author of this post", http.StatusForbidden)
 		return
 	}
 
-	// Start transaction
-	tx, err := s.db.Begin()
-	if err != nil {
-		http.Error(w, "Failed to start transaction", http.StatusInternalServerError)
-		return
-	}
-	defer tx.Rollback()
+	postType := postsInfo[0].Type
 
-	// Build update query dynamically
-	updates := []string{}
-	args := []interface{}{}
-	argIdx := 1
-
+	// Build update data for posts table
+	postUpdateData := map[string]interface{}{}
 	if req.Title != nil {
-		updates = append(updates, fmt.Sprintf("title = $%d", argIdx))
-		args = append(args, *req.Title)
-		argIdx++
+		postUpdateData["title"] = *req.Title
 	}
 	if req.Body != nil {
-		updates = append(updates, fmt.Sprintf("body = $%d", argIdx))
-		args = append(args, *req.Body)
-		argIdx++
+		postUpdateData["body"] = *req.Body
 	}
 	if req.CoverImageURL != nil {
-		updates = append(updates, fmt.Sprintf("cover_image_url = $%d", argIdx))
-		args = append(args, *req.CoverImageURL)
-		argIdx++
+		postUpdateData["cover_image_url"] = *req.CoverImageURL
 	}
 	if req.BudgetMin != nil {
-		updates = append(updates, fmt.Sprintf("budget_min = $%d", argIdx))
-		args = append(args, *req.BudgetMin)
-		argIdx++
+		postUpdateData["budget_min"] = *req.BudgetMin
 	}
 	if req.BudgetMax != nil {
-		updates = append(updates, fmt.Sprintf("budget_max = $%d", argIdx))
-		args = append(args, *req.BudgetMax)
-		argIdx++
+		postUpdateData["budget_max"] = *req.BudgetMax
 	}
 	if req.Price != nil {
-		updates = append(updates, fmt.Sprintf("price = $%d", argIdx))
-		args = append(args, *req.Price)
-		argIdx++
+		postUpdateData["price"] = *req.Price
 	}
 	if req.SecretVisibility != nil {
-		updates = append(updates, fmt.Sprintf("secret_visibility = $%d", argIdx))
-		args = append(args, *req.SecretVisibility)
-		argIdx++
+		postUpdateData["secret_visibility"] = *req.SecretVisibility
 	}
 	if req.IsActive != nil {
-		updates = append(updates, fmt.Sprintf("is_active = $%d", argIdx))
-		args = append(args, *req.IsActive)
-		argIdx++
+		postUpdateData["is_active"] = *req.IsActive
 	}
 
-	if len(updates) > 0 {
-		updates = append(updates, "updated_at = NOW()")
-		args = append(args, postID)
-		query := fmt.Sprintf("UPDATE posts SET %s WHERE id = $%d", strings.Join(updates, ", "), argIdx)
-		_, err = tx.Exec(query, args...)
+	// Update post if there are changes
+	if len(postUpdateData) > 0 {
+		_, _, err = client.From("posts").
+			Update(postUpdateData, "", "").
+			Eq("id", postID).
+			Execute()
+
 		if err != nil {
 			http.Error(w, "Failed to update post", http.StatusInternalServerError)
 			return
@@ -481,61 +543,41 @@ func (s *Server) UpdatePost(w http.ResponseWriter, r *http.Request, postID strin
 
 	// Update post details if it's a transaction or secret post
 	if postType == models.PostTypeTransaction || postType == models.PostTypeSecret {
-		detailUpdates := []string{}
-		detailArgs := []interface{}{}
-		detailArgIdx := 1
-
+		detailUpdateData := map[string]interface{}{}
 		if req.AppName != nil {
-			detailUpdates = append(detailUpdates, fmt.Sprintf("app_name = $%d", detailArgIdx))
-			detailArgs = append(detailArgs, *req.AppName)
-			detailArgIdx++
+			detailUpdateData["app_name"] = *req.AppName
 		}
 		if req.AppCategory != nil {
-			detailUpdates = append(detailUpdates, fmt.Sprintf("app_category = $%d", detailArgIdx))
-			detailArgs = append(detailArgs, *req.AppCategory)
-			detailArgIdx++
+			detailUpdateData["app_category"] = *req.AppCategory
 		}
 		if req.MonthlyRevenue != nil {
-			detailUpdates = append(detailUpdates, fmt.Sprintf("monthly_revenue = $%d", detailArgIdx))
-			detailArgs = append(detailArgs, *req.MonthlyRevenue)
-			detailArgIdx++
+			detailUpdateData["monthly_revenue"] = *req.MonthlyRevenue
 		}
 		if req.MonthlyProfit != nil {
-			detailUpdates = append(detailUpdates, fmt.Sprintf("monthly_profit = $%d", detailArgIdx))
-			detailArgs = append(detailArgs, *req.MonthlyProfit)
-			detailArgIdx++
+			detailUpdateData["monthly_profit"] = *req.MonthlyProfit
 		}
 		if req.MAU != nil {
-			detailUpdates = append(detailUpdates, fmt.Sprintf("mau = $%d", detailArgIdx))
-			detailArgs = append(detailArgs, *req.MAU)
-			detailArgIdx++
+			detailUpdateData["mau"] = *req.MAU
 		}
 		if req.DAU != nil {
-			detailUpdates = append(detailUpdates, fmt.Sprintf("dau = $%d", detailArgIdx))
-			detailArgs = append(detailArgs, *req.DAU)
-			detailArgIdx++
+			detailUpdateData["dau"] = *req.DAU
 		}
 		if req.StoreURL != nil {
-			detailUpdates = append(detailUpdates, fmt.Sprintf("store_url = $%d", detailArgIdx))
-			detailArgs = append(detailArgs, *req.StoreURL)
-			detailArgIdx++
+			detailUpdateData["store_url"] = *req.StoreURL
 		}
 		if req.TechStack != nil {
-			detailUpdates = append(detailUpdates, fmt.Sprintf("tech_stack = $%d", detailArgIdx))
-			detailArgs = append(detailArgs, *req.TechStack)
-			detailArgIdx++
+			detailUpdateData["tech_stack"] = *req.TechStack
 		}
 		if req.Notes != nil {
-			detailUpdates = append(detailUpdates, fmt.Sprintf("notes = $%d", detailArgIdx))
-			detailArgs = append(detailArgs, *req.Notes)
-			detailArgIdx++
+			detailUpdateData["notes"] = *req.Notes
 		}
 
-		if len(detailUpdates) > 0 {
-			detailArgs = append(detailArgs, postID)
-			detailQuery := fmt.Sprintf("UPDATE post_details SET %s WHERE post_id = $%d",
-				strings.Join(detailUpdates, ", "), detailArgIdx)
-			_, err = tx.Exec(detailQuery, detailArgs...)
+		if len(detailUpdateData) > 0 {
+			_, _, err = client.From("post_details").
+				Update(detailUpdateData, "", "").
+				Eq("post_id", postID).
+				Execute()
+
 			if err != nil {
 				http.Error(w, "Failed to update post details", http.StatusInternalServerError)
 				return
@@ -543,48 +585,60 @@ func (s *Server) UpdatePost(w http.ResponseWriter, r *http.Request, postID strin
 		}
 	}
 
-	// Commit transaction
-	if err := tx.Commit(); err != nil {
-		http.Error(w, "Failed to commit transaction", http.StatusInternalServerError)
-		return
-	}
-
 	// Return updated post
 	s.GetPost(w, r, postID)
 }
 
-// DeletePost deletes a post (soft delete by setting is_active to false)
+// DeletePost deletes a post (soft delete by setting is_active to false) using Supabase
 func (s *Server) DeletePost(w http.ResponseWriter, r *http.Request, postID string) {
-	// Get user ID from context
+	// Get user ID and impersonate JWT from context
 	userID, ok := r.Context().Value("user_id").(string)
 	if !ok {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 
-	// Check if post exists and user is the author
-	var authorUserID string
-	err := s.db.QueryRow(`
-		SELECT author_user_id FROM posts WHERE id = $1
-	`, postID).Scan(&authorUserID)
-
-	if err == sql.ErrNoRows {
-		http.Error(w, "Post not found", http.StatusNotFound)
+	impersonateJWT, ok := r.Context().Value("impersonate_jwt").(string)
+	if !ok || impersonateJWT == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
+
+	// Use impersonate client (RLS will check permissions automatically)
+	client := s.supabase.GetAuthenticatedClient(impersonateJWT)
+
+	// Check if post exists and user is the author
+	type PostInfo struct {
+		AuthorUserID string `json:"author_user_id"`
+	}
+	var postsInfo []PostInfo
+	_, err := client.From("posts").
+		Select("author_user_id", "", false).
+		Eq("id", postID).
+		Limit(1, "").
+		ExecuteTo(&postsInfo)
+
 	if err != nil {
 		http.Error(w, "Failed to query post", http.StatusInternalServerError)
 		return
 	}
-	if authorUserID != userID {
+	if len(postsInfo) == 0 {
+		http.Error(w, "Post not found", http.StatusNotFound)
+		return
+	}
+	if postsInfo[0].AuthorUserID != userID {
 		http.Error(w, "Forbidden: You are not the author of this post", http.StatusForbidden)
 		return
 	}
 
 	// Soft delete by setting is_active to false
-	_, err = s.db.Exec(`
-		UPDATE posts SET is_active = false, updated_at = NOW() WHERE id = $1
-	`, postID)
+	updateData := map[string]interface{}{
+		"is_active": false,
+	}
+	_, _, err = client.From("posts").
+		Update(updateData, "", "").
+		Eq("id", postID).
+		Execute()
 
 	if err != nil {
 		http.Error(w, "Failed to delete post", http.StatusInternalServerError)

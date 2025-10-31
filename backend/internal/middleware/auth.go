@@ -31,16 +31,42 @@ func AuthWithSupabase(supabaseJWTSecret string, supabaseService *services.Supaba
 		return func(w http.ResponseWriter, r *http.Request) {
 			fmt.Printf("\n========== AUTH MIDDLEWARE START ==========\n")
 			fmt.Printf("[AUTH] Request: %s %s\n", r.Method, r.URL.Path)
+			fmt.Printf("[AUTH] Request URL: %s\n", r.URL.String())
+			fmt.Printf("[AUTH] Request URI: %s\n", r.RequestURI)
 			fmt.Printf("[AUTH] Remote Addr: %s\n", r.RemoteAddr)
-			fmt.Printf("[AUTH] Headers: %v\n", r.Header)
+			fmt.Printf("[AUTH] Host: %s\n", r.Host)
+			fmt.Printf("[AUTH] Referer: %s\n", r.Header.Get("Referer"))
+			fmt.Printf("[AUTH] Origin: %s\n", r.Header.Get("Origin"))
+			fmt.Printf("[AUTH] User-Agent: %s\n", r.Header.Get("User-Agent"))
+			fmt.Printf("[AUTH] All Headers:\n")
+			for key, values := range r.Header {
+				for _, value := range values {
+					if key == "Authorization" {
+						if len(value) > 20 {
+							fmt.Printf("[AUTH]   %s: %s...\n", key, value[:20])
+						} else {
+							fmt.Printf("[AUTH]   %s: %s\n", key, value)
+						}
+					} else {
+						fmt.Printf("[AUTH]   %s: %s\n", key, value)
+					}
+				}
+			}
 
 			// Authorizationヘッダーからトークンを取得
 			// 統一戦略: Authorizationヘッダーのみを使用（Cookieは使用しない）
+			fmt.Printf("[AUTH] Checking for Authorization header...\n")
 			authHeader := r.Header.Get("Authorization")
 			if authHeader == "" {
 				fmt.Printf("[AUTH] ❌ ERROR: Missing Authorization header\n")
+				fmt.Printf("[AUTH] Checking all header keys:\n")
+				for key := range r.Header {
+					fmt.Printf("[AUTH]   - %s\n", key)
+				}
 				fmt.Printf("[AUTH] Available headers: %v\n", r.Header)
-				fmt.Printf("========== AUTH MIDDLEWARE END (FAILED) ==========\n\n")
+				fmt.Printf("[AUTH] Request URL: %s\n", r.URL.String())
+				fmt.Printf("[AUTH] Request Method: %s\n", r.Method)
+				fmt.Printf("========== AUTH MIDDLEWARE END (FAILED - Missing Auth Header) ==========\n\n")
 				response.Error(w, http.StatusUnauthorized, "Missing authentication token")
 				return
 			}

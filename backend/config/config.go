@@ -7,19 +7,17 @@ import (
 )
 
 type Config struct {
-	ServerPort           string
-	DatabaseURL          string
-	Environment          string
-	SupabaseURL          string
-	SupabaseAnonKey      string
-	SupabaseServiceKey   string
-	SupabaseJWTSecret    string
+	ServerPort         string
+	Environment        string
+	SupabaseURL        string
+	SupabaseAnonKey    string
+	SupabaseServiceKey string
+	SupabaseJWTSecret  string
 }
 
 func LoadConfig() *Config {
 	cfg := &Config{
 		ServerPort:         getEnv("PORT", "8080"),
-		DatabaseURL:        getEnv("DATABASE_URL", ""),
 		Environment:        getEnv("ENV", "development"),
 		SupabaseURL:        getEnv("SUPABASE_URL", ""),
 		SupabaseAnonKey:    getEnv("SUPABASE_ANON_KEY", ""),

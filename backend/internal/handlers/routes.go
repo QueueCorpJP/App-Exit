@@ -1,9 +1,9 @@
 package handlers
 
 import (
-	"database/sql"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/yourusername/appexit-backend/config"
 	"github.com/yourusername/appexit-backend/internal/middleware"
@@ -11,27 +11,24 @@ import (
 )
 
 type Server struct {
-	db       *sql.DB
 	config   *config.Config
 	supabase *services.SupabaseService
 }
 
-func NewServer(db *sql.DB, cfg *config.Config) *Server {
+func NewServer(cfg *config.Config) *Server {
 	return &Server{
-		db:       db,
 		config:   cfg,
 		supabase: services.NewSupabaseService(cfg),
 	}
 }
 
-func SetupRoutes(db *sql.DB, cfg *config.Config) http.Handler {
-	server := NewServer(db, cfg)
+func SetupRoutes(cfg *config.Config) http.Handler {
+	server := NewServer(cfg)
 	mux := http.NewServeMux()
 
 	fmt.Println("[ROUTES] Setting up routes...")
 
-	// Create auth middleware with Supabase JWT secret and SupabaseService
-	auth := middleware.AuthWithSupabase(cfg.SupabaseJWTSecret, server.supabase)
+	// Create auth middleware with Supabase JWT secret and SupabaseService (will be recreated as needed)
 
 	// Health check
 	mux.HandleFunc("/health", server.HealthCheck)
@@ -45,18 +42,36 @@ func SetupRoutes(db *sql.DB, cfg *config.Config) http.Handler {
 	mux.HandleFunc("/api/auth/refresh", server.RefreshToken)
 	mux.HandleFunc("/api/auth/profile", server.HandleProfileRoute)
 
-	// User routes (protected)
-	mux.HandleFunc("/api/users", auth(server.GetUsers))
-	mux.HandleFunc("/api/users/", auth(server.GetUserByID))
+	// Create auth middleware with Supabase JWT secret and SupabaseService
+	auth := middleware.AuthWithSupabase(cfg.SupabaseJWTSecret, server.supabase)
+
+	// User routes
+	mux.HandleFunc("/api/users", auth(server.GetUsers))       // List users (protected)
+	mux.HandleFunc("/api/users/", server.HandleUserByIDRoute) // Get user profile by ID (public)
 
 	// Product routes
 	mux.HandleFunc("/api/products", server.HandleProducts)
 	mux.HandleFunc("/api/products/", server.HandleProductByID)
 
 	// Message routes (protected)
-	mux.HandleFunc("/api/threads", auth(server.HandleThreads))
+	fmt.Println("[ROUTES] Registering message routes with auth middleware...")
+	mux.HandleFunc("/api/threads", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Printf("\n========== ROUTER: /api/threads ==========\n")
+		fmt.Printf("[ROUTER] Request received: %s %s\n", r.Method, r.URL.Path)
+		fmt.Printf("[ROUTER] Full URL: %s\n", r.URL.String())
+		fmt.Printf("[ROUTER] Remote Addr: %s\n", r.RemoteAddr)
+		fmt.Printf("[ROUTER] Headers: %v\n", r.Header)
+		fmt.Printf("[ROUTER] Calling auth middleware...\n")
+		auth(server.HandleThreads)(w, r)
+		fmt.Printf("========== ROUTER END ==========\n\n")
+	})
+	fmt.Println("[ROUTES] Registered: /api/threads (with auth)")
 	mux.HandleFunc("/api/threads/", auth(server.HandleThreadByID))
+	fmt.Println("[ROUTES] Registered: /api/threads/ (with auth)")
 	mux.HandleFunc("/api/messages", auth(server.HandleMessages))
+	fmt.Println("[ROUTES] Registered: /api/messages (with auth)")
+	mux.HandleFunc("/api/messages/upload-image", auth(server.UploadMessageImage))
+	fmt.Println("[ROUTES] Registered: /api/messages/upload-image (with auth)")
 
 	// Post routes
 	mux.HandleFunc("/api/posts", server.HandlePostsRoute)
@@ -64,9 +79,18 @@ func SetupRoutes(db *sql.DB, cfg *config.Config) http.Handler {
 	fmt.Println("[ROUTES] Registered: /api/posts")
 	fmt.Println("[ROUTES] Registered: /api/posts/")
 
-	// Apply global middleware
-	handler := middleware.Logger(mux)
+	// Comment routes
+	mux.HandleFunc("/api/comments/", server.HandleCommentRoute)
+	mux.HandleFunc("/api/replies/", auth(server.HandleReplyByID))
+	fmt.Println("[ROUTES] Registered: /api/posts/*/comments (handled by /api/posts/)")
+	fmt.Println("[ROUTES] Registered: /api/comments/*")
+	fmt.Println("[ROUTES] Registered: /api/replies/*")
+	fmt.Println("[ROUTES] Registered: /api/comments/*/likes")
+
+	// Apply global middleware (order matters: Recovery -> CORS -> Logger)
+	handler := middleware.Recovery(mux)
 	handler = middleware.CORS(handler)
+	handler = middleware.Logger(handler)
 
 	fmt.Println("[ROUTES] All routes registered successfully")
 	return handler
@@ -94,6 +118,20 @@ func (s *Server) HandlePostsRoute(w http.ResponseWriter, r *http.Request) {
 
 // HandlePostByIDRoute handles post by ID with conditional auth
 func (s *Server) HandlePostByIDRoute(w http.ResponseWriter, r *http.Request) {
+	// Check if path matches /api/posts/:id/comments
+	parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
+	if len(parts) >= 4 && parts[3] == "comments" {
+		// This is a comment route
+		auth := middleware.AuthWithSupabase(s.config.SupabaseJWTSecret, s.supabase)
+		if r.Method == http.MethodPost {
+			auth(s.HandlePostComments)(w, r)
+		} else {
+			s.HandlePostComments(w, r)
+		}
+		return
+	}
+
+	// Regular post route
 	if r.Method == http.MethodGet {
 		// GET is public
 		s.HandlePostByID(w, r)
@@ -101,6 +139,41 @@ func (s *Server) HandlePostByIDRoute(w http.ResponseWriter, r *http.Request) {
 		// PUT, DELETE require authentication
 		auth := middleware.AuthWithSupabase(s.config.SupabaseJWTSecret, s.supabase)
 		auth(s.HandlePostByID)(w, r)
+	}
+}
+
+
+// HandleCommentRoute handles comment routes
+func (s *Server) HandleCommentRoute(w http.ResponseWriter, r *http.Request) {
+	parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
+	if len(parts) >= 4 {
+		if parts[3] == "replies" {
+			// /api/comments/:id/replies
+			auth := middleware.AuthWithSupabase(s.config.SupabaseJWTSecret, s.supabase)
+			if r.Method == http.MethodPost {
+				auth(s.HandleCommentReplies)(w, r)
+			} else {
+				s.HandleCommentReplies(w, r)
+			}
+		} else if parts[3] == "likes" {
+			// /api/comments/:id/likes
+			auth := middleware.AuthWithSupabase(s.config.SupabaseJWTSecret, s.supabase)
+			if r.Method == http.MethodPost {
+				auth(s.HandleCommentLikes)(w, r)
+			} else {
+				s.HandleCommentLikes(w, r)
+			}
+		} else {
+			http.Error(w, "Invalid path", http.StatusBadRequest)
+		}
+	} else {
+		// /api/comments/:id
+		auth := middleware.AuthWithSupabase(s.config.SupabaseJWTSecret, s.supabase)
+		if r.Method == http.MethodGet {
+			s.HandleCommentByID(w, r)
+		} else {
+			auth(s.HandleCommentByID)(w, r)
+		}
 	}
 }
 

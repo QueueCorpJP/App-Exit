@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/yourusername/appexit-backend/internal/models"
@@ -24,26 +23,53 @@ func (s *Server) GetUsers(w http.ResponseWriter, r *http.Request) {
 	response.Success(w, http.StatusOK, users)
 }
 
+// HandleUserByIDRoute handles user profile by ID (public)
+func (s *Server) HandleUserByIDRoute(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodGet {
+		s.GetUserByID(w, r)
+	} else {
+		response.Error(w, http.StatusMethodNotAllowed, "Method not allowed")
+	}
+}
+
 func (s *Server) GetUserByID(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		response.Error(w, http.StatusMethodNotAllowed, "Method not allowed")
 		return
 	}
 
-	// Extract ID from path
-	idStr := strings.TrimPrefix(r.URL.Path, "/api/users/")
-	id, err := strconv.Atoi(idStr)
-	if err != nil {
+	// Extract user ID from path (same pattern as HandlePostByID)
+	parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
+	if len(parts) < 3 {
+		response.Error(w, http.StatusBadRequest, "Invalid user ID")
+		return
+	}
+	userID := parts[2]
+
+	if userID == "" {
 		response.Error(w, http.StatusBadRequest, "Invalid user ID")
 		return
 	}
 
-	// TODO: Fetch user from database
-	user := models.User{
-		ID:    strconv.Itoa(id),
-		Email: "user@example.com",
-		Name:  "Sample User",
+	if s.supabase == nil {
+		response.Error(w, http.StatusInternalServerError, "Internal server error")
+		return
 	}
 
-	response.Success(w, http.StatusOK, user)
+	// Fetch profile from Supabase using service role key (public read)
+	client := s.supabase.GetServiceClient()
+	if client == nil {
+		response.Error(w, http.StatusInternalServerError, "Internal server error")
+		return
+	}
+
+	var profile models.Profile
+	_, err := client.From("profiles").Select("*", "", false).Eq("id", userID).Single().ExecuteTo(&profile)
+	if err != nil {
+		// プロフィールが存在しない場合は正常なレスポンスとしてnullを返す
+		response.Success(w, http.StatusOK, nil)
+		return
+	}
+
+	response.Success(w, http.StatusOK, profile)
 }

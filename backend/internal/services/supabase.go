@@ -1,12 +1,14 @@
 package services
 
 import (
+	"bytes"
 	"fmt"
 	"sync"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/supabase-community/supabase-go"
+	storage_go "github.com/supabase-community/storage-go"
 	"github.com/yourusername/appexit-backend/config"
 )
 
@@ -143,5 +145,49 @@ func (s *SupabaseService) GetImpersonateClient(userID string) (*supabase.Client,
 	}
 
 	return client, nil
+}
+
+// UploadFile uploads a file to Supabase Storage
+// Returns the file path in storage (not the full URL)
+func (s *SupabaseService) UploadFile(userID string, bucketName string, filePath string, fileData []byte, contentType string) (string, error) {
+	client := s.GetServiceClient()
+
+	// Convert byte slice to io.Reader
+	reader := bytes.NewReader(fileData)
+
+	// Upload file using UploadFile method with FileOptions containing Content-Type
+	options := storage_go.FileOptions{
+		ContentType: &contentType,
+	}
+	_, err := client.Storage.UploadFile(bucketName, filePath, reader, options)
+	if err != nil {
+		return "", fmt.Errorf("failed to upload file: %w", err)
+	}
+
+	return filePath, nil
+}
+
+// GetSignedURL generates a signed URL for accessing a private file
+func (s *SupabaseService) GetSignedURL(bucketName string, filePath string, expiresIn int) (string, error) {
+	client := s.GetServiceClient()
+
+	result, err := client.Storage.CreateSignedUrl(bucketName, filePath, expiresIn)
+	if err != nil {
+		return "", fmt.Errorf("failed to create signed URL: %w", err)
+	}
+
+	return result.SignedURL, nil
+}
+
+// DeleteFile deletes a file from Supabase Storage
+func (s *SupabaseService) DeleteFile(bucketName string, filePath string) error {
+	client := s.GetServiceClient()
+
+	_, err := client.Storage.RemoveFile(bucketName, []string{filePath})
+	if err != nil {
+		return fmt.Errorf("failed to delete file: %w", err)
+	}
+
+	return nil
 }
 

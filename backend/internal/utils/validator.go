@@ -34,14 +34,48 @@ func ValidateStruct(s interface{}) error {
 	switch v := s.(type) {
 	case models.CreateUserRequest:
 		return validateCreateUserRequest(v)
+	case *models.CreateUserRequest:
+		return validateCreateUserRequest(*v)
 	case models.CreateProfileRequest:
 		return validateCreateProfileRequest(v)
+	case *models.CreateProfileRequest:
+		return validateCreateProfileRequest(*v)
 	case models.LoginRequest:
 		return validateLoginRequest(v)
+	case *models.LoginRequest:
+		return validateLoginRequest(*v)
 	case models.CreatePostRequest:
 		return validateCreatePostRequest(v)
+	case *models.CreatePostRequest:
+		return validateCreatePostRequest(*v)
 	case models.UpdatePostRequest:
 		return validateUpdatePostRequest(v)
+	case *models.UpdatePostRequest:
+		return validateUpdatePostRequest(*v)
+	case models.CreateThreadRequest:
+		return validateCreateThreadRequest(v)
+	case *models.CreateThreadRequest:
+		return validateCreateThreadRequest(*v)
+	case models.CreateMessageRequest:
+		return validateCreateMessageRequest(v)
+	case *models.CreateMessageRequest:
+		return validateCreateMessageRequest(*v)
+	case models.CreateCommentRequest:
+		return validateCreateCommentRequest(v)
+	case *models.CreateCommentRequest:
+		return validateCreateCommentRequest(*v)
+	case models.UpdateCommentRequest:
+		return validateUpdateCommentRequest(v)
+	case *models.UpdateCommentRequest:
+		return validateUpdateCommentRequest(*v)
+	case models.CreateReplyRequest:
+		return validateCreateReplyRequest(v)
+	case *models.CreateReplyRequest:
+		return validateCreateReplyRequest(*v)
+	case models.UpdateReplyRequest:
+		return validateUpdateReplyRequest(v)
+	case *models.UpdateReplyRequest:
+		return validateUpdateReplyRequest(*v)
 	default:
 		return fmt.Errorf("validation not implemented for type %T", s)
 	}
@@ -174,6 +208,130 @@ func validateUpdatePostRequest(req models.UpdatePostRequest) error {
 	// Validate budget range if both are provided
 	if req.BudgetMin != nil && req.BudgetMax != nil && *req.BudgetMin > *req.BudgetMax {
 		return fmt.Errorf("budget_min cannot be greater than budget_max")
+	}
+
+	return nil
+}
+
+func validateCreateThreadRequest(req models.CreateThreadRequest) error {
+	// Validate participant_ids is required and not empty
+	if len(req.ParticipantIDs) == 0 {
+		return fmt.Errorf("participant_ids is required and must contain at least one participant")
+	}
+
+	// Validate each participant ID is not empty
+	for i, pid := range req.ParticipantIDs {
+		if pid == "" {
+			return fmt.Errorf("participant_ids[%d] cannot be empty", i)
+		}
+	}
+
+	return nil
+}
+
+func validateCreateMessageRequest(req models.CreateMessageRequest) error {
+	// Validate thread_id is required
+	if err := ValidateRequired("thread_id", req.ThreadID); err != nil {
+		return err
+	}
+
+	// Validate type is required
+	if err := ValidateRequired("type", string(req.Type)); err != nil {
+		return err
+	}
+
+	// Validate message type
+	validTypes := []models.MessageType{
+		models.MessageTypeText,
+		models.MessageTypeImage,
+		models.MessageTypeFile,
+		models.MessageTypeContract,
+		models.MessageTypeNDA,
+	}
+	validType := false
+	for _, t := range validTypes {
+		if req.Type == t {
+			validType = true
+			break
+		}
+	}
+	if !validType {
+		return fmt.Errorf("type must be one of: text, image, file, contract, nda")
+	}
+
+	// Validate text is required for text type messages
+	if req.Type == models.MessageTypeText {
+		if req.Text == nil || *req.Text == "" {
+			return fmt.Errorf("text is required for text type messages")
+		}
+	}
+
+	return nil
+}
+
+func validateCreateCommentRequest(req models.CreateCommentRequest) error {
+	// Validate content is required
+	if err := ValidateRequired("content", req.Content); err != nil {
+		return err
+	}
+
+	// Validate content length (min=1, max=5000)
+	if len(req.Content) < 1 {
+		return fmt.Errorf("content must be at least 1 character long")
+	}
+	if len(req.Content) > 5000 {
+		return fmt.Errorf("content must be at most 5000 characters long")
+	}
+
+	return nil
+}
+
+func validateUpdateCommentRequest(req models.UpdateCommentRequest) error {
+	// Validate content is required
+	if err := ValidateRequired("content", req.Content); err != nil {
+		return err
+	}
+
+	// Validate content length (min=1, max=5000)
+	if len(req.Content) < 1 {
+		return fmt.Errorf("content must be at least 1 character long")
+	}
+	if len(req.Content) > 5000 {
+		return fmt.Errorf("content must be at most 5000 characters long")
+	}
+
+	return nil
+}
+
+func validateCreateReplyRequest(req models.CreateReplyRequest) error {
+	// Validate content is required
+	if err := ValidateRequired("content", req.Content); err != nil {
+		return err
+	}
+
+	// Validate content length (min=1, max=5000)
+	if len(req.Content) < 1 {
+		return fmt.Errorf("content must be at least 1 character long")
+	}
+	if len(req.Content) > 5000 {
+		return fmt.Errorf("content must be at most 5000 characters long")
+	}
+
+	return nil
+}
+
+func validateUpdateReplyRequest(req models.UpdateReplyRequest) error {
+	// Validate content is required
+	if err := ValidateRequired("content", req.Content); err != nil {
+		return err
+	}
+
+	// Validate content length (min=1, max=5000)
+	if len(req.Content) < 1 {
+		return fmt.Errorf("content must be at least 1 character long")
+	}
+	if len(req.Content) > 5000 {
+		return fmt.Errorf("content must be at most 5000 characters long")
 	}
 
 	return nil

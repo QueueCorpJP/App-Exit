@@ -28,6 +28,7 @@ type Message struct {
 	SenderUserID string      `json:"sender_user_id"`
 	Type         MessageType `json:"type"`
 	Text         *string     `json:"text,omitempty"`
+	ImageURL     *string     `json:"image_url,omitempty"`
 	CreatedAt    time.Time   `json:"created_at"`
 }
 
@@ -74,6 +75,7 @@ type MessageWithSender struct {
 	Message
 	SenderName    string  `json:"sender_name"`
 	SenderIconURL *string `json:"sender_icon_url,omitempty"`
+	ImageURL      *string `json:"image_url,omitempty"` // Signed URL for image attachments
 }
 
 // ThreadDetail includes full thread information with participants

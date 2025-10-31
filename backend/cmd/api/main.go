@@ -1,47 +1,39 @@
 package main
 
 import (
-	"database/sql"
 	"log"
 	"net/http"
 	"os"
 
 	"github.com/joho/godotenv"
 	"github.com/yourusername/appexit-backend/config"
-	"github.com/yourusername/appexit-backend/internal/database"
 	"github.com/yourusername/appexit-backend/internal/handlers"
 )
 
 func main() {
+	log.Printf("\n========== SERVER STARTUP ==========\n")
+	log.Printf("[MAIN] Starting server initialization...\n")
+
 	// Load .env file from project root
 	if err := godotenv.Load(".env"); err != nil {
-		log.Println("Warning: .env file not found, using environment variables")
+		log.Println("[MAIN] Warning: .env file not found, using environment variables")
+	} else {
+		log.Println("[MAIN] ✓ .env file loaded successfully")
 	}
 
 	// Load configuration
+	log.Printf("[MAIN] Loading configuration...\n")
 	cfg := config.LoadConfig()
+	log.Printf("[MAIN] ✓ Configuration loaded\n")
+	log.Printf("[MAIN] Server Port: %s\n", cfg.ServerPort)
+	log.Printf("[MAIN] Supabase URL: %s\n", cfg.SupabaseURL)
+	log.Printf("[MAIN] Supabase JWT Secret length: %d\n", len(cfg.SupabaseJWTSecret))
+	log.Printf("[MAIN] Running in Supabase-only mode (no direct PostgreSQL connection)\n")
 
-	var db *sql.DB
-	var err error
-
-	// Initialize database connection only if DATABASE_URL is provided and not using Supabase-only mode
-	if cfg.DatabaseURL != "" && os.Getenv("SUPABASE_ONLY") != "true" {
-		db, err = database.Connect(cfg.DatabaseURL)
-		if err != nil {
-			log.Printf("Warning: Failed to connect to database: %v", err)
-			log.Println("Running in Supabase-only mode")
-			db = nil
-		} else {
-			defer db.Close()
-			log.Println("Database connected successfully")
-		}
-	} else {
-		log.Println("Running in Supabase-only mode")
-		db = nil
-	}
-
-	// Initialize router
-	router := handlers.SetupRoutes(db, cfg)
+	// Initialize router with Supabase service only
+	log.Printf("[MAIN] Setting up routes...\n")
+	router := handlers.SetupRoutes(cfg)
+	log.Printf("[MAIN] ✓ Routes setup completed\n")
 
 	// Start server
 	port := os.Getenv("PORT")
@@ -49,8 +41,10 @@ func main() {
 		port = cfg.ServerPort
 	}
 
-	log.Printf("Server starting on port %s", port)
+	log.Printf("[MAIN] ✓ Server starting on port %s\n", port)
+	log.Printf("========== SERVER STARTUP COMPLETE ==========\n\n")
+
 	if err := http.ListenAndServe(":"+port, router); err != nil {
-		log.Fatalf("Server failed to start: %v", err)
+		log.Fatalf("[MAIN] ❌ Server failed to start: %v", err)
 	}
 }

@@ -52,10 +52,20 @@ type PostDetail struct {
 	Notes          *string `json:"notes,omitempty"`
 }
 
+// AuthorProfile represents the profile of the post author
+type AuthorProfile struct {
+	ID          string  `json:"id"`
+	DisplayName string  `json:"display_name"`
+	IconURL     *string `json:"icon_url,omitempty"`
+	Role        string  `json:"role"`
+	Party       string  `json:"party"`
+}
+
 // PostWithDetails combines Post and PostDetail
 type PostWithDetails struct {
 	Post
-	Details *PostDetail `json:"details,omitempty"`
+	Details       *PostDetail    `json:"details,omitempty"`
+	AuthorProfile *AuthorProfile `json:"author_profile,omitempty"`
 }
 
 // CreatePostRequest represents a request to create a new post
