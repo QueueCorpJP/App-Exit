@@ -89,7 +89,7 @@ func SetupRoutes(cfg *config.Config) http.Handler {
 
 	// Apply global middleware (order matters: Recovery -> CORS -> Logger)
 	handler := middleware.Recovery(mux)
-	handler = middleware.CORS(handler)
+	handler = middleware.CORSWithConfig(cfg.AllowedOrigins)(handler)
 	handler = middleware.Logger(handler)
 
 	fmt.Println("[ROUTES] All routes registered successfully")

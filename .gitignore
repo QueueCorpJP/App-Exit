@@ -1,0 +1,28 @@
+# PM2
+logs/
+*.log
+.pm2
+
+# Environment variables
+.env
+.env.local
+.env.production
+
+# Dependencies
+node_modules/
+
+# Build outputs
+backend/appexit-backend
+frontend/appexit/.next/
+frontend/appexit/out/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
