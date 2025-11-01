@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useFormStatus } from 'react-dom';
 import Button from '@/components/ui/Button';
+import { registerWithBackend } from '@/lib/auth-api';
 
 // フォームデータの型定義
 interface FormData {
@@ -125,34 +126,15 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
     }
 
     try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
-
-      const response = await fetch(`${API_URL}/api/auth/register`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: formData.email,
-          password: formData.password,
-        }),
+      // auth-api.tsの関数を使用して登録
+      const result = await registerWithBackend({
+        email: formData.email,
+        password: formData.password,
       });
 
-      const result = await response.json();
-
-      if (!response.ok) {
-        setError(result.error || 'アカウント作成に失敗しました');
-        return;
-      }
-
       // トークンの取得
-      const accessToken = result.data?.access_token || result.data?.token;
-      const refreshToken = result.data?.refresh_token;
-
-      if (!accessToken || !refreshToken) {
-        setError('認証情報の取得に失敗しました');
-        return;
-      }
+      const accessToken = result.access_token;
+      const refreshToken = result.refresh_token;
 
       // Supabaseセッション設定
       const { supabase } = await import('@/lib/supabase');
@@ -165,7 +147,7 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
       window.location.href = '/';
     } catch (error) {
       console.error('Register error:', error);
-      setError('アカウント作成中にエラーが発生しました');
+      setError(error instanceof Error ? error.message : 'アカウント作成中にエラーが発生しました');
     }
   };
 

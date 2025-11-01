@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useFormStatus } from 'react-dom';
 import Button from '@/components/ui/Button';
+import { loginWithBackend } from '@/lib/auth-api';
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -40,31 +41,12 @@ export default function LoginPageClient({ error: serverError }: LoginPageClientP
     const password = formData.get('password') as string;
 
     try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
-
-      const response = await fetch(`${API_URL}/api/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        setError(result.error || 'ログインに失敗しました');
-        return;
-      }
+      // auth-api.tsの関数を使用してログイン
+      const result = await loginWithBackend({ email, password });
 
       // トークンの取得
-      const accessToken = result.data?.token || result.data?.access_token;
-      const refreshToken = result.data?.refresh_token;
-
-      if (!accessToken || !refreshToken) {
-        setError('認証情報の取得に失敗しました');
-        return;
-      }
+      const accessToken = result.token;
+      const refreshToken = result.refresh_token;
 
       // Supabaseセッション設定
       const { supabase } = await import('@/lib/supabase');
@@ -77,7 +59,7 @@ export default function LoginPageClient({ error: serverError }: LoginPageClientP
       window.location.href = '/';
     } catch (err) {
       console.error('Login error:', err);
-      setError('ログインに失敗しました');
+      setError(err instanceof Error ? err.message : 'ログインに失敗しました');
     }
   }
 
