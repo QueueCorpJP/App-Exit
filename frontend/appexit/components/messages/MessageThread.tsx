@@ -10,6 +10,7 @@ interface MessageThreadProps {
   currentUserId: string;
   onSendMessage: (text: string, imageFile?: File | null) => Promise<void>;
   isSending: boolean;
+  onBack?: () => void;
 }
 
 export default function MessageThread({
@@ -18,6 +19,7 @@ export default function MessageThread({
   currentUserId,
   onSendMessage,
   isSending,
+  onBack,
 }: MessageThreadProps) {
   const [newMessage, setNewMessage] = useState('');
   const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
@@ -99,11 +101,22 @@ export default function MessageThread({
   }
 
   return (
-    <div className="flex-1 flex flex-col h-full overflow-hidden">
+    <div className="flex-1 md:flex-1 w-full md:w-auto flex flex-col h-full overflow-hidden">
       {/* チャットヘッダー */}
       <div className="p-4 border-b border-gray-200 bg-white flex-shrink-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
+            {onBack && (
+              <button
+                onClick={onBack}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors md:hidden"
+                aria-label="戻る"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+            )}
             <div className="relative">
               <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
                 {getOtherParticipant()?.icon_url ? (

@@ -40,7 +40,7 @@ function ThreadList({
   };
 
   return (
-    <div className="w-80 border-r border-gray-200 flex flex-col">
+    <div className="w-full md:w-80 border-r border-gray-200 flex flex-col">
       {/* ヘッダー */}
       <div className="p-4 border-b border-gray-200">
         <div className="flex items-center justify-between">

@@ -28,6 +28,7 @@ export default function MessagePage({ threadId }: MessagePageProps) {
   const threadsRef = useRef<ThreadWithLastMessage[]>([]);
   const processedThreadIdRef = useRef<string | null>(null);
   const selectedThreadIdRef = useRef<string | null>(null);
+  const userInitiatedSelectionRef = useRef(false);
 
   // threadsRefをthreadsと同期
   useEffect(() => {
@@ -38,6 +39,17 @@ export default function MessagePage({ threadId }: MessagePageProps) {
   useEffect(() => {
     processedThreadIdRef.current = null;
     selectedThreadIdRef.current = null;
+    // threadIdがundefinedになった場合（/messagesに戻った場合）、selectedThreadをクリア
+    // スマホ画面では常にクリア（デスクトップではサイドバーがあるので維持）
+    if (!threadId) {
+      // スマホ画面かどうかを判定（window.innerWidth < 768）
+      if (typeof window !== 'undefined' && window.innerWidth < 768) {
+        setSelectedThread(null);
+        setThreadDetail(null);
+        setMessages([]);
+      }
+      userInitiatedSelectionRef.current = false;
+    }
   }, [threadId]);
 
   // スレッド一覧を取得
@@ -80,15 +92,40 @@ export default function MessagePage({ threadId }: MessagePageProps) {
       // 既に処理済みのthreadIdの場合はスキップ
       if (processedThreadIdRef.current === threadId) {
         console.log('[MESSAGE-PAGE] Thread ID already processed, skipping');
-        // スレッドが選択されていない場合は、スレッド一覧から検索のみ
-        if (selectedThreadIdRef.current !== threadId) {
-          const currentThreads = threadsRef.current;
-          const thread = currentThreads.find(t => t.id === threadId);
-          if (thread) {
-            setSelectedThread(thread);
-            selectedThreadIdRef.current = threadId;
-          }
+        // selectedThreadが既に設定されている場合は維持
+        if (selectedThread?.id === threadId) {
+          userInitiatedSelectionRef.current = false;
+          return;
         }
+          // スレッドが選択されていない場合は、スレッド一覧から検索
+          if (selectedThreadIdRef.current !== threadId) {
+            const currentThreads = threadsRef.current;
+            const thread = currentThreads.find(t => t.id === threadId);
+            if (thread) {
+              // ユーザーが明示的に選択した場合、またはデスクトップ画面（md以上）では自動選択
+              // スマホ画面でも、threadIdが存在する場合はselectedThreadを設定
+              if (userInitiatedSelectionRef.current || (typeof window !== 'undefined' && window.innerWidth >= 768)) {
+                setSelectedThread(thread);
+              } else if (typeof window !== 'undefined' && window.innerWidth < 768) {
+                setSelectedThread(thread);
+              }
+              selectedThreadIdRef.current = threadId;
+              userInitiatedSelectionRef.current = false;
+            }
+          } else {
+            // selectedThreadIdRefがthreadIdと一致している場合、selectedThreadも確認
+            const currentThreads = threadsRef.current;
+            const thread = currentThreads.find(t => t.id === threadId);
+            if (thread) {
+              // スマホ画面でも、threadIdが存在する場合はselectedThreadを設定
+              if (userInitiatedSelectionRef.current || (typeof window !== 'undefined' && window.innerWidth >= 768)) {
+                setSelectedThread(thread);
+              } else if (typeof window !== 'undefined' && window.innerWidth < 768) {
+                setSelectedThread(thread);
+              }
+            }
+            userInitiatedSelectionRef.current = false;
+          }
         return;
       }
 
@@ -119,10 +156,18 @@ export default function MessagePage({ threadId }: MessagePageProps) {
         if (thread) {
           // スレッドIDとして見つかった
           console.log('[MESSAGE-PAGE] Found existing thread by ID:', thread.id);
-          setSelectedThread(thread);
+          // ユーザーが明示的に選択した場合、またはデスクトップ画面（md以上）では自動選択
+          // スマホ画面でも、threadIdが存在する場合はselectedThreadを設定（レンダリング用）
+          if (userInitiatedSelectionRef.current || (typeof window !== 'undefined' && window.innerWidth >= 768)) {
+            setSelectedThread(thread);
+          } else if (typeof window !== 'undefined' && window.innerWidth < 768) {
+            // スマホ画面でも、threadIdが存在する場合はselectedThreadを設定
+            setSelectedThread(thread);
+          }
           selectedThreadIdRef.current = threadId;
           processedThreadIdRef.current = threadId;
           isHandlingThreadIdRef.current = false;
+          userInitiatedSelectionRef.current = false;
           return;
         }
 
@@ -135,12 +180,19 @@ export default function MessagePage({ threadId }: MessagePageProps) {
 
         if (thread) {
           console.log('[MESSAGE-PAGE] Found existing 1-on-1 thread:', thread.id);
-          setSelectedThread(thread);
+          // ユーザーが明示的に選択した場合、またはデスクトップ画面（md以上）では自動選択
+          // スマホ画面でも、threadIdが存在する場合はselectedThreadを設定
+          if (userInitiatedSelectionRef.current || (typeof window !== 'undefined' && window.innerWidth >= 768)) {
+            setSelectedThread(thread);
+          } else if (typeof window !== 'undefined' && window.innerWidth < 768) {
+            setSelectedThread(thread);
+          }
           selectedThreadIdRef.current = thread.id;
           processedThreadIdRef.current = threadId;
           // URLを実際のスレッドIDに変更
           router.replace(`/messages/${thread.id}`);
           isHandlingThreadIdRef.current = false;
+          userInitiatedSelectionRef.current = false;
           return;
         }
 
@@ -165,11 +217,19 @@ export default function MessagePage({ threadId }: MessagePageProps) {
               }
               return [...prev, foundThread];
             });
-            setSelectedThread(foundThread);
+            // ユーザーが明示的に選択した場合、またはデスクトップ画面（md以上）では自動選択
+            // スマホ画面でも、threadIdが存在する場合はselectedThreadを設定
+            if (userInitiatedSelectionRef.current || (typeof window !== 'undefined' && window.innerWidth >= 768)) {
+              setSelectedThread(foundThread);
+              setThreadDetail(threadDetailResponse.data);
+            } else if (typeof window !== 'undefined' && window.innerWidth < 768) {
+              setSelectedThread(foundThread);
+              setThreadDetail(threadDetailResponse.data);
+            }
             selectedThreadIdRef.current = foundThread.id;
-            setThreadDetail(threadDetailResponse.data);
             processedThreadIdRef.current = threadId;
             isHandlingThreadIdRef.current = false;
+            userInitiatedSelectionRef.current = false;
             return;
           }
         } catch (threadErr: any) {
@@ -224,15 +284,23 @@ export default function MessagePage({ threadId }: MessagePageProps) {
             }
             return [...prev, newThread];
           });
-          setSelectedThread(newThread);
-          selectedThreadIdRef.current = newThread.id;
-          setThreadDetail(threadDetailResponse.data);
+            // ユーザーが明示的に選択した場合、またはデスクトップ画面（md以上）では自動選択
+            // スマホ画面でも、threadIdが存在する場合はselectedThreadを設定
+            if (userInitiatedSelectionRef.current || (typeof window !== 'undefined' && window.innerWidth >= 768)) {
+              setSelectedThread(newThread);
+              setThreadDetail(threadDetailResponse.data);
+            } else if (typeof window !== 'undefined' && window.innerWidth < 768) {
+              setSelectedThread(newThread);
+              setThreadDetail(threadDetailResponse.data);
+            }
+            selectedThreadIdRef.current = newThread.id;
 
           // URLをスレッドIDに変更
           router.replace(`/messages/${newThread.id}`);
           console.log('Thread setup complete, redirected to:', `/messages/${newThread.id}`);
           processedThreadIdRef.current = threadId;
           isHandlingThreadIdRef.current = false;
+          userInitiatedSelectionRef.current = false;
         } catch (createErr: any) {
           console.error('Failed to create thread:', createErr);
           setError(`スレッドの作成に失敗しました: ${createErr.message}`);
@@ -263,6 +331,7 @@ export default function MessagePage({ threadId }: MessagePageProps) {
       if (!selectedThread) {
         setThreadDetail(null);
         setMessages([]);
+        setIsLoadingMessages(false);
         return;
       }
 
@@ -328,9 +397,31 @@ export default function MessagePage({ threadId }: MessagePageProps) {
   }, [selectedThread]);
 
   const handleThreadSelect = useCallback((thread: ThreadWithLastMessage) => {
+    // ユーザーが明示的に選択したことをマーク
+    userInitiatedSelectionRef.current = true;
+    // 即座にselectedThreadを設定
     setSelectedThread(thread);
-    // URLを更新してブラウザ履歴に追加
-    router.push(`/messages/${thread.id}`);
+    selectedThreadIdRef.current = thread.id;
+    // processedThreadIdRefも設定して、threadIdのuseEffectでの再処理を防ぐ
+    processedThreadIdRef.current = thread.id;
+    // URLを更新（スマホではreplace、デスクトップではpush）
+    // URL変更によりthreadIdが更新され、レンダリングが即座に反映される
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      router.replace(`/messages/${thread.id}`);
+    } else {
+      router.push(`/messages/${thread.id}`);
+    }
+  }, [router]);
+
+  const handleBackToThreads = useCallback(() => {
+    // 状態をクリア
+    setSelectedThread(null);
+    setThreadDetail(null);
+    setMessages([]);
+    selectedThreadIdRef.current = null;
+    processedThreadIdRef.current = null;
+    // URLを/messagesに変更
+    router.replace('/messages');
   }, [router]);
 
   const handleSendMessage = async (messageText: string, imageFile?: File | null) => {
@@ -447,33 +538,46 @@ export default function MessagePage({ threadId }: MessagePageProps) {
     );
   }
 
+  // スマホ画面ではthreadIdでレンダリングを制御、デスクトップではselectedThreadで制御
+  const isMobileView = typeof window !== 'undefined' && window.innerWidth < 768;
+  const showThreadList = isMobileView ? !threadId : true;
+  const showMessageThread = isMobileView ? !!threadId : true;
+
   return (
     <div className="h-[calc(100vh-4rem)] flex overflow-hidden" style={{ backgroundColor: '#F9F8F7' }}>
-      <ThreadList
-        threads={threads}
-        selectedThreadId={selectedThread?.id}
-        currentUserId={user.id}
-        onThreadSelect={handleThreadSelect}
-        error={error}
-        onErrorDismiss={() => setError(null)}
-        isLoading={isLoadingThreads}
-      />
-      {isLoadingMessages ? (
-        <div className="flex-1 flex items-center justify-center" style={{ backgroundColor: '#F9F8F7' }}>
-          <div className="text-center">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <p className="mt-2 text-sm text-gray-600">読み込み中...</p>
-          </div>
-        </div>
-      ) : (
-        <MessageThread
-          threadDetail={threadDetail}
-          messages={messages}
+      {/* スレッド一覧: スマホではthreadIdがない時のみ表示、デスクトップでは常に表示 */}
+      <div className={`w-full h-full ${showThreadList ? 'block' : 'hidden'} md:block md:w-auto`}>
+        <ThreadList
+          threads={threads}
+          selectedThreadId={selectedThread?.id || threadId}
           currentUserId={user.id}
-          onSendMessage={handleSendMessage}
-          isSending={isSending}
+          onThreadSelect={handleThreadSelect}
+          error={error}
+          onErrorDismiss={() => setError(null)}
+          isLoading={isLoadingThreads}
         />
-      )}
+      </div>
+      
+      {/* メッセージスレッド: スマホではthreadIdがある時のみ表示、デスクトップでは常に表示 */}
+      <div className={`w-full h-full ${showMessageThread ? 'block' : 'hidden'} md:block md:flex-1`}>
+        {isLoadingMessages ? (
+          <div className="flex-1 flex items-center justify-center h-full" style={{ backgroundColor: '#F9F8F7' }}>
+            <div className="text-center">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <p className="mt-2 text-sm text-gray-600">読み込み中...</p>
+            </div>
+          </div>
+        ) : (
+          <MessageThread
+            threadDetail={threadDetail}
+            messages={messages}
+            currentUserId={user.id}
+            onSendMessage={handleSendMessage}
+            isSending={isSending}
+            onBack={handleBackToThreads}
+          />
+        )}
+      </div>
     </div>
   );
 }
