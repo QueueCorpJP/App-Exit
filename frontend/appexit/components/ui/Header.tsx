@@ -9,28 +9,47 @@ export default function Header() {
   const { user, profile, loading, signOut } = useAuth();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isPostMenuOpen, setIsPostMenuOpen] = useState(false);
+  const [isMobilePostMenuOpen, setIsMobilePostMenuOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const postMenuRef = useRef<HTMLDivElement>(null);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
+  const mobileMenuButtonRef = useRef<HTMLButtonElement>(null);
   const router = useRouter();
 
   // ドロップダウン外クリックで閉じる
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+    function handleClickOutside(event: MouseEvent | TouchEvent) {
+      const target = event.target as Node;
+      
+      if (dropdownRef.current && !dropdownRef.current.contains(target)) {
         setIsDropdownOpen(false);
       }
-      if (postMenuRef.current && !postMenuRef.current.contains(event.target as Node)) {
+      
+      // デスクトップ用の「アプリを掲載する」メニュー（モバイルメニューが開いている時は無視）
+      if (postMenuRef.current && !postMenuRef.current.contains(target) && !isMobileMenuOpen) {
         setIsPostMenuOpen(false);
       }
-      if (mobileMenuRef.current && !mobileMenuRef.current.contains(event.target as Node)) {
-        setIsMobileMenuOpen(false);
+      
+      // モバイルメニュー：ヘッダーボタンやメニュー外をクリックした時だけ閉じる
+      if (mobileMenuRef.current) {
+        const isClickInsideMenu = mobileMenuRef.current.contains(target);
+        const isClickOnMenuButton = mobileMenuButtonRef.current?.contains(target);
+        
+        if (!isClickInsideMenu && !isClickOnMenuButton) {
+          setIsMobileMenuOpen(false);
+          setIsMobilePostMenuOpen(false);
+        }
       }
     }
+    
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+    document.addEventListener('touchstart', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, [isMobileMenuOpen]);
 
   const handleSignOut = () => {
     signOut();
@@ -202,9 +221,13 @@ export default function Header() {
               </Link>
             ) : null}
             <button
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              ref={mobileMenuButtonRef}
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsMobileMenuOpen(!isMobileMenuOpen);
+              }}
               className="text-gray-700 hover:text-gray-900"
-              aria-label="メニューを開く"
+              aria-label={isMobileMenuOpen ? "メニューを閉じる" : "メニューを開く"}
             >
               <svg
                 className="w-6 h-6"
@@ -241,24 +264,48 @@ export default function Header() {
           {/* ナビゲーションリンク */}
           <div className="space-y-4 px-4">
               <div className="relative">
-                <button
-                  onClick={() => setIsPostMenuOpen(!isPostMenuOpen)}
-                  className="w-full text-left text-gray-700 hover:text-gray-900 text-sm font-semibold flex items-center justify-between py-2"
-                >
-                  アプリを掲載する
-                  <svg
-                    className={`w-4 h-4 transition-transform ${isPostMenuOpen ? 'rotate-180' : ''}`}
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
+                <div className="flex items-center justify-between">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsMobilePostMenuOpen(!isMobilePostMenuOpen);
+                    }}
+                    className="flex-1 text-left text-gray-700 hover:text-gray-900 text-sm font-semibold flex items-center justify-between py-2"
                   >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
+                    <span>アプリを掲載する</span>
+                    <svg
+                      className={`w-4 h-4 transition-transform ml-2 ${isMobilePostMenuOpen ? 'rotate-180' : ''}`}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                  {isMobilePostMenuOpen && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsMobilePostMenuOpen(false);
+                      }}
+                      className="text-gray-500 hover:text-gray-700 p-1 ml-2"
+                      aria-label="メニューを閉じる"
+                    >
+                      <svg
+                        className="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
 
                 <div
                   className={`overflow-hidden transition-all duration-300 ease-in-out ${
-                    isPostMenuOpen ? 'max-h-96 opacity-100 mt-2' : 'max-h-0 opacity-0 mt-0'
+                    isMobilePostMenuOpen ? 'max-h-96 opacity-100 mt-2' : 'max-h-0 opacity-0 mt-0'
                   }`}
                 >
                   <div className="ml-4 space-y-2 border-l-2 border-gray-200 pl-4">
@@ -266,7 +313,7 @@ export default function Header() {
                       href="/projects/new/board"
                       className="block py-2 text-sm text-gray-700 hover:text-gray-900"
                       onClick={() => {
-                        setIsPostMenuOpen(false);
+                        setIsMobilePostMenuOpen(false);
                         setIsMobileMenuOpen(false);
                       }}
                     >
@@ -277,7 +324,7 @@ export default function Header() {
                       href="/projects/new/transaction"
                       className="block py-2 text-sm text-gray-700 hover:text-gray-900"
                       onClick={() => {
-                        setIsPostMenuOpen(false);
+                        setIsMobilePostMenuOpen(false);
                         setIsMobileMenuOpen(false);
                       }}
                     >
@@ -288,7 +335,7 @@ export default function Header() {
                       href="/projects/new/secret"
                       className="block py-2 text-sm text-gray-700 hover:text-gray-900"
                       onClick={() => {
-                        setIsPostMenuOpen(false);
+                        setIsMobilePostMenuOpen(false);
                         setIsMobileMenuOpen(false);
                       }}
                     >
