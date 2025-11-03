@@ -77,7 +77,7 @@ export default function ProjectCard({
             </div>
           )}
         </div>
-        <div className="py-4 px-8">
+        <div className="py-4 px-4 sm:px-8">
           {tag && (
             <span className="inline-block bg-red-50 text-red-600 text-xs px-2 py-1 rounded mb-2">
               {tag}

@@ -225,7 +225,7 @@ export default function TopPage({ initialPosts = [] }: TopPageProps) {
 
               {/* Side Projects Grid */}
               {sideProjects.length > 0 && (
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {sideProjects.map((project) => (
                 <div key={project.id} className="relative h-44 rounded-lg overflow-hidden">
                   <Image
@@ -281,7 +281,7 @@ export default function TopPage({ initialPosts = [] }: TopPageProps) {
       </section>
 
       {/* Side Banner */}
-      <div className="fixed right-0 top-1/2 transform -translate-y-1/2 z-50">
+      <div className="hidden lg:block fixed right-0 top-1/2 transform -translate-y-1/2 z-50">
         <div className="bg-red-600 text-white writing-mode-vertical-rl px-3 py-6 text-sm font-medium rounded-l-lg">
           クラウドファンディングで最初の一歩を踏み出そう
         </div>

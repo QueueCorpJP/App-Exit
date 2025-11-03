@@ -301,11 +301,11 @@ export default function Footer() {
         <div className="max-w-7xl mx-auto px-4 py-6">
           <div className="flex flex-col lg:flex-row justify-between items-center">
             {/* 左側：会社情報 */}
-            <div className="flex items-center space-x-6 mb-4 lg:mb-0">
+            <div className="flex flex-col sm:flex-row items-center gap-2 sm:space-x-6 mb-4 lg:mb-0">
               <div className="flex items-center space-x-2">
                 <span className="text-white font-semibold">🔥 CAMPFIRE</span>
               </div>
-              <div className="flex items-center space-x-4 text-sm text-gray-300">
+              <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4 text-sm text-gray-300">
                 <span>CAMPFIRE GROUP</span>
                 <span>Livefor株式会社</span>
               </div>
@@ -319,8 +319,8 @@ export default function Footer() {
             </div>
 
             {/* 右側：リンクとソーシャル */}
-            <div className="flex items-center space-x-6">
-              <div className="flex items-center space-x-4 text-sm text-gray-300">
+            <div className="flex flex-col sm:flex-row items-center gap-4 sm:space-x-6">
+              <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4 text-sm text-gray-300">
                 <Link href="/company" className="hover:text-white transition-colors">
                   ©CAMPFIRE, Inc.
                 </Link>

@@ -31,3 +31,13 @@ body {
   writing-mode: vertical-rl;
   text-orientation: mixed;
 }
+
+/* スクロールバーを非表示にする（スマホ用） */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;  /* Chrome, Safari and Opera */
+}

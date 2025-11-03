@@ -99,7 +99,7 @@ export default function ProjectsListPage() {
 
           {/* タブナビゲーション */}
           <div className="border-b border-gray-200">
-            <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+            <nav className="-mb-px flex space-x-8 overflow-x-auto scrollbar-hide" aria-label="Tabs">
               <button
                 onClick={() => setActiveTab('all')}
                 className={`${

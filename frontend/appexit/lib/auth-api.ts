@@ -1,4 +1,55 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+/**
+ * API URLの取得
+ * 優先順位:
+ * 1. 環境変数 NEXT_PUBLIC_API_URL (推奨)
+ * 2. ブラウザ環境の場合、現在のホストから推測 (本番環境用)
+ * 3. デフォルト: http://localhost:8080 (開発環境用)
+ */
+function getApiUrl(): string {
+  // 環境変数が設定されている場合はそれを使用（ビルド時に埋め込まれる）
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL;
+  }
+
+  // ブラウザ環境の場合、現在のホストから推測
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    const protocol = window.location.protocol;
+    
+    // 本番環境（localhost以外）の場合、同じホストのポート8080を使用
+    if (host !== 'localhost' && host !== '127.0.0.1') {
+      return `${protocol}//${host}:8080`;
+    }
+  }
+
+  // デフォルト（開発環境）
+  return 'http://localhost:8080';
+}
+
+// API URLを取得する関数（クライアントサイドで動的に決定）
+let cachedApiUrl: string | null = null;
+
+function getApiUrlWithCache(): string {
+  if (cachedApiUrl === null) {
+    cachedApiUrl = getApiUrl();
+  }
+  return cachedApiUrl;
+}
+
+// デフォルト値（SSR時や初期化時用）
+const API_URL = typeof window !== 'undefined' ? getApiUrl() : 'http://localhost:8080';
+
+// 開発環境での警告
+if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+  if (!process.env.NEXT_PUBLIC_API_URL) {
+    console.warn('[auth-api] NEXT_PUBLIC_API_URLが設定されていません。', {
+      currentApiUrl: API_URL,
+      note: '環境変数を設定することで、明示的にAPI URLを指定できます。',
+    });
+  } else {
+    console.log('[auth-api] API URL:', API_URL);
+  }
+}
 
 export interface LoginRequest {
   email: string;
@@ -59,29 +110,51 @@ export interface LoginResponse {
  * バックエンドAPIにログインリクエストを送信
  */
 export async function loginWithBackend(data: LoginRequest): Promise<LoginResponse> {
-  const response = await fetch(`${API_URL}/api/auth/login`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(data),
-    cache: 'no-store',
-  });
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: 'ログインに失敗しました' }));
-    throw new Error(error.error || error.message || 'ログインに失敗しました');
+  // クライアントサイドで動的にAPI URLを取得
+  const apiUrl = typeof window !== 'undefined' ? getApiUrlWithCache() : API_URL;
+  const url = `${apiUrl}/api/auth/login`;
+  
+  // デバッグ用ログ（本番環境では出力されない）
+  if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+    console.log('[auth-api] Login request to:', url);
   }
 
-  const result = await response.json();
-  return result.data;
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+      cache: 'no-store',
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'ログインに失敗しました' }));
+      throw new Error(error.error || error.message || 'ログインに失敗しました');
+    }
+
+    const result = await response.json();
+    return result.data;
+  } catch (error) {
+    // ネットワークエラーの場合、より詳細な情報を提供
+    if (error instanceof TypeError && error.message === 'Failed to fetch') {
+      console.error('[auth-api] API接続エラー:', {
+        url,
+        error: 'APIサーバーに接続できません。環境変数NEXT_PUBLIC_API_URLを確認してください。',
+        currentApiUrl: apiUrl,
+      });
+    }
+    throw error;
+  }
 }
 
 /**
  * バックエンドAPIにサインアップリクエストを送信
  */
 export async function registerWithBackend(data: RegisterRequest): Promise<AuthResponse> {
-  const response = await fetch(`${API_URL}/api/auth/register`, {
+  const apiUrl = typeof window !== 'undefined' ? getApiUrlWithCache() : API_URL;
+  const response = await fetch(`${apiUrl}/api/auth/register`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -114,7 +187,8 @@ export async function registerWithBackend(data: RegisterRequest): Promise<AuthRe
  * プロフィールを作成
  */
 export async function createProfile(data: CreateProfileRequest, token: string): Promise<Profile> {
-  const response = await fetch(`${API_URL}/api/auth/profile`, {
+  const apiUrl = typeof window !== 'undefined' ? getApiUrlWithCache() : API_URL;
+  const response = await fetch(`${apiUrl}/api/auth/profile`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

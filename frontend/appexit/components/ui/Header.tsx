@@ -9,8 +9,10 @@ export default function Header() {
   const { user, profile, loading, signOut } = useAuth();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isPostMenuOpen, setIsPostMenuOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const postMenuRef = useRef<HTMLDivElement>(null);
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
   // ドロップダウン外クリックで閉じる
@@ -22,6 +24,9 @@ export default function Header() {
       if (postMenuRef.current && !postMenuRef.current.contains(event.target as Node)) {
         setIsPostMenuOpen(false);
       }
+      if (mobileMenuRef.current && !mobileMenuRef.current.contains(event.target as Node)) {
+        setIsMobileMenuOpen(false);
+      }
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -30,6 +35,7 @@ export default function Header() {
   const handleSignOut = () => {
     signOut();
     setIsDropdownOpen(false);
+    setIsMobileMenuOpen(false);
     router.push('/');
   };
 
@@ -50,7 +56,8 @@ export default function Header() {
             </div>
           </div>
 
-          <nav className="flex items-center gap-6">
+          {/* デスクトップナビゲーション */}
+          <nav className="hidden md:flex items-center gap-6">
             {/* アプリを掲載する - ドロップダウンメニュー */}
             <div className="relative" ref={postMenuRef}>
               <button
@@ -171,6 +178,171 @@ export default function Header() {
               </>
             )}
           </nav>
+
+          {/* モバイルメニューボタン */}
+          <div className="md:hidden flex items-center gap-4">
+            {loading ? (
+              <div className="w-8 h-8 bg-gray-200 rounded animate-pulse"></div>
+            ) : user ? (
+              <Link
+                href={`/profile/${user.id}`}
+                className="flex items-center"
+              >
+                {profile?.icon_url ? (
+                  <img
+                    src={profile.icon_url}
+                    alt={profile.display_name || user.email}
+                    className="w-8 h-8 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-red-600 flex items-center justify-center text-white font-semibold">
+                    {(profile?.display_name || user.email || 'U').charAt(0).toUpperCase()}
+                  </div>
+                )}
+              </Link>
+            ) : null}
+            <button
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="text-gray-700 hover:text-gray-900"
+              aria-label="メニューを開く"
+            >
+              <svg
+                className="w-6 h-6"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                {isMobileMenuOpen ? (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                ) : (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                )}
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        {/* モバイルメニュー */}
+        <div
+          ref={mobileMenuRef}
+          className={`md:hidden border-t border-gray-200 overflow-hidden transition-all duration-300 ease-in-out ${
+            isMobileMenuOpen ? 'max-h-screen opacity-100 py-4' : 'max-h-0 opacity-0 py-0'
+          }`}
+        >
+          {/* 検索バー */}
+          <div className="mb-4 px-4">
+            <input
+              type="text"
+              placeholder="キーワード検索"
+              className="w-full px-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
+            />
+          </div>
+
+          {/* ナビゲーションリンク */}
+          <div className="space-y-4 px-4">
+              <div className="relative">
+                <button
+                  onClick={() => setIsPostMenuOpen(!isPostMenuOpen)}
+                  className="w-full text-left text-gray-700 hover:text-gray-900 text-sm font-semibold flex items-center justify-between py-2"
+                >
+                  アプリを掲載する
+                  <svg
+                    className={`w-4 h-4 transition-transform ${isPostMenuOpen ? 'rotate-180' : ''}`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+
+                <div
+                  className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                    isPostMenuOpen ? 'max-h-96 opacity-100 mt-2' : 'max-h-0 opacity-0 mt-0'
+                  }`}
+                >
+                  <div className="ml-4 space-y-2 border-l-2 border-gray-200 pl-4">
+                    <Link
+                      href="/projects/new/board"
+                      className="block py-2 text-sm text-gray-700 hover:text-gray-900"
+                      onClick={() => {
+                        setIsPostMenuOpen(false);
+                        setIsMobileMenuOpen(false);
+                      }}
+                    >
+                      <div className="font-semibold">掲示板投稿</div>
+                      <div className="text-xs text-gray-500">簡易的な募集や提案を投稿</div>
+                    </Link>
+                    <Link
+                      href="/projects/new/transaction"
+                      className="block py-2 text-sm text-gray-700 hover:text-gray-900"
+                      onClick={() => {
+                        setIsPostMenuOpen(false);
+                        setIsMobileMenuOpen(false);
+                      }}
+                    >
+                      <div className="font-semibold">取引投稿</div>
+                      <div className="text-xs text-gray-500">詳細情報付きでアプリを出品</div>
+                    </Link>
+                    <Link
+                      href="/projects/new/secret"
+                      className="block py-2 text-sm text-gray-700 hover:text-gray-900"
+                      onClick={() => {
+                        setIsPostMenuOpen(false);
+                        setIsMobileMenuOpen(false);
+                      }}
+                    >
+                      <div className="font-semibold">シークレット投稿</div>
+                      <div className="text-xs text-gray-500">NDA締結企業のみに公開</div>
+                    </Link>
+                  </div>
+                </div>
+              </div>
+
+              <Link
+                href="/projects"
+                className="block text-gray-700 hover:text-gray-900 text-sm font-semibold py-2"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                アプリをみつける
+              </Link>
+
+              {user ? (
+                <>
+                  <Link
+                    href="/profile"
+                    className="block text-gray-700 hover:text-gray-900 text-sm font-semibold py-2"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    プロフィール設定
+                  </Link>
+                  <button
+                    onClick={handleSignOut}
+                    className="block w-full text-left text-gray-700 hover:text-gray-900 text-sm font-semibold py-2"
+                  >
+                    ログアウト
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Link
+                    href="/login"
+                    className="block text-gray-700 hover:text-gray-900 text-sm font-semibold py-2"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    ログイン
+                  </Link>
+                  <Link
+                    href="/register"
+                    className="block text-gray-700 hover:text-gray-900 text-sm font-semibold py-2"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    新規会員登録
+                  </Link>
+                </>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </header>

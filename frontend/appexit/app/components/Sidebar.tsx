@@ -24,7 +24,7 @@ const Sidebar = () => {
   ];
 
   return (
-    <div className="w-80 bg-white p-6 border-r border-gray-200">
+    <div className="hidden lg:block w-80 bg-white p-6 border-r border-gray-200">
       {/* 注目のタグセクション */}
       <div className="mb-8">
         <h2 className="text-lg font-bold text-gray-800 mb-4">注目のタグ</h2>
