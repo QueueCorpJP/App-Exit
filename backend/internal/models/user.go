@@ -27,13 +27,14 @@ type Profile struct {
 	ListingCount      *int       `json:"listing_count,omitempty"`
 	ServiceCategories []string   `json:"service_categories,omitempty"`
 	DesiredExitTiming *string    `json:"desired_exit_timing,omitempty"`
-	InvestmentMin     *int       `json:"investment_min,omitempty"`
-	InvestmentMax     *int       `json:"investment_max,omitempty"`
-	TargetCategories  []string   `json:"target_categories,omitempty"`
-	OperationType     *string    `json:"operation_type,omitempty"`
-	Expertise         []string   `json:"expertise,omitempty"`
-	PortfolioSummary  *string    `json:"portfolio_summary,omitempty"`
-	ProposalStyle     *string    `json:"proposal_style,omitempty"`
+	InvestmentMin            *int       `json:"investment_min,omitempty"`
+	InvestmentMax            *int       `json:"investment_max,omitempty"`
+	TargetCategories         []string   `json:"target_categories,omitempty"`
+	OperationType            *string    `json:"operation_type,omitempty"`
+	DesiredAcquisitionTiming *string    `json:"desired_acquisition_timing,omitempty"`
+	Expertise                []string   `json:"expertise,omitempty"`
+	PortfolioSummary         *string    `json:"portfolio_summary,omitempty"`
+	ProposalStyle            *string    `json:"proposal_style,omitempty"`
 	CreatedAt         time.Time  `json:"created_at"`
 	UpdatedAt         time.Time  `json:"updated_at"`
 }
@@ -168,16 +169,21 @@ type SellerProfileInput struct {
 }
 
 type BuyerProfileInput struct {
-	InvestmentMin    *int     `json:"investment_min,omitempty"`
-	InvestmentMax    *int     `json:"investment_max,omitempty"`
-	TargetCategories []string `json:"target_categories,omitempty"`
-	OperationType    *string  `json:"operation_type,omitempty"`
+	InvestmentMin            *int     `json:"investment_min,omitempty"`
+	InvestmentMax            *int     `json:"investment_max,omitempty"`
+	TargetCategories         []string `json:"target_categories,omitempty"`
+	OperationType            *string  `json:"operation_type,omitempty"`
+	DesiredAcquisitionTiming *string  `json:"desired_acquisition_timing,omitempty"`
 }
 
 type AdvisorProfileInput struct {
-	Expertise        []string `json:"expertise,omitempty"`
-	PortfolioSummary *string  `json:"portfolio_summary,omitempty"`
-	ProposalStyle    *string  `json:"proposal_style,omitempty"`
+	InvestmentMin            *int     `json:"investment_min,omitempty"`
+	InvestmentMax            *int     `json:"investment_max,omitempty"`
+	TargetCategories         []string `json:"target_categories,omitempty"`
+	DesiredAcquisitionTiming *string  `json:"desired_acquisition_timing,omitempty"`
+	Expertise                []string `json:"expertise,omitempty"`
+	PortfolioSummary         *string  `json:"portfolio_summary,omitempty"`
+	ProposalStyle            *string  `json:"proposal_style,omitempty"`
 }
 
 type RegistrationStep4Request struct {

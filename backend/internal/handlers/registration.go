@@ -319,7 +319,7 @@ func (s *Server) RegisterStep4(w http.ResponseWriter, r *http.Request) {
 				update["desired_exit_timing"] = strings.TrimSpace(*req.Seller.DesiredExitTiming)
 			}
             if len(update) > 0 {
-                if _, _, err := impersonateClient.From("profiles").Update(update, "", "").Eq("id", userID).Execute(); err != nil {
+                if _, _, err := impersonateClient.From("profiles").Update(update, "", "").Eq("id", userID).Eq("role", "seller").Execute(); err != nil {
 					response.Error(w, http.StatusInternalServerError, fmt.Sprintf("売り手情報の更新に失敗しました: %v", err))
 					return
 				}
@@ -345,8 +345,11 @@ func (s *Server) RegisterStep4(w http.ResponseWriter, r *http.Request) {
 			if req.Buyer.OperationType != nil {
 				update["operation_type"] = strings.TrimSpace(*req.Buyer.OperationType)
 			}
+			if req.Buyer.DesiredAcquisitionTiming != nil {
+				update["desired_purchase_timing"] = strings.TrimSpace(*req.Buyer.DesiredAcquisitionTiming)
+			}
             if len(update) > 0 {
-                if _, _, err := impersonateClient.From("profiles").Update(update, "", "").Eq("id", userID).Execute(); err != nil {
+                if _, _, err := impersonateClient.From("profiles").Update(update, "", "").Eq("id", userID).Eq("role", "buyer").Execute(); err != nil {
 					response.Error(w, http.StatusInternalServerError, fmt.Sprintf("買い手情報の更新に失敗しました: %v", err))
 					return
 				}
@@ -360,6 +363,18 @@ func (s *Server) RegisterStep4(w http.ResponseWriter, r *http.Request) {
 	if req.Advisor != nil {
 		if contains(roles, "advisor") {
 			update := map[string]interface{}{}
+			if req.Advisor.InvestmentMin != nil {
+				update["investment_min"] = *req.Advisor.InvestmentMin
+			}
+			if req.Advisor.InvestmentMax != nil {
+				update["investment_max"] = *req.Advisor.InvestmentMax
+			}
+			if req.Advisor.TargetCategories != nil {
+				update["target_categories"] = req.Advisor.TargetCategories
+			}
+			if req.Advisor.DesiredAcquisitionTiming != nil {
+				update["desired_purchase_timing"] = strings.TrimSpace(*req.Advisor.DesiredAcquisitionTiming)
+			}
 			if req.Advisor.Expertise != nil {
 				update["expertise"] = req.Advisor.Expertise
 			}
@@ -370,7 +385,7 @@ func (s *Server) RegisterStep4(w http.ResponseWriter, r *http.Request) {
 				update["proposal_style"] = strings.TrimSpace(*req.Advisor.ProposalStyle)
 			}
             if len(update) > 0 {
-                if _, _, err := impersonateClient.From("profiles").Update(update, "", "").Eq("id", userID).Execute(); err != nil {
+                if _, _, err := impersonateClient.From("profiles").Update(update, "", "").Eq("id", userID).Eq("role", "advisor").Execute(); err != nil {
 					response.Error(w, http.StatusInternalServerError, fmt.Sprintf("提案者情報の更新に失敗しました: %v", err))
 					return
 				}
