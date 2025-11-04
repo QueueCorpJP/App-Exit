@@ -18,7 +18,7 @@ function MessageThreadContainer({ threadId, onBack }: MessageThreadContainerProp
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const prevThreadIdRef = useRef<string | undefined>();
+  const prevThreadIdRef = useRef<string | undefined>(undefined);
 
   // threadIdが変わった時のみデータを取得
   useEffect(() => {
