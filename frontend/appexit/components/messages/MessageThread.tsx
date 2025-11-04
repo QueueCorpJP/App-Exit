@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import { MessageWithSender, ThreadDetail } from '@/lib/api-client';
 import { Image as ImageIcon, X } from 'lucide-react';
 
@@ -10,15 +10,17 @@ interface MessageThreadProps {
   currentUserId: string;
   onSendMessage: (text: string, imageFile?: File | null) => Promise<void>;
   isSending: boolean;
+  isLoadingMessages: boolean;
   onBack?: () => void;
 }
 
-export default function MessageThread({
+function MessageThread({
   threadDetail,
   messages,
   currentUserId,
   onSendMessage,
   isSending,
+  isLoadingMessages,
   onBack,
 }: MessageThreadProps) {
   const [newMessage, setNewMessage] = useState('');
@@ -66,7 +68,7 @@ export default function MessageThread({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if ((!newMessage.trim() && !selectedImageFile) || isSending) return;
+    if ((!newMessage.trim() && !selectedImageFile) || isSending || isLoadingMessages) return;
 
     const messageText = newMessage.trim();
     const imageFile = selectedImageFile;
@@ -90,18 +92,10 @@ export default function MessageThread({
     }
   };
 
-  if (!threadDetail) {
-    return (
-      <div className="flex-1 flex items-center justify-center bg-gray-50">
-        <div className="text-center text-gray-500">
-          <p>会話を選択してください</p>
-        </div>
-      </div>
-    );
-  }
+  const otherParticipant = threadDetail ? getOtherParticipant() : null;
 
   return (
-    <div className="flex-1 md:flex-1 w-full md:w-auto flex flex-col h-full overflow-hidden">
+    <div className="flex-1 md:flex-1 w-full md:w-auto flex flex-col h-full overflow-hidden bg-white">
       {/* チャットヘッダー */}
       <div className="p-4 border-b border-gray-200 bg-white flex-shrink-0">
         <div className="flex items-center justify-between">
@@ -119,10 +113,10 @@ export default function MessageThread({
             )}
             <div className="relative">
               <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
-                {getOtherParticipant()?.icon_url ? (
+                {otherParticipant?.icon_url ? (
                   <img
-                    src={getOtherParticipant()!.icon_url || ''}
-                    alt={getOtherParticipant()!.display_name}
+                    src={otherParticipant.icon_url}
+                    alt={otherParticipant.display_name}
                     className="w-full h-full rounded-full object-cover"
                   />
                 ) : (
@@ -132,7 +126,7 @@ export default function MessageThread({
             </div>
             <div>
               <h2 className="font-semibold">
-                {getOtherParticipant()?.display_name || 'ユーザー'}
+                {otherParticipant?.display_name || 'ユーザー'}
               </h2>
             </div>
           </div>
@@ -140,8 +134,13 @@ export default function MessageThread({
       </div>
 
       {/* メッセージエリア */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-white pb-8">
-        {messages.length === 0 ? (
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-8 bg-white">
+        {isLoadingMessages ? (
+          <div className="text-center text-gray-500 mt-8">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <p className="mt-2 text-sm text-gray-600">読み込み中...</p>
+          </div>
+        ) : messages.length === 0 ? (
           <div className="text-center text-gray-500 mt-8">
             <p>メッセージがありません</p>
             <p className="text-sm mt-2">最初のメッセージを送信しましょう</p>
@@ -216,23 +215,23 @@ export default function MessageThread({
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
                 placeholder="新しいメッセージを作成"
-                disabled={isSending}
+                disabled={isSending || isLoadingMessages}
                 className="w-full px-4 py-3 pr-20 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none disabled:opacity-50"
               />
               <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex gap-2">
-                <label className="p-1 hover:bg-gray-100 rounded-full cursor-pointer">
+                <label className={`p-1 hover:bg-gray-100 rounded-full ${isLoadingMessages ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
                   <ImageIcon className="w-5 h-5 text-gray-500" />
                   <input
                     type="file"
                     accept="image/*"
                     onChange={handleImageSelect}
                     className="hidden"
-                    disabled={isSending}
+                    disabled={isSending || isLoadingMessages}
                   />
                 </label>
                 <button
                   type="submit"
-                  disabled={(!newMessage.trim() && !selectedImageFile) || isSending}
+                  disabled={(!newMessage.trim() && !selectedImageFile) || isSending || isLoadingMessages}
                   className="p-1 hover:bg-gray-100 rounded-full disabled:opacity-50"
                 >
                   <svg className="w-5 h-5 text-blue-500" fill="currentColor" viewBox="0 0 24 24">
@@ -247,3 +246,5 @@ export default function MessageThread({
     </div>
   );
 }
+
+export default memo(MessageThread);

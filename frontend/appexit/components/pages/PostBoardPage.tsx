@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
-import { ArrowLeft, ArrowUp, ArrowDown, MessageCircle, Share2, MoreHorizontal, Award, Flame, Image as ImageIcon, X } from 'lucide-react';
+import { ArrowLeft, ArrowUp, ArrowDown, MessageCircle, Share2, MoreHorizontal, Award, Flame, Image as ImageIcon, X, ChevronDown, Calendar, Globe } from 'lucide-react';
 import { postApi } from '@/lib/api-client';
 import { uploadImage, getImageUrls } from '@/lib/storage';
 import Image from 'next/image';
@@ -191,7 +191,7 @@ export default function PostBoardPage() {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#F9F8F7' }}>
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* Header with back button */}
         <div className="mb-6 flex items-center gap-4">
           <button
@@ -202,6 +202,11 @@ export default function PostBoardPage() {
           </button>
           <h1 className="text-xl font-bold text-gray-900">掲示板</h1>
         </div>
+
+        {/* Main Layout - Grid with sidebar */}
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6">
+          {/* Main Content */}
+          <div>
 
         {error && (
           <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
@@ -386,7 +391,119 @@ export default function PostBoardPage() {
             </div>
           ))}
         </div>
+          </div>
+
+          {/* Right Sidebar */}
+          <div className="hidden lg:block">
+            <div className="sticky top-6 space-y-4">
+              {/* Community Info Card */}
+              <div className="bg-white rounded-lg p-4 border border-gray-100">
+                <div className="flex items-center gap-2 text-sm text-gray-600 mb-3">
+                  <Calendar className="w-4 h-4" />
+                  <span>2016年10月25日に作成されました</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-gray-600 mb-4">
+                  <Globe className="w-4 h-4" />
+                  <span>公開</span>
+                </div>
+
+                {/* Stats */}
+                <div className="grid grid-cols-2 gap-4 mb-4 pb-4 border-b border-gray-200">
+                  <div>
+                    <div className="text-2xl font-bold">14万</div>
+                    <div className="text-xs text-gray-600">人の週間訪問者</div>
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold">1285</div>
+                    <div className="text-xs text-gray-600">再送の投稿</div>
+                  </div>
+                </div>
+
+                {/* Community Bookmarks */}
+                <div className="mb-4">
+                  <h3 className="text-sm font-semibold mb-2">コミュニティのブックマーク</h3>
+                  <button className="w-full mb-2 px-4 py-2 bg-white border border-gray-200 rounded-full text-sm font-medium hover:bg-gray-50 transition-colors">
+                    Website
+                  </button>
+                  <button className="w-full px-4 py-2 bg-white border border-gray-200 rounded-full text-sm font-medium hover:bg-gray-50 transition-colors">
+                    Github
+                  </button>
+                </div>
+              </div>
+
+              {/* Rules Card */}
+              <div className="bg-white rounded-lg p-4 border border-gray-100">
+                <h3 className="text-sm font-semibold mb-3">R/NEXTJSのルール</h3>
+                <div className="space-y-2">
+                  <RuleItem number={1} text="Stay polite" />
+                  <RuleItem number={2} text="No product/project/portfolio shilling" expandable />
+                  <RuleItem number={3} text="No low effort posts" expandable />
+                  <RuleItem number={4} text="This is not a job board" />
+                  <RuleItem number={5} text="No rate my website or ask for feedback posts" expandable />
+                </div>
+              </div>
+
+              {/* Related Subreddits Card */}
+              <div className="bg-white rounded-lg p-4 border border-gray-100">
+                <h3 className="text-sm font-semibold mb-3">RELATED SUBREDDITS</h3>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold">
+                      r/
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium">r/reactjs</div>
+                      <div className="text-xs text-gray-500">476,922 members</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-full bg-yellow-400 flex items-center justify-center text-black text-xs font-bold">
+                      JS
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium">r/javascript</div>
+                      <div className="text-xs text-gray-500">2,409,943 members</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Sidebar Resources Card */}
+              <div className="bg-white rounded-lg p-4 border border-gray-100">
+                <h3 className="text-sm font-semibold mb-2">SIDEBAR</h3>
+                <p className="text-sm mb-2">New to Next.js?</p>
+                <p className="text-sm mb-3">Here are great, <span className="font-semibold">free</span> resources!</p>
+                <ul className="space-y-2 text-sm">
+                  <li>
+                    <a href="#" className="text-blue-600 hover:underline">• The official Next.js docs</a>
+                  </li>
+                  <li>
+                    <a href="#" className="text-blue-600 hover:underline">• The official Next.js learn course</a>
+                  </li>
+                  <li>
+                    <a href="#" className="text-blue-600 hover:underline">• The React docs</a>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
+    </div>
+  );
+}
+
+// Rule Item Component
+function RuleItem({ number, text, expandable = false }: { number: number; text: string; expandable?: boolean }) {
+  return (
+    <div className="flex items-center justify-between py-2 border-b border-gray-100 last:border-b-0">
+      <div className="flex items-center gap-2">
+        <span className="text-sm text-gray-600">{number}</span>
+        <span className="text-sm">{text}</span>
+      </div>
+      {expandable && (
+        <ChevronDown className="w-4 h-4 text-gray-400" />
+      )}
     </div>
   );
 }
