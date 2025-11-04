@@ -14,6 +14,56 @@ import (
 	"github.com/yourusername/appexit-backend/pkg/response"
 )
 
+func (s *Server) signupWithEmail(req models.CreateUserRequest) (*models.AuthResponse, int, error) {
+	anonClient := s.supabase.GetAnonClient()
+
+	fmt.Printf("[DEBUG] RegisterStep1: Attempting Supabase signup for email: %s\n", req.Email)
+	authResp, err := anonClient.Auth.Signup(types.SignupRequest{
+		Email:    req.Email,
+		Password: req.Password,
+	})
+	if err != nil {
+		errStr := err.Error()
+		fmt.Printf("[ERROR] signupWithEmail: Supabase signup failed: %v\n", err)
+
+		if strings.Contains(errStr, "already registered") || strings.Contains(errStr, "already exists") {
+			return nil, http.StatusConflict, fmt.Errorf("このメールアドレスは既に登録されています。")
+		}
+
+		return nil, http.StatusBadRequest, fmt.Errorf("アカウント作成に失敗しました: %v", err)
+	}
+
+	if authResp.User.ID == [16]byte{} {
+		fmt.Printf("[ERROR] signupWithEmail: User ID is empty\n")
+		return nil, http.StatusInternalServerError, fmt.Errorf("User creation failed")
+	}
+
+	userID := fmt.Sprintf("%x-%x-%x-%x-%x",
+		authResp.User.ID[0:4],
+		authResp.User.ID[4:6],
+		authResp.User.ID[6:8],
+		authResp.User.ID[8:10],
+		authResp.User.ID[10:16])
+	fmt.Printf("[DEBUG] signupWithEmail: Generated userID: %s\n", userID)
+
+	user := models.User{
+		ID:        userID,
+		Email:     authResp.User.Email,
+		Name:      authResp.User.Email,
+		CreatedAt: authResp.User.CreatedAt,
+		UpdatedAt: authResp.User.UpdatedAt,
+	}
+
+	fmt.Printf("[REGISTER] Returning tokens: access_token length=%d, refresh_token length=%d\n",
+		len(authResp.AccessToken), len(authResp.RefreshToken))
+
+	return &models.AuthResponse{
+		AccessToken:  authResp.AccessToken,
+		RefreshToken: authResp.RefreshToken,
+		User:         user,
+	}, http.StatusCreated, nil
+}
+
 func (s *Server) Register(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("[DEBUG] Register: Starting user registration\n")
 
@@ -37,66 +87,16 @@ func (s *Server) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 1. anon keyでユーザーを作成
-	anonClient := s.supabase.GetAnonClient()
-
-	// サインアップ（メール確認は自動トリガーで処理）
-	fmt.Printf("[DEBUG] Register: Attempting Supabase signup for email: %s\n", req.Email)
-	authResp, err := anonClient.Auth.Signup(types.SignupRequest{
-		Email:    req.Email,
-		Password: req.Password,
-	})
+	authResponse, status, err := s.signupWithEmail(req)
 	if err != nil {
-		// その他のエラー
-		errStr := err.Error()
-		fmt.Printf("[ERROR] Register: Supabase signup failed: %v\n", err)
-
-		if strings.Contains(errStr, "already registered") || strings.Contains(errStr, "already exists") {
-			response.Error(w, http.StatusConflict, "このメールアドレスは既に登録されています。")
-			return
-		}
-
-		response.Error(w, http.StatusBadRequest, fmt.Sprintf("アカウント作成に失敗しました: %v", err))
+		response.Error(w, status, err.Error())
 		return
 	}
 
-	if authResp.User.ID == [16]byte{} {
-		fmt.Printf("[ERROR] Register: User ID is empty\n")
-		response.Error(w, http.StatusInternalServerError, "User creation failed")
-		return
-	}
-
-	// UUIDを文字列に変換
-	userID := fmt.Sprintf("%x-%x-%x-%x-%x",
-		authResp.User.ID[0:4],
-		authResp.User.ID[4:6],
-		authResp.User.ID[6:8],
-		authResp.User.ID[8:10],
-		authResp.User.ID[10:16])
-	fmt.Printf("[DEBUG] Register: Generated userID: %s\n", userID)
-	fmt.Printf("[DEBUG] Register: Supabase access token: %s...\n", authResp.AccessToken[:min(20, len(authResp.AccessToken))])
-
-	// レスポンス用のユーザー情報を作成（認証のみ、プロフィールは別途作成）
-	user := models.User{
-		ID:        userID,
-		Email:     authResp.User.Email,
-		Name:      authResp.User.Email, // プロフィール未作成時はemailを使用
-		CreatedAt: authResp.User.CreatedAt,
-		UpdatedAt: authResp.User.UpdatedAt,
-	}
-
-	// 2. SupabaseのAccessTokenをそのまま返す（RLSを効かせるため）
-	// トークンはフロントエンドのSupabaseセッション（LocalStorage）で管理される
-	authResponse := models.AuthResponse{
-		AccessToken:  authResp.AccessToken, // SupabaseのJWTトークンを返す
-		RefreshToken: authResp.RefreshToken,
-		User:         user,
-	}
-
-	fmt.Printf("[REGISTER] Returning tokens: access_token length=%d, refresh_token length=%d\n",
-		len(authResp.AccessToken), len(authResp.RefreshToken))
+	setAuthCookies(w, authResponse.AccessToken, authResponse.RefreshToken, &authResponse.User, nil)
+	fmt.Printf("[REGISTER] Setting auth cookies\n")
 	fmt.Printf("[DEBUG] Register: Registration successful, returning response\n")
-	response.Success(w, http.StatusCreated, authResponse)
+	response.Success(w, status, authResponse)
 }
 
 func (s *Server) Login(w http.ResponseWriter, r *http.Request) {
@@ -163,7 +163,20 @@ func (s *Server) Login(w http.ResponseWriter, r *http.Request) {
 		UpdatedAt: authResp.User.UpdatedAt,
 	}
 
-	// 3. SupabaseのAccessTokenとRefreshTokenを返す
+	// 3. HTTPOnly Cookieにトークンを設定
+	// セキュアなCookie設定（SameSite=Lax、HttpOnly）
+	// 開発環境ではSecure: falseにしてHTTPでも動作させる
+	http.SetCookie(w, &http.Cookie{
+		Name:     "auth_token",
+		Value:    authResp.AccessToken,
+		Path:     "/",
+		MaxAge:   3600, // 1時間
+		HttpOnly: true,
+		Secure:   false, // 開発環境用（本番環境ではtrueにすること）
+		SameSite: http.SameSiteLaxMode,
+	})
+
+	// 4. SupabaseのAccessTokenとRefreshTokenを返す
 	// トークンはフロントエンドのSupabaseセッション（LocalStorage）で管理される
 	loginResponse := models.LoginResponse{
 		Token:        authResp.AccessToken,  // SupabaseのJWTトークンを返す
@@ -174,6 +187,7 @@ func (s *Server) Login(w http.ResponseWriter, r *http.Request) {
 
 	fmt.Printf("[LOGIN] Returning tokens: access_token length=%d, refresh_token length=%d\n",
 		len(authResp.AccessToken), len(authResp.RefreshToken))
+	fmt.Printf("[LOGIN] Setting auth_token cookie\n")
 
 	response.Success(w, http.StatusOK, loginResponse)
 }
@@ -590,4 +604,3 @@ func (s *Server) RefreshToken(w http.ResponseWriter, r *http.Request) {
 		"user":  user,
 	})
 }
-

@@ -36,6 +36,7 @@ func SetupRoutes(cfg *config.Config) http.Handler {
 
 	// Auth routes
 	mux.HandleFunc("/api/auth/register", server.Register)
+	mux.HandleFunc("/api/auth/register/step1", server.RegisterStep1)
 	mux.HandleFunc("/api/auth/login", server.Login)
 	mux.HandleFunc("/api/auth/logout", server.Logout)
 	mux.HandleFunc("/api/auth/session", server.CheckSession)
@@ -45,7 +46,12 @@ func SetupRoutes(cfg *config.Config) http.Handler {
 	// Create auth middleware with Supabase JWT secret and SupabaseService
 	auth := middleware.AuthWithSupabase(cfg.SupabaseJWTSecret, server.supabase)
 
-	// User routes
+	mux.HandleFunc("/api/auth/register/step2", auth(server.RegisterStep2))
+	mux.HandleFunc("/api/auth/register/step3", auth(server.RegisterStep3))
+	mux.HandleFunc("/api/auth/register/step4", auth(server.RegisterStep4))
+	mux.HandleFunc("/api/auth/register/step5", auth(server.RegisterStep5))
+
+	// User routes (must be registered AFTER /api/auth/profile to avoid matching conflicts)
 	mux.HandleFunc("/api/users", auth(server.GetUsers))       // List users (protected)
 	mux.HandleFunc("/api/users/", server.HandleUserByIDRoute) // Get user profile by ID (public)
 
@@ -142,7 +148,6 @@ func (s *Server) HandlePostByIDRoute(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-
 // HandleCommentRoute handles comment routes
 func (s *Server) HandleCommentRoute(w http.ResponseWriter, r *http.Request) {
 	parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
@@ -182,6 +187,9 @@ func (s *Server) HandleProfileRoute(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("\n========== ROUTE HANDLER: /api/auth/profile ==========\n")
 	fmt.Printf("[ROUTES] Method: %s, Path: %s\n", r.Method, r.URL.Path)
 	fmt.Printf("[ROUTES] Remote Addr: %s\n", r.RemoteAddr)
+	fmt.Printf("[ROUTES] Request URL: %s\n", r.URL.String())
+	fmt.Printf("[ROUTES] Request URI: %s\n", r.RequestURI)
+	fmt.Printf("[ROUTES] Full URL: %s\n", r.URL.String())
 
 	// Create auth middleware
 	auth := middleware.AuthWithSupabase(s.config.SupabaseJWTSecret, s.supabase)

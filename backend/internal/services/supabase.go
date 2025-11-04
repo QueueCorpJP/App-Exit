@@ -2,13 +2,16 @@ package services
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"sync"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/supabase-community/supabase-go"
 	storage_go "github.com/supabase-community/storage-go"
+	"github.com/supabase-community/supabase-go"
 	"github.com/yourusername/appexit-backend/config"
 )
 
@@ -147,6 +150,125 @@ func (s *SupabaseService) GetImpersonateClient(userID string) (*supabase.Client,
 	return client, nil
 }
 
+func (s *SupabaseService) getAdminAuthRequest(method, path string, body io.Reader) (*http.Request, error) {
+	url := fmt.Sprintf("%s%s", s.cfg.SupabaseURL, path)
+	req, err := http.NewRequest(method, url, body)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("apikey", s.cfg.SupabaseServiceKey)
+	req.Header.Set("Authorization", "Bearer "+s.cfg.SupabaseServiceKey)
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	return req, nil
+}
+
+type authUserResponse struct {
+	UserMetadata map[string]interface{} `json:"user_metadata"`
+}
+
+func (s *SupabaseService) GetUserMetadata(userID string) (map[string]interface{}, error) {
+	req, err := s.getAdminAuthRequest(http.MethodGet, fmt.Sprintf("/auth/v1/admin/users/%s", userID), nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build admin auth request: %w", err)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch user metadata: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return map[string]interface{}{}, nil
+	}
+
+	if resp.StatusCode >= 400 {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("failed to fetch user metadata: status=%d body=%s", resp.StatusCode, string(bodyBytes))
+	}
+
+	var result authUserResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("failed to decode user metadata response: %w", err)
+	}
+
+	if result.UserMetadata == nil {
+		result.UserMetadata = map[string]interface{}{}
+	}
+
+	return result.UserMetadata, nil
+}
+
+func cloneMap(src map[string]interface{}) map[string]interface{} {
+	if src == nil {
+		return map[string]interface{}{}
+	}
+	dst := make(map[string]interface{}, len(src))
+	for k, v := range src {
+		if nested, ok := v.(map[string]interface{}); ok {
+			dst[k] = cloneMap(nested)
+		} else {
+			dst[k] = v
+		}
+	}
+	return dst
+}
+
+func deepMergeMaps(base, updates map[string]interface{}) map[string]interface{} {
+	if base == nil {
+		base = map[string]interface{}{}
+	}
+	for key, val := range updates {
+		if valMap, ok := val.(map[string]interface{}); ok {
+			if existing, ok := base[key].(map[string]interface{}); ok {
+				base[key] = deepMergeMaps(existing, valMap)
+			} else {
+				base[key] = cloneMap(valMap)
+			}
+		} else {
+			base[key] = val
+		}
+	}
+	return base
+}
+
+func (s *SupabaseService) MergeUserMetadata(userID string, updates map[string]interface{}) (map[string]interface{}, error) {
+	existing, err := s.GetUserMetadata(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	merged := deepMergeMaps(cloneMap(existing), updates)
+
+	payload := map[string]interface{}{
+		"user_metadata": merged,
+	}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal metadata payload: %w", err)
+	}
+
+	req, err := s.getAdminAuthRequest(http.MethodPatch, fmt.Sprintf("/auth/v1/admin/users/%s", userID), bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("failed to build metadata update request: %w", err)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update user metadata: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		respBody, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("failed to update user metadata: status=%d body=%s", resp.StatusCode, string(respBody))
+	}
+
+	return merged, nil
+}
+
 // UploadFile uploads a file to Supabase Storage
 // Returns the file path in storage (not the full URL)
 func (s *SupabaseService) UploadFile(userID string, bucketName string, filePath string, fileData []byte, contentType string) (string, error) {
@@ -190,4 +312,3 @@ func (s *SupabaseService) DeleteFile(bucketName string, filePath string) error {
 
 	return nil
 }
-

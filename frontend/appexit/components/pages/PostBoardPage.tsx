@@ -22,7 +22,11 @@ interface PostWithImageUrl extends Post {
   imageUrl?: string;
 }
 
-export default function PostBoardPage() {
+interface PostBoardPageProps {
+  initialPosts: Post[];
+}
+
+export default function PostBoardPage({ initialPosts = [] }: PostBoardPageProps) {
   const router = useRouter();
   const { user, profile } = useAuth();
   const [loading, setLoading] = useState(false);
@@ -38,27 +42,25 @@ export default function PostBoardPage() {
     body: '',
   });
 
+  // initialPostsが変更されたら画像URLを取得
   useEffect(() => {
-    fetchPosts();
-  }, []);
+    if (initialPosts.length > 0) {
+      loadImageUrls(initialPosts);
+    } else {
+      setPosts([]);
+    }
+  }, [initialPosts]);
 
-  const fetchPosts = async () => {
+  // 投稿データから画像URLを取得して設定
+  const loadImageUrls = async (postsData: Post[]) => {
     try {
-      console.log('[BOARD] Fetching posts...');
-
-      // バックエンドAPI経由で投稿を取得
-      const data = await postApi.getPosts({ type: 'board' });
-
-      console.log('[BOARD] Fetched posts:', data);
-      console.log('[BOARD] Number of posts:', data?.length || 0);
-
-      if (data.length === 0) {
+      if (postsData.length === 0) {
         setPosts([]);
         return;
       }
 
       // 画像パスを収集
-      const imagePaths = data.map(post => post.cover_image_url).filter((path): path is string => !!path);
+      const imagePaths = postsData.map(post => post.cover_image_url).filter((path): path is string => !!path);
       console.log('[BOARD] Image paths:', imagePaths);
 
       // 署名付きURLを一括取得
@@ -66,7 +68,7 @@ export default function PostBoardPage() {
       console.log('[BOARD] Image URL map size:', imageUrlMap.size);
 
       // 投稿データに画像URLを追加
-      const postsWithImages: PostWithImageUrl[] = data.map(post => {
+      const postsWithImages: PostWithImageUrl[] = postsData.map(post => {
         const imageUrl = post.cover_image_url ? imageUrlMap.get(post.cover_image_url) : undefined;
         console.log(`[BOARD] Post ${post.id}: path="${post.cover_image_url}" → url="${imageUrl ? imageUrl.substring(0, 50) + '...' : 'none'}"`);
 
@@ -79,7 +81,7 @@ export default function PostBoardPage() {
       console.log('[BOARD] Posts with images:', postsWithImages.length);
       setPosts(postsWithImages);
     } catch (err) {
-      console.error('[BOARD] Failed to fetch posts:', err);
+      console.error('[BOARD] Failed to load image URLs:', err);
     }
   };
 
@@ -131,7 +133,9 @@ export default function PostBoardPage() {
       setFormData({ title: '', body: '' });
       setSelectedImageFile(null);
       setImagePreview(null);
-      fetchPosts();
+
+      // サーバーコンポーネントを再実行して最新データを取得
+      router.refresh();
     } catch (err) {
       console.error('Post creation error:', err);
       setError(err instanceof Error ? err.message : '投稿に失敗しました');

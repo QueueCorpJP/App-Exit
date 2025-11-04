@@ -13,18 +13,28 @@ type User struct {
 
 // Profile represents the user profile in the profiles table
 type Profile struct {
-	ID                 string     `json:"id"`
-	Role               string     `json:"role"`
-	Party              string     `json:"party"`
-	DisplayName        string     `json:"display_name"`
-	Age                *int       `json:"age,omitempty"`
-	IconURL            *string    `json:"icon_url,omitempty"`
-	NDAFlag            bool       `json:"nda_flag"`
-	TermsAcceptedAt    *time.Time `json:"terms_accepted_at,omitempty"`
-	PrivacyAcceptedAt  *time.Time `json:"privacy_accepted_at,omitempty"`
-	StripeCustomerID   *string    `json:"stripe_customer_id,omitempty"`
-	CreatedAt          time.Time  `json:"created_at"`
-	UpdatedAt          time.Time  `json:"updated_at"`
+	ID                string     `json:"id"`
+	Role              string     `json:"role"`
+	Party             string     `json:"party"`
+	DisplayName       string     `json:"display_name"`
+	Age               *int       `json:"age,omitempty"`
+	IconURL           *string    `json:"icon_url,omitempty"`
+	NDAFlag           bool       `json:"nda_flag"`
+	TermsAcceptedAt   *time.Time `json:"terms_accepted_at,omitempty"`
+	PrivacyAcceptedAt *time.Time `json:"privacy_accepted_at,omitempty"`
+	StripeCustomerID  *string    `json:"stripe_customer_id,omitempty"`
+	ListingCount      *int       `json:"listing_count,omitempty"`
+	ServiceCategories []string   `json:"service_categories,omitempty"`
+	DesiredExitTiming *string    `json:"desired_exit_timing,omitempty"`
+	InvestmentMin     *int       `json:"investment_min,omitempty"`
+	InvestmentMax     *int       `json:"investment_max,omitempty"`
+	TargetCategories  []string   `json:"target_categories,omitempty"`
+	OperationType     *string    `json:"operation_type,omitempty"`
+	Expertise         []string   `json:"expertise,omitempty"`
+	PortfolioSummary  *string    `json:"portfolio_summary,omitempty"`
+	ProposalStyle     *string    `json:"proposal_style,omitempty"`
+	CreatedAt         time.Time  `json:"created_at"`
+	UpdatedAt         time.Time  `json:"updated_at"`
 }
 
 // Register時は認証情報のみ
@@ -65,4 +75,94 @@ type LoginResponse struct {
 	RefreshToken string   `json:"refresh_token"`
 	User         User     `json:"user"`
 	Profile      *Profile `json:"profile,omitempty"` // プロフィール未作成時はnil
+}
+
+type RegistrationMethod string
+
+const (
+	RegistrationMethodEmail  RegistrationMethod = "email"
+	RegistrationMethodGoogle RegistrationMethod = "google"
+	RegistrationMethodGithub RegistrationMethod = "github"
+	RegistrationMethodX      RegistrationMethod = "x"
+)
+
+type RegistrationStep1Request struct {
+	Method      RegistrationMethod `json:"method"`
+	Email       string             `json:"email,omitempty"`
+	Password    string             `json:"password,omitempty"`
+	RedirectURL string             `json:"redirect_url,omitempty"`
+}
+
+type RegistrationStep1Response struct {
+	Type           string             `json:"type"`
+	Auth           *AuthResponse      `json:"auth,omitempty"`
+	ProviderURL    string             `json:"provider_url,omitempty"`
+	SelectedMethod RegistrationMethod `json:"selected_method"`
+}
+
+type RegistrationStep2Request struct {
+	Roles []string `json:"roles"`
+}
+
+type RegistrationStep2Response struct {
+	Roles []string `json:"roles"`
+}
+
+type RegistrationStep3Request struct {
+	DisplayName  string   `json:"display_name"`
+	Party        string   `json:"party"`
+	IconURL      *string  `json:"icon_url,omitempty"`
+	Prefecture   *string  `json:"prefecture,omitempty"`
+	CompanyName  *string  `json:"company_name,omitempty"`
+	Introduction *string  `json:"introduction,omitempty"`
+	Links        []string `json:"links,omitempty"`
+}
+
+type RegistrationStep3Response struct {
+	Roles   []string `json:"roles"`
+	Profile Profile  `json:"profile"`
+}
+
+type SellerProfileInput struct {
+	ListingCount      *int     `json:"listing_count,omitempty"`
+	ServiceCategories []string `json:"service_categories,omitempty"`
+	DesiredExitTiming *string  `json:"desired_exit_timing,omitempty"`
+}
+
+type BuyerProfileInput struct {
+	InvestmentMin    *int     `json:"investment_min,omitempty"`
+	InvestmentMax    *int     `json:"investment_max,omitempty"`
+	TargetCategories []string `json:"target_categories,omitempty"`
+	OperationType    *string  `json:"operation_type,omitempty"`
+}
+
+type AdvisorProfileInput struct {
+	Expertise        []string `json:"expertise,omitempty"`
+	PortfolioSummary *string  `json:"portfolio_summary,omitempty"`
+	ProposalStyle    *string  `json:"proposal_style,omitempty"`
+}
+
+type RegistrationStep4Request struct {
+	Seller  *SellerProfileInput  `json:"seller,omitempty"`
+	Buyer   *BuyerProfileInput   `json:"buyer,omitempty"`
+	Advisor *AdvisorProfileInput `json:"advisor,omitempty"`
+}
+
+type RegistrationStep5Request struct {
+	NDAAgreed       bool `json:"nda_agreed"`
+	TermsAccepted   bool `json:"terms_accepted"`
+	PrivacyAccepted bool `json:"privacy_accepted"`
+}
+
+type RegistrationCompletionResponse struct {
+	Completed bool     `json:"completed"`
+	Roles     []string `json:"roles"`
+}
+
+type ProfileUpsert struct {
+	ID          string  `json:"id"`
+	Role        string  `json:"role"`
+	Party       string  `json:"party"`
+	DisplayName string  `json:"display_name"`
+	IconURL     *string `json:"icon_url,omitempty"`
 }

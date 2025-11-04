@@ -303,11 +303,11 @@ export default function Footer() {
             {/* 左側：会社情報 */}
             <div className="flex flex-col sm:flex-row items-center gap-2 sm:space-x-6 mb-4 lg:mb-0">
               <div className="flex items-center space-x-2">
-                <span className="text-white font-semibold">🔥 APPEXIT</span>
+                <img src="/icon.png" alt="APPEXIT" className="h-8 w-auto" />
               </div>
               <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4 text-sm text-gray-300">
                 <span>APPEXIT GROUP</span>
-                <span>Livefor株式会社</span>
+                <span>Queue株式会社</span>
               </div>
             </div>
 
