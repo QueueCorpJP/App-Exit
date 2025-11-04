@@ -128,24 +128,18 @@ interface AgreementsState {
 function StepIndicator({ current }: { current: number }) {
   return (
     <div className="mb-8">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-xl font-bold text-gray-900">新規アカウント作成</h2>
-        <span className="text-sm font-medium" style={{ color: '#323232' }}>
-          ステップ {current} / {TOTAL_STEPS}
-        </span>
+      <div className="flex justify-center mb-6">
+        <img src="/icon.png" alt="AppExit" className="h-12 w-auto" />
       </div>
-      <p className="text-sm text-gray-600 mb-6">
-        既にアカウントをお持ちの方は{' '}
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={() => window.location.assign('/login')}
-          className="p-0 h-auto font-medium"
-        >
-          ログイン
-        </Button>
-      </p>
+      <div className="flex justify-between items-center mb-6">
+        <div className="w-32"></div>
+        <h2 className="register-title-custom mb-0">新規登録</h2>
+        <div className="w-32 text-right">
+          <span className="text-sm font-medium" style={{ color: '#323232' }}>
+            ステップ {current} / {TOTAL_STEPS}
+          </span>
+        </div>
+      </div>
       <div className="relative">
         <div className="flex justify-between items-center">
           {Array.from({ length: TOTAL_STEPS }, (_, i) => i + 1).map((step) => (
@@ -199,6 +193,8 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [confirmPassword, setConfirmPassword] = useState<string>('');
+  const [showMethodOptions, setShowMethodOptions] = useState<boolean>(false);
+  const [isHovered, setIsHovered] = useState<boolean>(false);
   const [basicForm, setBasicForm] = useState<BasicProfileForm>({
     displayName: '',
     party: 'individual',
@@ -470,30 +466,54 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
         return (
           <div className="space-y-6">
             <div>
-              <h3 className="text-lg font-medium text-gray-900 mb-4">1. 登録方法を選択</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {([
-                  { method: 'google' as RegistrationMethod, label: 'Googleで登録', description: 'Googleアカウントで高速登録' },
-                  { method: 'github' as RegistrationMethod, label: 'GitHubで登録', description: 'GitHubアカウントで登録' },
-                  { method: 'x' as RegistrationMethod, label: 'Xで登録', description: 'Xアカウントで登録' },
-                ]).map(({ method, label, description }) => (
-                  <button
-                    key={method}
-                    type="button"
-                    onClick={() => handleOAuthSignup(method)}
-                    className={`px-4 py-5 text-left border-2 transition-all duration-200 ${
-                      selectedMethod === method ? 'border-gray-900 bg-gray-50' : 'border-gray-200 hover:border-gray-900'
-                    }`}
-                    disabled={isLoading}
-                  >
-                    <div className="text-sm font-semibold text-gray-900">{label}</div>
-                    <div className="mt-1 text-xs text-gray-500">{description}</div>
-                  </button>
-                ))}
-              </div>
+              <button
+                type="button"
+                onClick={() => setShowMethodOptions(!showMethodOptions)}
+                className="w-full px-4 py-3 text-left flex items-center justify-between hover:bg-gray-50 transition-all duration-200"
+              >
+                <div className="text-base font-semibold text-gray-900">1. ソーシャルアカウントで登録</div>
+                <svg
+                  className={`w-5 h-5 text-gray-500 transition-transform duration-200 ${showMethodOptions ? 'rotate-90' : ''}`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+              {showMethodOptions && (
+                <div className="mt-3 space-y-3">
+                  {([
+                    { method: 'google' as RegistrationMethod, label: 'Googleで登録' },
+                    { method: 'github' as RegistrationMethod, label: 'GitHubで登録' },
+                    { method: 'x' as RegistrationMethod, label: 'Xで登録' },
+                  ]).map(({ method, label }) => (
+                    <Button
+                      key={method}
+                      type="button"
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => handleOAuthSignup(method)}
+                      isLoading={isLoading}
+                    >
+                      {label}
+                    </Button>
+                  ))}
+                </div>
+              )}
             </div>
-            <div className="border-t border-gray-200 pt-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">2. メールアドレスで登録</h3>
+            <div className="pt-6">
+              <div className="relative mb-6">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-200" />
+                </div>
+                <div className="relative flex justify-center text-2xl">
+                  <span className="px-6 bg-white text-gray-300 font-black">or</span>
+                </div>
+              </div>
+              <div className="px-4 py-3 mb-4">
+                <h3 className="text-base font-semibold text-gray-900">2. メールアドレスで登録</h3>
+              </div>
               <div className="space-y-4">
                 <div>
                   <label htmlFor="email" className="block text-sm font-medium text-gray-700">
@@ -995,6 +1015,7 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
     }
   }, [
     step,
+    showMethodOptions,
     selectedMethod,
     isLoading,
     email,
@@ -1009,9 +1030,23 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
   ]);
 
   return (
-    <div className="min-h-screen flex flex-col justify-center py-12 sm:px-6 lg:px-8" style={{ backgroundColor: '#F9F8F7' }}>
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-4xl">
-        <StepIndicator current={step} />
+    <>
+      <style dangerouslySetInnerHTML={{__html: `
+        .register-title-custom {
+          color: #323232 !important;
+          font-weight: 900 !important;
+          font-size: 1.125rem !important;
+          text-align: center !important;
+          margin-bottom: 0 !important;
+          -webkit-text-stroke: 0.1px #323232 !important;
+          text-stroke: 0.1px #323232 !important;
+          letter-spacing: 0.02em !important;
+        }
+      `}} />
+
+      <div className="min-h-screen flex flex-col justify-center py-12 sm:px-6 lg:px-8" style={{ backgroundColor: '#F9F8F7' }}>
+        <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+          <StepIndicator current={step} />
         <div className="bg-white py-8 px-6 sm:px-10">
           <form onSubmit={handleSubmit}>
             {renderStepContent}
@@ -1020,22 +1055,48 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
                 <p className="text-sm text-red-700">{error}</p>
               </div>
             )}
-            <div className="mt-8 flex justify-between">
+            <div className="mt-8 space-y-3">
+              <Button
+                type="submit"
+                variant="primary"
+                isLoading={isLoading}
+                className="w-full"
+                style={{
+                  backgroundColor: isHovered ? '#D14C54' : '#E65D65',
+                }}
+                onMouseEnter={() => setIsHovered(true)}
+                onMouseLeave={() => setIsHovered(false)}
+              >
+                {primaryButtonLabel}
+              </Button>
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => setStep((prev) => Math.max(1, prev - 1))}
                 disabled={isLoading || step === 1}
+                className="w-full"
               >
                 戻る
-              </Button>
-              <Button type="submit" variant="primary" isLoading={isLoading}>
-                {primaryButtonLabel}
               </Button>
             </div>
           </form>
         </div>
+        <div className="mt-4 py-4 text-center">
+          <p className="text-sm text-gray-600">
+            既にアカウントをお持ちの方は{' '}
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => window.location.assign('/login')}
+              className="p-0 h-auto font-medium"
+            >
+              ログイン
+            </Button>
+          </p>
+        </div>
       </div>
     </div>
+    </>
   );
 }
