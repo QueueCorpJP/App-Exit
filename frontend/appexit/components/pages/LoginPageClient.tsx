@@ -1,13 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useFormStatus } from 'react-dom';
 import Button from '@/components/ui/Button';
 import { loginWithBackend } from '@/lib/auth-api';
 
 function SubmitButton() {
   const { pending } = useFormStatus();
+  const [isHovered, setIsHovered] = useState(false);
 
   return (
     <Button
@@ -16,6 +17,11 @@ function SubmitButton() {
       className="w-full"
       isLoading={pending}
       loadingText="ログイン中..."
+      style={{
+        backgroundColor: isHovered ? '#D14C54' : '#E65D65',
+      }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
       ログイン
     </Button>
@@ -46,14 +52,17 @@ export default function LoginPageClient({ error: serverError }: LoginPageClientP
       const accessToken = result.token;
       const refreshToken = result.refresh_token;
 
-      // Supabaseセッション設定
+      // Supabaseセッション設定（バックグラウンドで実行）
       const { supabase } = await import('@/lib/supabase');
-      await supabase.auth.setSession({
+
+      // setSessionを非同期で実行（awaitしない）
+      supabase.auth.setSession({
         access_token: accessToken,
         refresh_token: refreshToken,
       });
 
-      // ルートパスへリダイレクト
+      // 即座にハードリロードして状態を完全にリセット
+      // バックエンドのHTTPOnly Cookieが既に設定されているので、これで十分
       window.location.href = '/';
     } catch (err) {
       console.error('Login error:', err);
@@ -62,27 +71,27 @@ export default function LoginPageClient({ error: serverError }: LoginPageClientP
   }
 
   return (
-    <div className="min-h-screen flex flex-col justify-center py-12 sm:px-6 lg:px-8" style={{ backgroundColor: '#F9F8F7' }}>
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-4 sm:px-10">
-          <div className="mb-8">
-            <h2 className="text-center text-3xl font-extrabold text-gray-900">
-              アカウントにログイン
-            </h2>
-            <p className="mt-2 text-center text-sm text-gray-600">
-              または{' '}
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => router.push('/register')}
-                className="p-0 h-auto font-medium"
-              >
-                新しいアカウントを作成
-              </Button>
-            </p>
+    <>
+      <style dangerouslySetInnerHTML={{__html: `
+        .login-title-custom {
+          color: #323232 !important;
+          font-weight: 900 !important;
+          font-size: 1.125rem !important;
+          text-align: center !important;
+          margin-bottom: 1.5rem !important;
+          -webkit-text-stroke: 0.3px #323232 !important;
+          text-stroke: 0.3px #323232 !important;
+          letter-spacing: 0.02em !important;
+        }
+      `}} />
+      <div className="min-h-screen flex flex-col justify-center py-12 sm:px-6 lg:px-8" style={{ backgroundColor: '#F9F8F7' }}>
+        <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+          <div className="flex justify-center mb-6">
+            <img src="/icon.png" alt="AppExit" className="h-12 w-auto" />
           </div>
+          <h2 className="login-title-custom">ログイン</h2>
 
+        <div className="bg-white py-8 px-4 sm:px-10">
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700">
@@ -213,7 +222,21 @@ export default function LoginPageClient({ error: serverError }: LoginPageClientP
             </div>
           </div>
         </div>
+
+        <p className="mt-6 text-center text-sm text-gray-600">
+          または{' '}
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => router.push('/register')}
+            className="p-0 h-auto font-medium"
+          >
+            新しいアカウントを作成
+          </Button>
+        </p>
       </div>
     </div>
+    </>
   );
 }

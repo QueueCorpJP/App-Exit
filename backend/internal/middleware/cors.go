@@ -15,36 +15,33 @@ func CORSWithConfig(allowedOrigins []string) func(http.Handler) http.Handler {
 			fmt.Printf("[CORS] Origin header: %s\n", r.Header.Get("Origin"))
 			fmt.Printf("[CORS] Allowed origins: %v\n", allowedOrigins)
 
-			// リクエストのオリジンを取得
-			requestOrigin := r.Header.Get("Origin")
+            // リクエストのオリジンを取得
+            requestOrigin := r.Header.Get("Origin")
 
-			// オリジンが許可リストに含まれているかチェック
-			allowedOrigin := ""
-			if requestOrigin != "" {
-				for _, origin := range allowedOrigins {
-					if origin == requestOrigin {
-						allowedOrigin = origin
-						break
-					}
-				}
-			}
+            // オリジンが許可リストに含まれているかチェック（完全一致のみ）
+            allowedOrigin := ""
+            if requestOrigin != "" {
+                for _, origin := range allowedOrigins {
+                    if origin == requestOrigin {
+                        allowedOrigin = origin
+                        break
+                    }
+                }
+            }
 
-			// 許可されたオリジンがない場合、デフォルトを使用（開発環境のみ）
-			if allowedOrigin == "" && len(allowedOrigins) > 0 {
-				allowedOrigin = allowedOrigins[0]
-				fmt.Printf("[CORS] Origin not in whitelist, using default: %s\n", allowedOrigin)
-			}
+            // キャッシュの安全性向上
+            w.Header().Add("Vary", "Origin")
 
-			if allowedOrigin != "" {
-				fmt.Printf("[CORS] ✓ Allowing origin: %s\n", allowedOrigin)
-				w.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
-				w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-				w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-				w.Header().Set("Access-Control-Allow-Credentials", "true")
-				w.Header().Set("Access-Control-Max-Age", "3600")
-			} else {
-				fmt.Printf("[CORS] ⚠️ No allowed origin found\n")
-			}
+            if allowedOrigin != "" {
+                fmt.Printf("[CORS] ✓ Allowing origin: %s\n", allowedOrigin)
+                w.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
+                w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+                w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+                w.Header().Set("Access-Control-Allow-Credentials", "true")
+                w.Header().Set("Access-Control-Max-Age", "3600")
+            } else {
+                fmt.Printf("[CORS] ⚠️ Origin not allowed: %s\n", requestOrigin)
+            }
 
 			// Handle preflight requests
 			if r.Method == http.MethodOptions {

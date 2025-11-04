@@ -169,9 +169,9 @@ export default function ProjectCreatePage() {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#F9F8F7' }}>
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* プログレスバー */}
-        <div className="mb-8">
+      <div className="py-8">
+        {/* プログレスバー - 幅制限あり */}
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 mb-8">
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-2xl font-bold text-gray-900">プロダクト投稿を作成</h1>
             <span className="text-sm font-medium" style={{ color: '#323232' }}>
@@ -214,11 +214,14 @@ export default function ProjectCreatePage() {
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        {/* フォーム - より広い幅 */}
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <form onSubmit={handleSubmit} className="space-y-2">
           {/* ステップ1: プロダクト名 */}
-          <div className="bg-white rounded-lg p-6">
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 border-2" style={{ borderColor: '#323232', backgroundColor: 'transparent' }}>
+          <div className="bg-white rounded-lg py-8 px-8">
+            <div className="max-w-4xl mx-auto">
+              <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 border" style={{ borderColor: '#323232', backgroundColor: 'transparent' }}>
                 <span className="font-bold text-lg" style={{ color: '#323232' }}>1</span>
               </div>
               <div className="flex-1">
@@ -242,12 +245,14 @@ export default function ProjectCreatePage() {
                 />
               </div>
             </div>
+            </div>
           </div>
 
           {/* ステップ2: プロダクト名 (詳細) */}
-          <div className="bg-white rounded-lg p-6">
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 border-2" style={{ borderColor: '#323232', backgroundColor: 'transparent' }}>
+          <div className="bg-white rounded-lg py-8 px-8">
+            <div className="max-w-4xl mx-auto">
+              <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 border" style={{ borderColor: '#323232', backgroundColor: 'transparent' }}>
                 <span className="font-bold text-lg" style={{ color: '#323232' }}>2</span>
               </div>
               <div className="flex-1">
@@ -271,12 +276,14 @@ export default function ProjectCreatePage() {
                 />
               </div>
             </div>
+            </div>
           </div>
 
           {/* ステップ3: カテゴリ選択 */}
-          <div className="bg-white rounded-lg p-6">
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 border-2" style={{ borderColor: '#323232', backgroundColor: 'transparent' }}>
+          <div className="bg-white rounded-lg py-8 px-8">
+            <div className="max-w-4xl mx-auto">
+              <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 border" style={{ borderColor: '#323232', backgroundColor: 'transparent' }}>
                 <span className="font-bold text-lg" style={{ color: '#323232' }}>3</span>
               </div>
               <div className="flex-1">
@@ -312,12 +319,14 @@ export default function ProjectCreatePage() {
                 </div>
               </div>
             </div>
+            </div>
           </div>
 
           {/* ステップ4: カバー画像 */}
-          <div className="bg-white rounded-lg p-6">
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 border-2" style={{ borderColor: '#323232', backgroundColor: 'transparent' }}>
+          <div className="bg-white rounded-lg py-8 px-8">
+            <div className="max-w-4xl mx-auto">
+              <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 border" style={{ borderColor: '#323232', backgroundColor: 'transparent' }}>
                 <span className="font-bold text-lg" style={{ color: '#323232' }}>4</span>
               </div>
               <div className="flex-1">
@@ -364,12 +373,14 @@ export default function ProjectCreatePage() {
                 </label>
               </div>
             </div>
+            </div>
           </div>
 
           {/* ステップ5: 詳細説明 */}
-          <div className="bg-white rounded-lg p-6">
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 border-2" style={{ borderColor: '#323232', backgroundColor: 'transparent' }}>
+          <div className="bg-white rounded-lg py-8 px-8">
+            <div className="max-w-4xl mx-auto">
+              <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 border" style={{ borderColor: '#323232', backgroundColor: 'transparent' }}>
                 <span className="font-bold text-lg" style={{ color: '#323232' }}>5</span>
               </div>
               <div className="flex-1">
@@ -393,12 +404,14 @@ export default function ProjectCreatePage() {
                 />
               </div>
             </div>
+            </div>
           </div>
 
           {/* ステップ6: 財務情報 */}
-          <div className="bg-white rounded-lg p-6">
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 border-2" style={{ borderColor: '#323232', backgroundColor: 'transparent' }}>
+          <div className="bg-white rounded-lg py-8 px-8">
+            <div className="max-w-4xl mx-auto">
+              <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 border" style={{ borderColor: '#323232', backgroundColor: 'transparent' }}>
                 <span className="font-bold text-lg" style={{ color: '#323232' }}>6</span>
               </div>
               <div className="flex-1">
@@ -467,12 +480,14 @@ export default function ProjectCreatePage() {
                 </div>
               </div>
             </div>
+            </div>
           </div>
 
           {/* ステップ7: 価格と技術情報 */}
-          <div className="bg-white rounded-lg p-6">
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 border-2" style={{ borderColor: '#323232', backgroundColor: 'transparent' }}>
+          <div className="bg-white rounded-lg py-8 px-8">
+            <div className="max-w-4xl mx-auto">
+              <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 border" style={{ borderColor: '#323232', backgroundColor: 'transparent' }}>
                 <span className="font-bold text-lg" style={{ color: '#323232' }}>7</span>
               </div>
               <div className="flex-1">
@@ -539,42 +554,46 @@ export default function ProjectCreatePage() {
                 </div>
               </div>
             </div>
+            </div>
           </div>
 
-          {/* 送信ボタン */}
-          <div className="flex gap-4 justify-end pt-6">
-            <button
-              type="button"
-              onClick={() => router.push('/')}
-              className="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 font-semibold transition-colors"
-              disabled={isSubmitting}
-              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = colors.primaryLight}
-              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-            >
-              キャンセル
-            </button>
-            <button
-              type="submit"
-              disabled={!formData.title || !formData.appName || !formData.body || !formData.price || isSubmitting}
-              className="px-6 py-3 text-white rounded-lg font-semibold transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
-              style={{
-                backgroundColor: (!formData.title || !formData.appName || !formData.body || !formData.price || isSubmitting) ? undefined : colors.primary
-              }}
-              onMouseEnter={(e) => {
-                if (!e.currentTarget.disabled) {
-                  e.currentTarget.style.backgroundColor = colors.primaryHover;
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!e.currentTarget.disabled) {
-                  e.currentTarget.style.backgroundColor = colors.primary;
-                }
-              }}
-            >
-              {uploadingImage ? '画像をアップロード中...' : isSubmitting ? '投稿中...' : 'プロダクトを投稿'}
-            </button>
-          </div>
-        </form>
+            {/* 送信ボタン */}
+            <div className="max-w-4xl mx-auto">
+              <div className="flex gap-4 justify-end pt-6">
+              <button
+                type="button"
+                onClick={() => router.push('/')}
+                className="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 font-semibold transition-colors"
+                disabled={isSubmitting}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = colors.primaryLight}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+              >
+                キャンセル
+              </button>
+              <button
+                type="submit"
+                disabled={!formData.title || !formData.appName || !formData.body || !formData.price || isSubmitting}
+                className="px-6 py-3 text-white rounded-lg font-semibold transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+                style={{
+                  backgroundColor: (!formData.title || !formData.appName || !formData.body || !formData.price || isSubmitting) ? undefined : colors.primary
+                }}
+                onMouseEnter={(e) => {
+                  if (!e.currentTarget.disabled) {
+                    e.currentTarget.style.backgroundColor = colors.primaryHover;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!e.currentTarget.disabled) {
+                    e.currentTarget.style.backgroundColor = colors.primary;
+                  }
+                }}
+              >
+                {uploadingImage ? '画像をアップロード中...' : isSubmitting ? '投稿中...' : 'プロダクトを投稿'}
+              </button>
+              </div>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );

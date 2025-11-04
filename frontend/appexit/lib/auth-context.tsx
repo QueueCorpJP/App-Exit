@@ -252,19 +252,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       sessionCheckIntervalRef.current = null;
     }
 
-    try {
-      // Supabaseからサインアウト（LocalStorageのセッションを削除）
-      // 統一戦略: トークンはSupabase LocalStorageのみで管理
-      await supabase.auth.signOut();
-      console.log('[AUTH-CONTEXT] Supabase session cleared');
-    } catch (error) {
-      console.error('[AUTH-CONTEXT] Error during sign out:', error);
-    }
-
-    // ステートをクリア
+    // ステートを先にクリア
     setUser(null);
     setProfile(null);
     setToken(null);
+
+    try {
+      // 1) バックエンドのHttpOnly Cookie(auth_token等)を確実に削除
+      const apiUrl = typeof window !== 'undefined'
+        ? (process.env.NEXT_PUBLIC_API_URL || `${window.location.protocol}//${window.location.hostname}:8080`)
+        : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080');
+
+      await fetch(`${apiUrl}/api/auth/logout`, {
+        method: 'POST',
+        credentials: 'include',
+        cache: 'no-store',
+      }).catch(() => {}); // 接続不能でも続行（クッキーがない環境など）
+
+      // 2) Supabaseからサインアウト（LocalStorageのセッションを削除）
+      // scope: 'global'を使用してすべてのセッションをクリア
+      await supabase.auth.signOut({ scope: 'global' }).catch((error) => {
+        console.warn('[AUTH-CONTEXT] Supabase signOut error (continuing):', error);
+      });
+
+      // 3) LocalStorageから明示的にSupabaseのキーを削除
+      if (typeof window !== 'undefined') {
+        const supabaseKeys = Object.keys(localStorage).filter(key =>
+          key.startsWith('sb-') || key.includes('supabase')
+        );
+        supabaseKeys.forEach(key => {
+          localStorage.removeItem(key);
+          console.log('[AUTH-CONTEXT] Removed localStorage key:', key);
+        });
+      }
+
+      console.log('[AUTH-CONTEXT] Backend cookie cleared and Supabase session cleared');
+    } catch (error) {
+      console.error('[AUTH-CONTEXT] Error during sign out:', error);
+    }
 
     console.log('[AUTH-CONTEXT] Sign out complete');
   };

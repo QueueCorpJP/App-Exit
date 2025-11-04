@@ -51,11 +51,12 @@ export default function Header() {
     };
   }, [isMobileMenuOpen]);
 
-  const handleSignOut = () => {
-    signOut();
+  const handleSignOut = async () => {
+    await signOut();
     setIsDropdownOpen(false);
     setIsMobileMenuOpen(false);
-    router.push('/');
+    // ハードリロードして状態を完全にリセット
+    window.location.href = '/';
   };
 
   return (
