@@ -22,11 +22,17 @@ function MessageThreadContainer({ threadId, onBack }: MessageThreadContainerProp
 
   // threadIdが変わった時のみデータを取得
   useEffect(() => {
+    // マウント状態を追跡
+    let isMounted = true;
+    const abortController = new AbortController();
+
     const fetchThreadData = async () => {
       if (!threadId || !user) {
-        setThreadDetail(null);
-        setMessages([]);
-        setIsLoadingMessages(false);
+        if (isMounted) {
+          setThreadDetail(null);
+          setMessages([]);
+          setIsLoadingMessages(false);
+        }
         return;
       }
 
@@ -38,12 +44,20 @@ function MessageThreadContainer({ threadId, onBack }: MessageThreadContainerProp
       prevThreadIdRef.current = threadId;
 
       try {
-        setIsLoadingMessages(true);
+        if (isMounted) {
+          setIsLoadingMessages(true);
+        }
+
         // スレッド詳細とメッセージ一覧を並行取得
         const [detailResponse, messagesResponse] = await Promise.all([
           messageApi.getThread(threadId),
           messageApi.getMessages(threadId),
         ]);
+
+        // アンマウントされている場合は処理を中断
+        if (!isMounted || abortController.signal.aborted) {
+          return;
+        }
 
         if (detailResponse.success && detailResponse.data) {
           setThreadDetail(detailResponse.data);
@@ -59,6 +73,12 @@ function MessageThreadContainer({ threadId, onBack }: MessageThreadContainerProp
 
           if (imagePaths.length > 0) {
             const imageUrlMap = await getImageUrls(imagePaths);
+
+            // アンマウントされている場合は処理を中断
+            if (!isMounted || abortController.signal.aborted) {
+              return;
+            }
+
             const messagesWithSignedUrls = messages.map(msg => {
               if (msg.image_url) {
                 return {
@@ -79,6 +99,11 @@ function MessageThreadContainer({ threadId, onBack }: MessageThreadContainerProp
           setError(null);
         }
       } catch (err) {
+        // アンマウントされている場合はエラーを無視
+        if (!isMounted || abortController.signal.aborted) {
+          return;
+        }
+
         console.error('Failed to fetch thread data:', err);
 
         // 404エラーの場合は特別な処理
@@ -90,7 +115,9 @@ function MessageThreadContainer({ threadId, onBack }: MessageThreadContainerProp
           // 3秒後にメッセージ一覧にリダイレクト
           if (onBack) {
             setTimeout(() => {
-              onBack();
+              if (isMounted) {
+                onBack();
+              }
             }, 2000);
           }
         } else {
@@ -98,11 +125,19 @@ function MessageThreadContainer({ threadId, onBack }: MessageThreadContainerProp
           setMessages([]);
         }
       } finally {
-        setIsLoadingMessages(false);
+        if (isMounted) {
+          setIsLoadingMessages(false);
+        }
       }
     };
 
     fetchThreadData();
+
+    // クリーンアップ: コンポーネントのアンマウント時に実行
+    return () => {
+      isMounted = false;
+      abortController.abort();
+    };
   }, [threadId, user, onBack]);
 
   const handleSendMessage = useCallback(async (messageText: string, imageFile?: File | null) => {

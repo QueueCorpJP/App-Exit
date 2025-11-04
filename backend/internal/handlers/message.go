@@ -379,9 +379,91 @@ func (s *Server) GetThreads(w http.ResponseWriter, r *http.Request) {
 
 	// Group participants by thread_id
 	participantsByThread := make(map[string][]string)
+	allParticipantIDs := make(map[string]bool)
 	if err == nil {
 		for _, p := range allParticipantRows {
 			participantsByThread[p.ThreadID] = append(participantsByThread[p.ThreadID], p.UserID)
+			allParticipantIDs[p.UserID] = true
+		}
+	}
+
+	// Get all participant profiles in a single query
+	type ProfileRow struct {
+		ID                string  `json:"id"`
+		Role              string  `json:"role"`
+		Party             string  `json:"party"`
+		DisplayName       string  `json:"display_name"`
+		Age               *int    `json:"age"`
+		IconURL           *string `json:"icon_url"`
+		NDAFlag           bool    `json:"nda_flag"`
+		TermsAcceptedAt   *string `json:"terms_accepted_at"`
+		PrivacyAcceptedAt *string `json:"privacy_accepted_at"`
+		StripeCustomerID  *string `json:"stripe_customer_id"`
+		CreatedAt         string  `json:"created_at"`
+		UpdatedAt         string  `json:"updated_at"`
+	}
+
+	profilesMap := make(map[string]models.Profile)
+	if len(allParticipantIDs) > 0 {
+		participantIDList := make([]string, 0, len(allParticipantIDs))
+		for id := range allParticipantIDs {
+			participantIDList = append(participantIDList, id)
+		}
+
+		log.Printf("[GetThreads] Fetching profiles for %d participants: %v", len(participantIDList), participantIDList)
+
+		// Use service client to bypass RLS and get all participant profiles
+		var profileRows []ProfileRow
+		_, err = serviceClient.From("profiles").
+			Select("id, role, party, display_name, age, icon_url, nda_flag, terms_accepted_at, privacy_accepted_at, stripe_customer_id, created_at, updated_at", "", false).
+			In("id", participantIDList).
+			ExecuteTo(&profileRows)
+
+		if err != nil {
+			log.Printf("[GetThreads] ERROR: Failed to fetch profiles: %v", err)
+		} else {
+			log.Printf("[GetThreads] Successfully fetched %d profiles", len(profileRows))
+			for _, row := range profileRows {
+				log.Printf("[GetThreads] Profile: id=%s, display_name=%s, icon_url=%v", row.ID, row.DisplayName, row.IconURL)
+
+				var termsAcceptedAt, privacyAcceptedAt *time.Time
+				if row.TermsAcceptedAt != nil {
+					t := parseTime(*row.TermsAcceptedAt)
+					termsAcceptedAt = &t
+				}
+				if row.PrivacyAcceptedAt != nil {
+					t := parseTime(*row.PrivacyAcceptedAt)
+					privacyAcceptedAt = &t
+				}
+
+				// Generate signed URL for icon if it exists
+				var iconURL *string
+				if row.IconURL != nil && *row.IconURL != "" {
+					signedURL, urlErr := s.supabase.GetSignedURL("profile-icons", *row.IconURL, 3600)
+					if urlErr != nil {
+						log.Printf("[GetThreads] Warning: Failed to generate signed URL for icon %s: %v", *row.IconURL, urlErr)
+						iconURL = row.IconURL
+					} else {
+						iconURL = &signedURL
+						log.Printf("[GetThreads] Generated signed URL for icon: %s", signedURL)
+					}
+				}
+
+				profilesMap[row.ID] = models.Profile{
+					ID:                row.ID,
+					Role:              row.Role,
+					Party:             row.Party,
+					DisplayName:       row.DisplayName,
+					Age:               row.Age,
+					IconURL:           iconURL,
+					NDAFlag:           row.NDAFlag,
+					TermsAcceptedAt:   termsAcceptedAt,
+					PrivacyAcceptedAt: privacyAcceptedAt,
+					StripeCustomerID:  row.StripeCustomerID,
+					CreatedAt:         parseTime(row.CreatedAt),
+					UpdatedAt:         parseTime(row.UpdatedAt),
+				}
+			}
 		}
 	}
 
@@ -423,6 +505,18 @@ func (s *Server) GetThreads(w http.ResponseWriter, r *http.Request) {
 		if !foundCreator {
 			thread.ParticipantIDs = append(thread.ParticipantIDs, row.CreatedBy)
 		}
+
+		// Build participants list with profile information
+		thread.Participants = make([]models.Profile, 0, len(thread.ParticipantIDs))
+		for _, pid := range thread.ParticipantIDs {
+			if profile, exists := profilesMap[pid]; exists {
+				thread.Participants = append(thread.Participants, profile)
+			} else {
+				log.Printf("[GetThreads] WARNING: Profile not found for participant %s in thread %s", pid, thread.ID)
+			}
+		}
+
+		log.Printf("[GetThreads] Thread %s: %d participant_ids, %d participants with profiles", thread.ID, len(thread.ParticipantIDs), len(thread.Participants))
 
 		thread.UnreadCount = 0 // TODO: Implement unread count logic
 		threads = append(threads, thread)
@@ -591,13 +685,26 @@ func (s *Server) GetThreadByID(w http.ResponseWriter, r *http.Request) {
 			privacyAcceptedAt = &t
 		}
 
+		// Generate signed URL for icon if it exists
+		var iconURL *string
+		if row.IconURL != nil && *row.IconURL != "" {
+			signedURL, urlErr := s.supabase.GetSignedURL("profile-icons", *row.IconURL, 3600)
+			if urlErr != nil {
+				log.Printf("[GetThreadByID] Warning: Failed to generate signed URL for icon %s: %v", *row.IconURL, urlErr)
+				iconURL = row.IconURL
+			} else {
+				iconURL = &signedURL
+				log.Printf("[GetThreadByID] Generated signed URL for icon: %s", signedURL)
+			}
+		}
+
 		p := models.Profile{
 			ID:                row.ID,
 			Role:              row.Role,
 			Party:             row.Party,
 			DisplayName:       row.DisplayName,
 			Age:               row.Age,
-			IconURL:           row.IconURL,
+			IconURL:           iconURL,
 			NDAFlag:           row.NDAFlag,
 			TermsAcceptedAt:   termsAcceptedAt,
 			PrivacyAcceptedAt: privacyAcceptedAt,

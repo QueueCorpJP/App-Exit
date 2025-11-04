@@ -46,6 +46,9 @@ export default function MessagePage({ threadId: initialThreadId }: MessagePagePr
 
   // selectedThreadIdが指定されている場合、該当するスレッドを選択または作成
   useEffect(() => {
+    // マウント状態を追跡
+    let isMounted = true;
+
     const handleThreadId = async () => {
       if (!selectedThreadId || !user || authLoading) return;
 
@@ -65,7 +68,9 @@ export default function MessagePage({ threadId: initialThreadId }: MessagePagePr
       try {
         // 自分自身とのスレッド作成を防ぐ
         if (selectedThreadId === user.id) {
-          setError('自分自身とのメッセージスレッドは作成できません');
+          if (isMounted) {
+            setError('自分自身とのメッセージスレッドは作成できません');
+          }
           isHandlingThreadIdRef.current = false;
           return;
         }
@@ -73,11 +78,23 @@ export default function MessagePage({ threadId: initialThreadId }: MessagePagePr
         // スレッドIDとして直接取得を試みる
         try {
           const threadDetailResponse = await messageApi.getThread(selectedThreadId);
+
+          // アンマウントされている場合は処理を中断
+          if (!isMounted) {
+            isHandlingThreadIdRef.current = false;
+            return;
+          }
+
           if (threadDetailResponse.success && threadDetailResponse.data) {
             isHandlingThreadIdRef.current = false;
             return;
           }
         } catch (threadErr: any) {
+          if (!isMounted) {
+            isHandlingThreadIdRef.current = false;
+            return;
+          }
+
           if ((threadErr as any)?.status !== 404) {
             console.log('[MESSAGE-PAGE] Failed to get thread:', threadErr.message);
           }
@@ -86,6 +103,12 @@ export default function MessagePage({ threadId: initialThreadId }: MessagePagePr
         // selectedThreadIdをユーザーIDとして扱い、既存スレッドを検索
         console.log('[MESSAGE-PAGE] Checking for existing thread with user:', selectedThreadId);
         const threadsResponse = await messageApi.getThreads();
+
+        // アンマウントされている場合は処理を中断
+        if (!isMounted) {
+          isHandlingThreadIdRef.current = false;
+          return;
+        }
 
         if (threadsResponse.success && threadsResponse.data) {
           // 同じユーザーとの既存スレッドを検索
@@ -98,6 +121,13 @@ export default function MessagePage({ threadId: initialThreadId }: MessagePagePr
 
           if (existingThread) {
             console.log('[MESSAGE-PAGE] Found existing thread:', existingThread.id);
+
+            // アンマウントされている場合は処理を中断
+            if (!isMounted) {
+              isHandlingThreadIdRef.current = false;
+              return;
+            }
+
             // 既存スレッドが見つかった場合、状態を更新（ページ遷移なし）
             setSelectedThreadId(existingThread.id);
             window.history.replaceState(null, '', `/messages/${existingThread.id}`);
@@ -112,6 +142,12 @@ export default function MessagePage({ threadId: initialThreadId }: MessagePagePr
           participant_ids: [selectedThreadId],
         });
 
+        // アンマウントされている場合は処理を中断
+        if (!isMounted) {
+          isHandlingThreadIdRef.current = false;
+          return;
+        }
+
         if (!createResponse.success || !createResponse.data) {
           throw new Error('スレッドの作成に失敗しました');
         }
@@ -121,6 +157,12 @@ export default function MessagePage({ threadId: initialThreadId }: MessagePagePr
         window.history.replaceState(null, '', `/messages/${createResponse.data.id}`);
         isHandlingThreadIdRef.current = false;
       } catch (err: any) {
+        // アンマウントされている場合はエラーを無視
+        if (!isMounted) {
+          isHandlingThreadIdRef.current = false;
+          return;
+        }
+
         console.error('Failed to handle thread ID:', err);
         setError(err.message || 'スレッドの取得に失敗しました');
         isHandlingThreadIdRef.current = false;
@@ -128,7 +170,13 @@ export default function MessagePage({ threadId: initialThreadId }: MessagePagePr
     };
 
     handleThreadId();
-  }, [selectedThreadId, user?.id, authLoading]);
+
+    // クリーンアップ: コンポーネントのアンマウント時に実行
+    return () => {
+      isMounted = false;
+      isHandlingThreadIdRef.current = false;
+    };
+  }, [selectedThreadId, user, authLoading]);
 
   const handleThreadSelect = useCallback((newThreadId: string) => {
     userInitiatedSelectionRef.current = true;

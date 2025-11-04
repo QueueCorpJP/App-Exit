@@ -793,6 +793,7 @@ export interface MessageWithSender extends Message {
 export interface ThreadWithLastMessage extends Thread {
   last_message?: Message | null;
   participant_ids: string[];
+  participants: Profile[];
   unread_count: number;
 }
 

@@ -27,6 +27,15 @@ interface FormData {
 
 export default function ProjectCreatePage() {
   const router = useRouter();
+
+  // カラーテーマ定義
+  const colors = {
+    primary: '#5588bb',
+    primaryHover: '#4477aa',
+    primaryLight: '#e8f0f7',
+    dark: '#323232'
+  };
+
   const [formData, setFormData] = useState<FormData>({
     type: 'transaction',
     title: '',
@@ -163,15 +172,45 @@ export default function ProjectCreatePage() {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* プログレスバー */}
         <div className="mb-8">
-          <div className="flex justify-between items-center mb-2">
+          <div className="flex justify-between items-center mb-6">
             <h1 className="text-2xl font-bold text-gray-900">アプリ投稿を作成</h1>
-            <span className="text-sm text-gray-500">{currentStep} / {totalSteps}</span>
+            <span className="text-sm font-medium" style={{ color: '#323232' }}>
+              ステップ {currentStep} / {totalSteps}
+            </span>
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-2">
-            <div
-              className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-              style={{ width: `${progress}%` }}
-            ></div>
+          <div className="relative">
+            <div className="flex justify-between items-center">
+              {Array.from({ length: totalSteps }, (_, i) => i + 1).map((step) => (
+                <div key={step} className="flex flex-col items-center relative" style={{ flex: 1 }}>
+                  {step < totalSteps && (
+                    <div
+                      className="absolute top-5 left-1/2 h-0.5 transition-all duration-300"
+                      style={{
+                        width: 'calc(100% - 40px)',
+                        backgroundColor: step < currentStep ? '#323232' : '#E5E7EB',
+                        left: 'calc(50% + 20px)'
+                      }}
+                    />
+                  )}
+                  <div
+                    className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all duration-300 relative z-10"
+                    style={{
+                      backgroundColor: step <= currentStep ? '#323232' : '#fff',
+                      color: step <= currentStep ? '#fff' : '#9CA3AF',
+                      border: step <= currentStep ? 'none' : '2px solid #E5E7EB'
+                    }}
+                  >
+                    {step < currentStep ? (
+                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                    ) : (
+                      step
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -179,8 +218,8 @@ export default function ProjectCreatePage() {
           {/* ステップ1: アプリ名 */}
           <div className="bg-white rounded-lg p-6">
             <div className="flex items-start gap-4">
-              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                <span className="text-blue-600 font-bold text-lg">1</span>
+              <div className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 border-2" style={{ borderColor: '#323232', backgroundColor: 'transparent' }}>
+                <span className="font-bold text-lg" style={{ color: '#323232' }}>1</span>
               </div>
               <div className="flex-1">
                 <h2 className="text-xl font-bold text-gray-900 mb-2">
@@ -197,7 +236,8 @@ export default function ProjectCreatePage() {
                     if (currentStep === 1 && e.target.value) setCurrentStep(2);
                   }}
                   placeholder="例: タスク管理アプリ「TaskMaster」"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent"
+                  style={{ '--tw-ring-color': colors.primary } as React.CSSProperties}
                   required
                 />
               </div>
@@ -207,8 +247,8 @@ export default function ProjectCreatePage() {
           {/* ステップ2: アプリ名 (詳細) */}
           <div className="bg-white rounded-lg p-6">
             <div className="flex items-start gap-4">
-              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                <span className="text-blue-600 font-bold text-lg">2</span>
+              <div className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 border-2" style={{ borderColor: '#323232', backgroundColor: 'transparent' }}>
+                <span className="font-bold text-lg" style={{ color: '#323232' }}>2</span>
               </div>
               <div className="flex-1">
                 <h2 className="text-xl font-bold text-gray-900 mb-2">
@@ -225,7 +265,8 @@ export default function ProjectCreatePage() {
                     if (currentStep === 2 && e.target.value) setCurrentStep(3);
                   }}
                   placeholder="例: TaskMaster Pro"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent"
+                  style={{ '--tw-ring-color': colors.primary } as React.CSSProperties}
                   required
                 />
               </div>
@@ -235,8 +276,8 @@ export default function ProjectCreatePage() {
           {/* ステップ3: カテゴリ選択 */}
           <div className="bg-white rounded-lg p-6">
             <div className="flex items-start gap-4">
-              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                <span className="text-blue-600 font-bold text-lg">3</span>
+              <div className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 border-2" style={{ borderColor: '#323232', backgroundColor: 'transparent' }}>
+                <span className="font-bold text-lg" style={{ color: '#323232' }}>3</span>
               </div>
               <div className="flex-1">
                 <h2 className="text-xl font-bold text-gray-900 mb-2">
@@ -256,9 +297,14 @@ export default function ProjectCreatePage() {
                       }}
                       className={`px-4 py-3 rounded-lg border-2 transition-all ${
                         formData.appCategory === category
-                          ? 'border-blue-600 bg-blue-50 text-blue-600 font-semibold'
+                          ? 'font-semibold'
                           : 'border-gray-200 hover:border-gray-300'
                       }`}
+                      style={formData.appCategory === category ? {
+                        borderColor: colors.primary,
+                        backgroundColor: colors.primaryLight,
+                        color: colors.primary
+                      } : {}}
                     >
                       {category}
                     </button>
@@ -271,8 +317,8 @@ export default function ProjectCreatePage() {
           {/* ステップ4: カバー画像 */}
           <div className="bg-white rounded-lg p-6">
             <div className="flex items-start gap-4">
-              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                <span className="text-blue-600 font-bold text-lg">4</span>
+              <div className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 border-2" style={{ borderColor: '#323232', backgroundColor: 'transparent' }}>
+                <span className="font-bold text-lg" style={{ color: '#323232' }}>4</span>
               </div>
               <div className="flex-1">
                 <h2 className="text-xl font-bold text-gray-900 mb-2">
@@ -293,7 +339,11 @@ export default function ProjectCreatePage() {
                   </div>
                 )}
 
-                <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer hover:bg-blue-50/50 transition-colors">
+                <label
+                  className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer transition-colors"
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = colors.primaryLight}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                >
                   <div className="flex flex-col items-center justify-center pt-5 pb-6">
                     <svg className="w-10 h-10 mb-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
@@ -319,8 +369,8 @@ export default function ProjectCreatePage() {
           {/* ステップ5: 詳細説明 */}
           <div className="bg-white rounded-lg p-6">
             <div className="flex items-start gap-4">
-              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                <span className="text-blue-600 font-bold text-lg">5</span>
+              <div className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 border-2" style={{ borderColor: '#323232', backgroundColor: 'transparent' }}>
+                <span className="font-bold text-lg" style={{ color: '#323232' }}>5</span>
               </div>
               <div className="flex-1">
                 <h2 className="text-xl font-bold text-gray-900 mb-2">
@@ -337,7 +387,8 @@ export default function ProjectCreatePage() {
                   }}
                   placeholder="アプリの機能、特徴、ユーザーベース、売却理由などを記載してください..."
                   rows={6}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent resize-none"
+                  style={{ '--tw-ring-color': colors.primary } as React.CSSProperties}
                   required
                 />
               </div>
@@ -347,8 +398,8 @@ export default function ProjectCreatePage() {
           {/* ステップ6: 財務情報 */}
           <div className="bg-white rounded-lg p-6">
             <div className="flex items-start gap-4">
-              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                <span className="text-blue-600 font-bold text-lg">6</span>
+              <div className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 border-2" style={{ borderColor: '#323232', backgroundColor: 'transparent' }}>
+                <span className="font-bold text-lg" style={{ color: '#323232' }}>6</span>
               </div>
               <div className="flex-1">
                 <h2 className="text-xl font-bold text-gray-900 mb-2">
@@ -370,7 +421,8 @@ export default function ProjectCreatePage() {
                         if (currentStep === 6 && e.target.value) setCurrentStep(7);
                       }}
                       placeholder="1000000"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent"
+                      style={{ '--tw-ring-color': colors.primary } as React.CSSProperties}
                     />
                   </div>
                   <div>
@@ -382,7 +434,8 @@ export default function ProjectCreatePage() {
                       value={formData.monthlyProfit}
                       onChange={(e) => setFormData({ ...formData, monthlyProfit: e.target.value })}
                       placeholder="500000"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent"
+                      style={{ '--tw-ring-color': colors.primary } as React.CSSProperties}
                     />
                   </div>
                   <div>
@@ -394,7 +447,8 @@ export default function ProjectCreatePage() {
                       value={formData.mau}
                       onChange={(e) => setFormData({ ...formData, mau: e.target.value })}
                       placeholder="10000"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent"
+                      style={{ '--tw-ring-color': colors.primary } as React.CSSProperties}
                     />
                   </div>
                   <div>
@@ -406,7 +460,8 @@ export default function ProjectCreatePage() {
                       value={formData.dau}
                       onChange={(e) => setFormData({ ...formData, dau: e.target.value })}
                       placeholder="3000"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent"
+                      style={{ '--tw-ring-color': colors.primary } as React.CSSProperties}
                     />
                   </div>
                 </div>
@@ -417,8 +472,8 @@ export default function ProjectCreatePage() {
           {/* ステップ7: 価格と技術情報 */}
           <div className="bg-white rounded-lg p-6">
             <div className="flex items-start gap-4">
-              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                <span className="text-blue-600 font-bold text-lg">7</span>
+              <div className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 border-2" style={{ borderColor: '#323232', backgroundColor: 'transparent' }}>
+                <span className="font-bold text-lg" style={{ color: '#323232' }}>7</span>
               </div>
               <div className="flex-1">
                 <h2 className="text-xl font-bold text-gray-900 mb-2">
@@ -437,7 +492,8 @@ export default function ProjectCreatePage() {
                       value={formData.price}
                       onChange={(e) => setFormData({ ...formData, price: e.target.value })}
                       placeholder="10000000"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent"
+                      style={{ '--tw-ring-color': colors.primary } as React.CSSProperties}
                       required
                     />
                   </div>
@@ -450,7 +506,8 @@ export default function ProjectCreatePage() {
                       value={formData.techStack}
                       onChange={(e) => setFormData({ ...formData, techStack: e.target.value })}
                       placeholder="React, Node.js, PostgreSQL"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent"
+                      style={{ '--tw-ring-color': colors.primary } as React.CSSProperties}
                     />
                   </div>
                   <div>
@@ -462,7 +519,8 @@ export default function ProjectCreatePage() {
                       value={formData.storeUrl}
                       onChange={(e) => setFormData({ ...formData, storeUrl: e.target.value })}
                       placeholder="https://apps.apple.com/..."
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent"
+                      style={{ '--tw-ring-color': colors.primary } as React.CSSProperties}
                     />
                   </div>
                   <div>
@@ -474,7 +532,8 @@ export default function ProjectCreatePage() {
                       onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                       placeholder="その他の補足情報があれば記載してください..."
                       rows={4}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent resize-none"
+                      style={{ '--tw-ring-color': colors.primary } as React.CSSProperties}
                     />
                   </div>
                 </div>
@@ -487,15 +546,30 @@ export default function ProjectCreatePage() {
             <button
               type="button"
               onClick={() => router.push('/')}
-              className="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 font-semibold hover:bg-blue-50/50 transition-colors"
+              className="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 font-semibold transition-colors"
               disabled={isSubmitting}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = colors.primaryLight}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
             >
               キャンセル
             </button>
             <button
               type="submit"
               disabled={!formData.title || !formData.appName || !formData.body || !formData.price || isSubmitting}
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+              className="px-6 py-3 text-white rounded-lg font-semibold transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+              style={{
+                backgroundColor: (!formData.title || !formData.appName || !formData.body || !formData.price || isSubmitting) ? undefined : colors.primary
+              }}
+              onMouseEnter={(e) => {
+                if (!e.currentTarget.disabled) {
+                  e.currentTarget.style.backgroundColor = colors.primaryHover;
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!e.currentTarget.disabled) {
+                  e.currentTarget.style.backgroundColor = colors.primary;
+                }
+              }}
             >
               {uploadingImage ? '画像をアップロード中...' : isSubmitting ? '投稿中...' : 'アプリを投稿'}
             </button>

@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
-import Button from '@/components/ui/Button';
 import { uploadImage } from '@/lib/storage';
 
 export default function PostSecretPage() {
@@ -14,6 +13,14 @@ export default function PostSecretPage() {
   const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [currentStep, setCurrentStep] = useState(1);
+
+  // カラーテーマ定義（transactionページと同じ）
+  const colors = {
+    primary: '#5588bb',
+    primaryHover: '#4477aa',
+    primaryLight: '#e8f0f7',
+    dark: '#323232'
+  };
 
   const [formData, setFormData] = useState({
     title: '',
@@ -142,21 +149,50 @@ export default function PostSecretPage() {
         <div className="bg-white rounded-lg p-12">
           {/* ヘッダー */}
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">シークレット投稿</h1>
-            <p className="text-gray-600">NDA締結企業のみに公開されるアプリ出品</p>
-            <div className="mt-4 flex items-center gap-4">
-              <div className={`flex items-center gap-2 ${currentStep >= 1 ? 'text-red-600' : 'text-gray-400'}`}>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${currentStep >= 1 ? 'bg-red-600 text-white' : 'bg-gray-300'}`}>
-                  1
-                </div>
-                <span className="text-sm font-medium">基本情報</span>
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900 mb-2">シークレット投稿</h1>
+                <p className="text-gray-600">NDA締結企業のみに公開されるアプリ出品</p>
               </div>
-              <div className="flex-1 h-0.5 bg-gray-300"></div>
-              <div className={`flex items-center gap-2 ${currentStep >= 2 ? 'text-red-600' : 'text-gray-400'}`}>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${currentStep >= 2 ? 'bg-red-600 text-white' : 'bg-gray-300'}`}>
-                  2
-                </div>
-                <span className="text-sm font-medium">詳細情報</span>
+              <span className="text-sm font-medium" style={{ color: '#323232' }}>
+                ステップ {currentStep} / 2
+              </span>
+            </div>
+            <div className="relative">
+              <div className="flex justify-between items-center">
+                {[1, 2].map((step) => (
+                  <div key={step} className="flex flex-col items-center relative" style={{ flex: 1 }}>
+                    {step < 2 && (
+                      <div
+                        className="absolute top-5 left-1/2 h-0.5 transition-all duration-300"
+                        style={{
+                          width: 'calc(100% - 40px)',
+                          backgroundColor: step < currentStep ? '#323232' : '#E5E7EB',
+                          left: 'calc(50% + 20px)'
+                        }}
+                      />
+                    )}
+                    <div
+                      className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all duration-300 relative z-10"
+                      style={{
+                        backgroundColor: step <= currentStep ? '#323232' : '#fff',
+                        color: step <= currentStep ? '#fff' : '#9CA3AF',
+                        border: step <= currentStep ? 'none' : '2px solid #E5E7EB'
+                      }}
+                    >
+                      {step < currentStep ? (
+                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      ) : (
+                        step
+                      )}
+                    </div>
+                    <span className="text-xs mt-2 font-medium" style={{ color: step <= currentStep ? '#323232' : '#9CA3AF' }}>
+                      {step === 1 ? '基本情報' : '詳細情報'}
+                    </span>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
@@ -289,20 +325,26 @@ export default function PostSecretPage() {
                   </div>
                 </div>
 
-                <div className="flex gap-4">
-                  <Button
+                <div className="flex gap-4 justify-end">
+                  <button
                     type="button"
-                    variant="secondary"
                     onClick={() => router.back()}
+                    className="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 font-semibold transition-colors"
+                    disabled={loading}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = colors.primaryLight}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                   >
                     キャンセル
-                  </Button>
-                  <Button
+                  </button>
+                  <button
                     type="submit"
-                    variant="primary"
+                    className="px-6 py-3 text-white rounded-lg font-semibold transition-colors"
+                    style={{ backgroundColor: colors.primary }}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = colors.primaryHover}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = colors.primary}
                   >
                     次へ
-                  </Button>
+                  </button>
                 </div>
               </div>
             )}
@@ -457,22 +499,37 @@ export default function PostSecretPage() {
                   />
                 </div>
 
-                <div className="flex gap-4">
-                  <Button
+                <div className="flex gap-4 justify-end">
+                  <button
                     type="button"
-                    variant="secondary"
                     onClick={() => setCurrentStep(1)}
+                    className="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 font-semibold transition-colors"
                     disabled={loading}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = colors.primaryLight}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                   >
                     戻る
-                  </Button>
-                  <Button
+                  </button>
+                  <button
                     type="submit"
-                    variant="primary"
                     disabled={loading}
+                    className="px-6 py-3 text-white rounded-lg font-semibold transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+                    style={{
+                      backgroundColor: loading ? undefined : colors.primary
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!e.currentTarget.disabled) {
+                        e.currentTarget.style.backgroundColor = colors.primaryHover;
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!e.currentTarget.disabled) {
+                        e.currentTarget.style.backgroundColor = colors.primary;
+                      }
+                    }}
                   >
                     {loading ? '投稿中...' : '投稿する'}
-                  </Button>
+                  </button>
                 </div>
               </div>
             )}

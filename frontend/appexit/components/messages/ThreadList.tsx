@@ -42,7 +42,20 @@ const ThreadItem = memo(({ thread, isSelected, currentUserId, onSelect }: Thread
     onSelect(thread);
   }, [onSelect, thread]);
 
-  const otherParticipantId = thread.participant_ids.find(id => id !== currentUserId);
+  // 相手のユーザー情報を取得（自分以外の参加者）
+  console.log('[THREAD-ITEM] Thread data:', {
+    threadId: thread.id,
+    currentUserId,
+    participants: thread.participants,
+    participantsCount: thread.participants?.length || 0
+  });
+
+  const otherParticipant = thread.participants?.find(p => p.id !== currentUserId);
+  console.log('[THREAD-ITEM] Other participant:', otherParticipant);
+
+  const displayName = otherParticipant?.display_name || 'ユーザー';
+  const iconUrl = otherParticipant?.icon_url;
+
   const lastMessageText = thread.last_message?.text || 'メッセージを開始';
   const lastMessageTime = thread.last_message?.created_at || thread.created_at;
 
@@ -54,13 +67,30 @@ const ThreadItem = memo(({ thread, isSelected, currentUserId, onSelect }: Thread
       }`}
     >
       <div className="flex items-start gap-3">
-        <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center text-lg flex-shrink-0">
+        {iconUrl ? (
+          <img
+            src={iconUrl}
+            alt={displayName}
+            className="w-12 h-12 rounded-full object-cover flex-shrink-0"
+            onError={(e) => {
+              // 画像読み込みエラー時にデフォルトアイコンを表示
+              e.currentTarget.style.display = 'none';
+              if (e.currentTarget.nextElementSibling) {
+                (e.currentTarget.nextElementSibling as HTMLElement).style.display = 'flex';
+              }
+            }}
+          />
+        ) : null}
+        <div
+          className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center text-lg flex-shrink-0"
+          style={{ display: iconUrl ? 'none' : 'flex' }}
+        >
           <span>👤</span>
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1">
             <span className="font-semibold text-sm truncate">
-              ユーザー
+              {displayName}
             </span>
           </div>
           <p className="text-sm text-gray-600 truncate mt-1">{lastMessageText}</p>

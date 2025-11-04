@@ -65,9 +65,10 @@ type CreateMessageRequest struct {
 // ThreadWithLastMessage includes thread info with the last message
 type ThreadWithLastMessage struct {
 	Thread
-	LastMessage     *Message `json:"last_message,omitempty"`
-	ParticipantIDs  []string `json:"participant_ids"`
-	UnreadCount     int      `json:"unread_count"`
+	LastMessage     *Message  `json:"last_message,omitempty"`
+	ParticipantIDs  []string  `json:"participant_ids"`
+	Participants    []Profile `json:"participants"`
+	UnreadCount     int       `json:"unread_count"`
 }
 
 // MessageWithSender includes message with sender info

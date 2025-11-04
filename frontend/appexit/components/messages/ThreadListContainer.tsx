@@ -18,28 +18,66 @@ function ThreadListContainer({ onThreadSelect, currentThreadId }: ThreadListCont
 
   // スレッド一覧を取得
   useEffect(() => {
+    // マウント状態を追跡
+    let isMounted = true;
+    const abortController = new AbortController();
+
     const fetchThreads = async () => {
       if (authLoading || !user) {
-        setIsLoadingThreads(false);
+        if (isMounted) {
+          setIsLoadingThreads(false);
+        }
         return;
       }
 
       try {
-        setIsLoadingThreads(true);
-        setError(null);
+        if (isMounted) {
+          setIsLoadingThreads(true);
+          setError(null);
+        }
+
         const response = await messageApi.getThreads();
+
+        // アンマウントされている場合は処理を中断
+        if (!isMounted || abortController.signal.aborted) {
+          return;
+        }
+
+        console.log('[THREAD-LIST] API Response:', response);
         if (response.success && response.data) {
+          console.log('[THREAD-LIST] Threads data:', response.data);
+          response.data.forEach((thread, index) => {
+            console.log(`[THREAD-LIST] Thread ${index}:`, {
+              id: thread.id,
+              participant_ids: thread.participant_ids,
+              participants: thread.participants,
+              participantsCount: thread.participants?.length || 0
+            });
+          });
           setThreads(response.data);
         }
       } catch (err: any) {
+        // アンマウントされている場合はエラーを無視
+        if (!isMounted || abortController.signal.aborted) {
+          return;
+        }
+
         console.error('Failed to fetch threads:', err);
         setError('スレッドの取得に失敗しました');
       } finally {
-        setIsLoadingThreads(false);
+        if (isMounted) {
+          setIsLoadingThreads(false);
+        }
       }
     };
 
     fetchThreads();
+
+    // クリーンアップ: コンポーネントのアンマウント時に実行
+    return () => {
+      isMounted = false;
+      abortController.abort();
+    };
   }, [user, authLoading]);
 
   // スレッド一覧を更新する関数（外部から呼び出し可能にするため、グローバルに公開）
