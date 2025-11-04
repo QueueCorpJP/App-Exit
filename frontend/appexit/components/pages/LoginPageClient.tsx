@@ -29,8 +29,6 @@ interface LoginPageClientProps {
 export default function LoginPageClient({ error: serverError }: LoginPageClientProps) {
   const [error, setError] = useState(serverError);
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const redirectUrl = searchParams.get('redirect');
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -55,7 +53,7 @@ export default function LoginPageClient({ error: serverError }: LoginPageClientP
         refresh_token: refreshToken,
       });
 
-      // ホームへリダイレクト
+      // ルートパスへリダイレクト
       window.location.href = '/';
     } catch (err) {
       console.error('Login error:', err);

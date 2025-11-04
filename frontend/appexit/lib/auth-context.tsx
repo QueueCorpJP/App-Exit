@@ -146,6 +146,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let isInitialized = false;
+    let timeoutId: NodeJS.Timeout;
 
     // Supabaseの認証状態変更を監視
     console.log('[AUTH-CONTEXT] Setting up auth state listener...');
@@ -158,6 +159,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await updateSession(session);
         setLoading(false);
         isInitialized = true;
+
+        // タイムアウトをクリア
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
+
+        // セッションがある場合、定期的なチェックを開始
+        if (session) {
+          startSessionCheck();
+        }
+        return;
+      }
+
+      // まだ初期化されていない場合でも、他の認証イベントを処理
+      if (!isInitialized) {
+        console.log('[AUTH-CONTEXT] Initializing auth from event:', event);
+        await updateSession(session);
+        setLoading(false);
+        isInitialized = true;
+
+        // タイムアウトをクリア
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
 
         // セッションがある場合、定期的なチェックを開始
         if (session) {
@@ -183,10 +208,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
+    // フォールバック: 3秒経過してもイベントが発火しない場合、強制的に初期化
+    timeoutId = setTimeout(async () => {
+      if (!isInitialized) {
+        console.log('[AUTH-CONTEXT] Timeout: Forcing initialization');
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          await updateSession(session);
+        } catch (error) {
+          console.error('[AUTH-CONTEXT] Error in fallback initialization:', error);
+        } finally {
+          setLoading(false);
+          isInitialized = true;
+        }
+      }
+    }, 3000);
+
     // クリーンアップ
     return () => {
       console.log('[AUTH-CONTEXT] Cleaning up auth listener');
       subscription.unsubscribe();
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
       if (sessionCheckIntervalRef.current) {
         clearInterval(sessionCheckIntervalRef.current);
       }

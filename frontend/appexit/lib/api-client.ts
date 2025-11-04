@@ -702,20 +702,31 @@ export const postApi = {
    * Get all posts
    */
   async getPosts(params?: { type?: string; author_user_id?: string; limit?: number; offset?: number }): Promise<Post[]> {
-    const response = await apiClient.get<{ success: boolean; data: Post[] } | Post[]>(API_ENDPOINTS.POSTS, { params });
+    const response = await apiClient.get<{ success: boolean; data: PostWithDetails[] | Post[] } | PostWithDetails[] | Post[]>(API_ENDPOINTS.POSTS, { params });
+    
     // response.Success形式に対応（直接配列の場合も対応）
+    let posts: PostWithDetails[] | Post[] = [];
+    
     if (response && typeof response === 'object' && 'success' in response && 'data' in response) {
-      const posts = response.data || [];
-      console.log('[POST-API] Received posts:', posts.length, posts);
-      return posts;
+      posts = response.data || [];
+    } else if (Array.isArray(response)) {
+      posts = response;
+    } else {
+      console.log('[POST-API] Unexpected response format:', response);
+      return [];
     }
-    // 直接配列の場合
-    if (Array.isArray(response)) {
-      console.log('[POST-API] Received array directly:', response.length, response);
-      return response;
-    }
-    console.log('[POST-API] Unexpected response format:', response);
-    return [];
+    
+    // PostWithDetails[]形式の場合はPost[]に変換
+    // Goの埋め込み構造体はJSONではフラットになるので、Postのフィールドが直接含まれている
+    // detailsフィールドが含まれている場合は削除する（Post型には含まれない）
+    const convertedPosts: Post[] = posts.map((post: any) => {
+      // PostWithDetails形式の場合（detailsフィールドが含まれている）
+      const { details, ...postWithoutDetails } = post;
+      return postWithoutDetails as Post;
+    });
+    
+    console.log('[POST-API] Received posts:', convertedPosts.length, convertedPosts);
+    return convertedPosts;
   },
 
   /**

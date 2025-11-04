@@ -62,15 +62,15 @@ export default function Header() {
     <header className="bg-white border-b border-gray-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
-          <div className="flex items-center gap-6">
-            <Link href="/" className="flex items-center">
-              <span className="text-red-600 font-bold text-xl">AppExit</span>
+          <div className="flex items-center gap-6 flex-1 max-w-3xl">
+            <Link href="/" className="flex items-center flex-shrink-0">
+              <img src="/icon.png" alt="AppExit" className="h-8 w-auto" />
             </Link>
-            <div className="hidden md:flex items-center">
+            <div className="hidden md:flex items-center flex-1 max-w-2xl mr-6">
               <input
                 type="text"
                 placeholder="キーワード検索"
-                className="w-64 px-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
+                className="w-full px-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
               />
             </div>
           </div>

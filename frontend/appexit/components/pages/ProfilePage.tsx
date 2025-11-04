@@ -9,7 +9,7 @@ import { useAuth } from '@/lib/auth-context';
 import { postApi, Post } from '@/lib/api-client';
 
 export default function ProfilePage() {
-  const { user: currentUser } = useAuth();
+  const { user: currentUser, loading: authLoading } = useAuth();
   const router = useRouter();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
@@ -17,23 +17,39 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let isMounted = true;
+
     const fetchProfileData = async () => {
-      if (!currentUser?.id) return;
+      // 認証のローディングが完了するまで待つ
+      if (authLoading) return;
+
+      // 認証が完了してもユーザーが存在しない場合はローディングを終了
+      if (!currentUser?.id) {
+        if (isMounted) {
+          setLoading(false);
+        }
+        return;
+      }
 
       try {
-        setLoading(true);
+        if (isMounted) {
+          setLoading(true);
+        }
+
         const response = await profileApi.getProfile();
-        if (response.success && response.data) {
+        if (isMounted && response.success && response.data) {
           setProfile(response.data);
         }
 
         // ユーザーの投稿を取得（エラーが発生してもプロフィールは表示する）
         try {
-          const postsResponse = await postApi.getPosts({ 
+          const postsResponse = await postApi.getPosts({
             author_user_id: currentUser.id,
-            limit: 50 
+            limit: 50
           });
-          setPosts(postsResponse);
+          if (isMounted) {
+            setPosts(postsResponse);
+          }
         } catch (postError) {
           console.error('投稿の取得に失敗しました:', postError);
           // 投稿の取得に失敗しても続行
@@ -41,12 +57,18 @@ export default function ProfilePage() {
       } catch (error) {
         console.error('プロフィールデータの取得に失敗しました:', error);
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
     fetchProfileData();
-  }, [currentUser]);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [currentUser?.id, authLoading]);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
