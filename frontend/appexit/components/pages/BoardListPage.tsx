@@ -46,7 +46,7 @@ export default function BoardListPage() {
         author_id: 'user3',
         author_name: '株式会社テック',
         author_type: 'seller',
-        content: '在庫管理アプリを譲渡します。ユーザー数500社以上。',
+        content: '在庫管理プロダクトを譲渡します。ユーザー数500社以上。',
         image_url: '',
         created_at: '2024-01-14T09:15:00Z',
       },

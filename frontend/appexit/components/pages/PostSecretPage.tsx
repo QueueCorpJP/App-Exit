@@ -152,7 +152,7 @@ export default function PostSecretPage() {
             <div className="flex justify-between items-center mb-6">
               <div>
                 <h1 className="text-3xl font-bold text-gray-900 mb-2">シークレット投稿</h1>
-                <p className="text-gray-600">NDA締結企業のみに公開されるアプリ出品</p>
+                <p className="text-gray-600">NDA締結企業のみに公開されるプロダクト出品</p>
               </div>
               <span className="text-sm font-medium" style={{ color: '#323232' }}>
                 ステップ {currentStep} / 2
@@ -218,7 +218,7 @@ export default function PostSecretPage() {
                     value={formData.title}
                     onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
-                    placeholder="例: 月間売上500万円のSNSアプリ"
+                    placeholder="例: 月間売上500万円のSNSプロダクト"
                   />
                 </div>
 
@@ -234,7 +234,7 @@ export default function PostSecretPage() {
                     value={formData.body}
                     onChange={(e) => setFormData({ ...formData, body: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
-                    placeholder="アプリの概要、特徴、売却理由などを記載してください"
+                    placeholder="プロダクトの概要、特徴、売却理由などを記載してください"
                   />
                 </div>
 
@@ -352,10 +352,10 @@ export default function PostSecretPage() {
             {currentStep === 2 && (
               <div className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* アプリ名 */}
+                  {/* プロダクト名 */}
                   <div>
                     <label htmlFor="appName" className="block text-sm font-medium text-gray-700 mb-2">
-                      アプリ名 <span className="text-red-500">*</span>
+                      プロダクト名 <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"

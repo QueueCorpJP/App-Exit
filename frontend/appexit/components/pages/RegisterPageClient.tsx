@@ -153,53 +153,61 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
 
   return (
     <div className="min-h-screen flex flex-col justify-center py-12 sm:px-6 lg:px-8" style={{ backgroundColor: '#F9F8F7' }}>
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-          新規アカウント作成
-        </h2>
-        <p className="mt-2 text-center text-sm text-gray-600">
-          既にアカウントをお持ちの方は{' '}
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => router.push('/login')}
-            className="p-0 h-auto font-medium"
-          >
-            ログイン
-          </Button>
-        </p>
-      </div>
-
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+        <div className="bg-white py-8 px-4 sm:px-10">
           {/* ステップインジケーター */}
           <div className="mb-8">
-            <div className="flex items-center justify-center">
-              {[1, 2].map((stepNumber) => (
-                <div key={stepNumber} className="flex items-center">
-                  <div
-                    className={`flex items-center justify-center w-8 h-8 rounded-full border-2 ${
-                      step >= stepNumber
-                        ? 'bg-indigo-600 border-indigo-600 text-white'
-                        : 'border-gray-300 text-gray-500'
-                    }`}
-                  >
-                    {stepNumber}
-                  </div>
-                  {stepNumber < 2 && (
-                    <div
-                      className={`w-32 h-1 mx-2 ${
-                        step > stepNumber ? 'bg-indigo-600' : 'bg-gray-300'
-                      }`}
-                    />
-                  )}
-                </div>
-              ))}
+            <div className="flex justify-between items-start mb-2">
+              <h2 className="text-xl font-bold text-gray-900">新規アカウント作成</h2>
+              <span className="text-sm font-medium text-gray-900 whitespace-nowrap ml-4">
+                ステップ {step} / 2
+              </span>
             </div>
-            <div className="flex justify-between mt-2 text-xs text-gray-500 max-w-xs mx-auto">
-              <span>アカウント情報</span>
-              <span>利用規約</span>
+            <p className="text-sm text-gray-600 mb-6">
+              既にアカウントをお持ちの方は{' '}
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => router.push('/login')}
+                className="p-0 h-auto font-medium"
+              >
+                ログイン
+              </Button>
+            </p>
+            <div className="relative">
+              <div className="flex justify-between items-center">
+                {[1, 2].map((stepNumber) => (
+                  <div key={stepNumber} className="flex flex-col items-center relative" style={{ flex: 1 }}>
+                    {stepNumber < 2 && (
+                      <div
+                        className="absolute top-5 left-1/2 h-0.5 transition-all duration-300"
+                        style={{
+                          width: 'calc(100% - 40px)',
+                          backgroundColor: step > stepNumber ? '#323232' : '#E5E7EB',
+                          left: 'calc(50% + 20px)'
+                        }}
+                      />
+                    )}
+                    <div
+                      className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all duration-300 relative z-10"
+                      style={{
+                        backgroundColor: step >= stepNumber ? '#323232' : '#fff',
+                        color: step >= stepNumber ? '#fff' : '#9CA3AF',
+                        border: step >= stepNumber ? 'none' : '2px solid #E5E7EB'
+                      }}
+                    >
+                      {step > stepNumber ? (
+                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      ) : (
+                        stepNumber
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -220,7 +228,19 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
                     required
                     value={formData.email}
                     onChange={handleInputChange}
-                    className="mt-1 appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-gray-900"
+                    className="mt-1 appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none sm:text-sm text-gray-900"
+                    style={{
+                      '--tw-ring-color': '#4285FF'
+                    } as React.CSSProperties}
+                    onFocus={(e) => {
+                      e.currentTarget.style.borderColor = '#4285FF'
+                      e.currentTarget.style.outline = '2px solid #4285FF'
+                      e.currentTarget.style.outlineOffset = '0px'
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.borderColor = '#D1D5DB'
+                      e.currentTarget.style.outline = 'none'
+                    }}
                     placeholder="your@example.com"
                   />
                 </div>
@@ -236,7 +256,19 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
                     required
                     value={formData.password}
                     onChange={handleInputChange}
-                    className="mt-1 appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-gray-900"
+                    className="mt-1 appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none sm:text-sm text-gray-900"
+                    style={{
+                      '--tw-ring-color': '#4285FF'
+                    } as React.CSSProperties}
+                    onFocus={(e) => {
+                      e.currentTarget.style.borderColor = '#4285FF'
+                      e.currentTarget.style.outline = '2px solid #4285FF'
+                      e.currentTarget.style.outlineOffset = '0px'
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.borderColor = '#D1D5DB'
+                      e.currentTarget.style.outline = 'none'
+                    }}
                     placeholder="8文字以上のパスワード"
                   />
                 </div>
@@ -252,7 +284,19 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
                     required
                     value={formData.confirmPassword}
                     onChange={handleInputChange}
-                    className="mt-1 appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-gray-900"
+                    className="mt-1 appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none sm:text-sm text-gray-900"
+                    style={{
+                      '--tw-ring-color': '#4285FF'
+                    } as React.CSSProperties}
+                    onFocus={(e) => {
+                      e.currentTarget.style.borderColor = '#4285FF'
+                      e.currentTarget.style.outline = '2px solid #4285FF'
+                      e.currentTarget.style.outlineOffset = '0px'
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.borderColor = '#D1D5DB'
+                      e.currentTarget.style.outline = 'none'
+                    }}
                     placeholder="パスワードを再入力"
                   />
                 </div>
@@ -272,7 +316,10 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
                     required
                     checked={formData.terms}
                     onChange={handleCheckboxChange}
-                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded mt-1"
+                    className="h-4 w-4 border-gray-300 rounded mt-1"
+                    style={{
+                      accentColor: '#4285FF'
+                    }}
                   />
                   <label htmlFor="terms" className="ml-2 block text-sm text-gray-900">
                     <span className="font-medium">利用規約</span>に同意します（必須）
@@ -296,7 +343,10 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
                     required
                     checked={formData.privacy}
                     onChange={handleCheckboxChange}
-                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded mt-1"
+                    className="h-4 w-4 border-gray-300 rounded mt-1"
+                    style={{
+                      accentColor: '#4285FF'
+                    }}
                   />
                   <label htmlFor="privacy" className="ml-2 block text-sm text-gray-900">
                     <span className="font-medium">プライバシーポリシー</span>に同意します（必須）

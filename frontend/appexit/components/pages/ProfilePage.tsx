@@ -60,7 +60,7 @@ export default function ProfilePage() {
   const getJoinDate = () => {
     if (!profile?.created_at) return '';
     const date = new Date(profile.created_at);
-    return `${date.getFullYear()}年${date.getMonth() + 1}月からアプリExitを利用しています`;
+    return `${date.getFullYear()}年${date.getMonth() + 1}月からプロダクトExitを利用しています`;
   };
 
   const getPostTypeLabel = (type: string) => {

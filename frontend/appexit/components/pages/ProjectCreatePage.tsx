@@ -173,7 +173,7 @@ export default function ProjectCreatePage() {
         {/* プログレスバー */}
         <div className="mb-8">
           <div className="flex justify-between items-center mb-6">
-            <h1 className="text-2xl font-bold text-gray-900">アプリ投稿を作成</h1>
+            <h1 className="text-2xl font-bold text-gray-900">プロダクト投稿を作成</h1>
             <span className="text-sm font-medium" style={{ color: '#323232' }}>
               ステップ {currentStep} / {totalSteps}
             </span>
@@ -215,7 +215,7 @@ export default function ProjectCreatePage() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* ステップ1: アプリ名 */}
+          {/* ステップ1: プロダクト名 */}
           <div className="bg-white rounded-lg p-6">
             <div className="flex items-start gap-4">
               <div className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 border-2" style={{ borderColor: '#323232', backgroundColor: 'transparent' }}>
@@ -226,7 +226,7 @@ export default function ProjectCreatePage() {
                   投稿タイトル
                 </h2>
                 <p className="text-sm text-gray-600 mb-4">
-                  アプリの名前や簡潔なタイトルを入力してください
+                  プロダクトの名前や簡潔なタイトルを入力してください
                 </p>
                 <input
                   type="text"
@@ -235,7 +235,7 @@ export default function ProjectCreatePage() {
                     setFormData({ ...formData, title: e.target.value });
                     if (currentStep === 1 && e.target.value) setCurrentStep(2);
                   }}
-                  placeholder="例: タスク管理アプリ「TaskMaster」"
+                  placeholder="例: タスク管理プロダクト「TaskMaster」"
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent"
                   style={{ '--tw-ring-color': colors.primary } as React.CSSProperties}
                   required
@@ -244,7 +244,7 @@ export default function ProjectCreatePage() {
             </div>
           </div>
 
-          {/* ステップ2: アプリ名 (詳細) */}
+          {/* ステップ2: プロダクト名 (詳細) */}
           <div className="bg-white rounded-lg p-6">
             <div className="flex items-start gap-4">
               <div className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 border-2" style={{ borderColor: '#323232', backgroundColor: 'transparent' }}>
@@ -252,10 +252,10 @@ export default function ProjectCreatePage() {
               </div>
               <div className="flex-1">
                 <h2 className="text-xl font-bold text-gray-900 mb-2">
-                  アプリ名
+                  プロダクト名
                 </h2>
                 <p className="text-sm text-gray-600 mb-4">
-                  アプリの正式名称を入力してください
+                  プロダクトの正式名称を入力してください
                 </p>
                 <input
                   type="text"
@@ -281,10 +281,10 @@ export default function ProjectCreatePage() {
               </div>
               <div className="flex-1">
                 <h2 className="text-xl font-bold text-gray-900 mb-2">
-                  アプリカテゴリー
+                  プロダクトカテゴリー
                 </h2>
                 <p className="text-sm text-gray-600 mb-4">
-                  アプリの主要カテゴリーを選択してください
+                  プロダクトの主要カテゴリーを選択してください
                 </p>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   {categories.map((category) => (
@@ -325,7 +325,7 @@ export default function ProjectCreatePage() {
                   カバー画像
                 </h2>
                 <p className="text-sm text-gray-600 mb-4">
-                  アプリのスクリーンショットやアイコンをアップロードしてください
+                  プロダクトのスクリーンショットやアイコンをアップロードしてください
                 </p>
 
                 {previewImage && (
@@ -374,10 +374,10 @@ export default function ProjectCreatePage() {
               </div>
               <div className="flex-1">
                 <h2 className="text-xl font-bold text-gray-900 mb-2">
-                  アプリの説明
+                  プロダクトの説明
                 </h2>
                 <p className="text-sm text-gray-600 mb-4">
-                  アプリの機能、特徴、強みなどを詳しく説明してください
+                  プロダクトの機能、特徴、強みなどを詳しく説明してください
                 </p>
                 <textarea
                   value={formData.body}
@@ -385,7 +385,7 @@ export default function ProjectCreatePage() {
                     setFormData({ ...formData, body: e.target.value });
                     if (currentStep === 5 && e.target.value) setCurrentStep(6);
                   }}
-                  placeholder="アプリの機能、特徴、ユーザーベース、売却理由などを記載してください..."
+                  placeholder="プロダクトの機能、特徴、ユーザーベース、売却理由などを記載してください..."
                   rows={6}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent resize-none"
                   style={{ '--tw-ring-color': colors.primary } as React.CSSProperties}
@@ -406,7 +406,7 @@ export default function ProjectCreatePage() {
                   財務情報・ユーザー数
                 </h2>
                 <p className="text-sm text-gray-600 mb-4">
-                  アプリの財務情報とユーザー数を入力してください
+                  プロダクトの財務情報とユーザー数を入力してください
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
@@ -480,7 +480,7 @@ export default function ProjectCreatePage() {
                   希望売却価格と技術情報
                 </h2>
                 <p className="text-sm text-gray-600 mb-4">
-                  アプリの売却希望価格と技術スタックを入力してください
+                  プロダクトの売却希望価格と技術スタックを入力してください
                 </p>
                 <div className="space-y-4">
                   <div>
@@ -571,7 +571,7 @@ export default function ProjectCreatePage() {
                 }
               }}
             >
-              {uploadingImage ? '画像をアップロード中...' : isSubmitting ? '投稿中...' : 'アプリを投稿'}
+              {uploadingImage ? '画像をアップロード中...' : isSubmitting ? '投稿中...' : 'プロダクトを投稿'}
             </button>
           </div>
         </form>

@@ -83,7 +83,7 @@ export default function NDAPage({ appId, sellerId }: NDAPageProps) {
 
             <h2 className="text-lg font-bold text-gray-900 mb-4">第2条（秘密情報の定義）</h2>
             <p className="text-sm text-gray-700 mb-6">
-              本契約において「秘密情報」とは、開示者が受領者に対して開示する、技術上、営業上、その他業務上の一切の情報（アプリケーションのソースコード、設計書、顧客情報、売上情報、技術情報等を含むがこれらに限られない）をいいます。
+              本契約において「秘密情報」とは、開示者が受領者に対して開示する、技術上、営業上、その他業務上の一切の情報（プロダクトケーションのソースコード、設計書、顧客情報、売上情報、技術情報等を含むがこれらに限られない）をいいます。
             </p>
 
             <h2 className="text-lg font-bold text-gray-900 mb-4">第3条（秘密保持義務）</h2>

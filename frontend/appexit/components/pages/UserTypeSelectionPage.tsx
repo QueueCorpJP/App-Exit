@@ -131,7 +131,7 @@ export default function UserTypeSelectionPage() {
               <div className="text-4xl mb-2">🛒</div>
               <div className="font-semibold text-lg">買い手</div>
               <div className="text-sm text-gray-600 mt-1">
-                アプリを購入したい
+                プロダクトを購入したい
               </div>
             </button>
 
@@ -147,7 +147,7 @@ export default function UserTypeSelectionPage() {
               <div className="text-4xl mb-2">💼</div>
               <div className="font-semibold text-lg">売り手</div>
               <div className="text-sm text-gray-600 mt-1">
-                アプリを販売したい
+                プロダクトを販売したい
               </div>
             </button>
           </div>

@@ -36,14 +36,14 @@ export default function DashboardPage() {
   }, [])
 
   const buyerQuickLinks = [
-    { title: 'アプリを探す', href: '/apps', icon: '🔍' },
+    { title: 'プロダクトを探す', href: '/apps', icon: '🔍' },
     { title: '掲示板を見る', href: '/boards', icon: '📋' },
     { title: 'メッセージ', href: '/messages', icon: '💬' },
     { title: '取引履歴', href: '/transactions', icon: '📊' },
   ]
 
   const sellerQuickLinks = [
-    { title: 'アプリを投稿', href: '/projects/new', icon: '➕' },
+    { title: 'プロダクトを投稿', href: '/projects/new', icon: '➕' },
     { title: '掲示板に投稿', href: '/boards/new', icon: '📝' },
     { title: '自分の投稿', href: '/my-projects', icon: '📱' },
     { title: 'メッセージ', href: '/messages', icon: '💬' },
@@ -140,7 +140,7 @@ export default function DashboardPage() {
                 <div className="text-2xl">📱</div>
                 <div className="flex-1">
                   <p className="text-sm text-gray-900">
-                    新しいアプリが投稿されました
+                    新しいプロダクトが投稿されました
                   </p>
                   <p className="text-xs text-gray-500 mt-1">5時間前</p>
                 </div>
@@ -158,12 +158,12 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* おすすめのアプリ（買い手の場合） */}
+        {/* おすすめのプロダクト（買い手の場合） */}
         {userType === 'buyer' && (
           <div>
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold text-gray-900">
-                おすすめのアプリ
+                おすすめのプロダクト
               </h2>
               <Link href="/apps" className="text-blue-600 hover:text-blue-700 text-sm font-medium">
                 すべて見る →

@@ -23,7 +23,7 @@ export default function AppsListPage() {
       setPosts(data)
     } catch (err) {
       console.error('Failed to load posts:', err)
-      setError('アプリの読み込みに失敗しました')
+      setError('プロダクトの読み込みに失敗しました')
     } finally {
       setIsLoading(false)
     }
@@ -80,9 +80,9 @@ export default function AppsListPage() {
         {/* ヘッダー */}
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">アプリ一覧</h1>
+            <h1 className="text-3xl font-bold text-gray-900">プロダクト一覧</h1>
             <p className="text-gray-600 mt-2">
-              取引可能なアプリを検索
+              取引可能なプロダクトを検索
             </p>
           </div>
         </div>
@@ -140,10 +140,10 @@ export default function AppsListPage() {
 
         {/* 検索結果数 */}
         <div className="mb-4 text-gray-600">
-          {sortedPosts.length}件のアプリが見つかりました
+          {sortedPosts.length}件のプロダクトが見つかりました
         </div>
 
-        {/* アプリ一覧 */}
+        {/* プロダクト一覧 */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {sortedPosts.map((post) => (
             <Link key={post.id} href={`/projects/${post.id}`}>
@@ -199,7 +199,7 @@ export default function AppsListPage() {
           <div className="text-center py-12 bg-white border-2 border-gray-900">
             <div className="text-6xl mb-4">🔍</div>
             <h3 className="text-xl font-semibold text-gray-900 mb-2">
-              アプリが見つかりませんでした
+              プロダクトが見つかりませんでした
             </h3>
             <p className="text-gray-600">
               別のカテゴリーで検索してみてください

@@ -30,11 +30,11 @@ export default function PaymentCheckoutPage({ appId }: PaymentCheckoutPageProps)
   const router = useRouter()
 
   useEffect(() => {
-    // TODO: APIからアプリ詳細を取得
+    // TODO: APIからプロダクト詳細を取得
     // 仮のデータ
     const mockApp: AppDetails = {
       id: appId,
-      title: 'ECサイトアプリ',
+      title: 'ECサイトプロダクト',
       description: '月間売上100万円のECサイト',
       price: 5000000,
       seller_name: '山田太郎',
@@ -94,7 +94,7 @@ export default function PaymentCheckoutPage({ appId }: PaymentCheckoutPageProps)
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#F9F8F7' }}>
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">アプリが見つかりません</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">プロダクトが見つかりません</h2>
         </div>
       </div>
     )
@@ -114,7 +114,7 @@ export default function PaymentCheckoutPage({ appId }: PaymentCheckoutPageProps)
           {/* 左側：商品情報 */}
           <div className="lg:col-span-2">
             <div className="bg-white border-2 border-gray-900 p-8 mb-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-6">購入するアプリ</h2>
+              <h2 className="text-xl font-bold text-gray-900 mb-6">購入するプロダクト</h2>
 
               <div className="flex items-start space-x-6 mb-6">
                 <div className="w-24 h-24 bg-gradient-to-br from-blue-100 to-indigo-200 border-2 flex items-center justify-center flex-shrink-0">
@@ -133,7 +133,7 @@ export default function PaymentCheckoutPage({ appId }: PaymentCheckoutPageProps)
 
               <div className="border-t border-gray-200 pt-6">
                 <div className="flex justify-between items-center mb-3">
-                  <span className="text-gray-700">アプリ価格</span>
+                  <span className="text-gray-700">プロダクト価格</span>
                   <span className="text-xl font-bold text-gray-900">
                     ¥{formatPrice(app.price)}
                   </span>
@@ -194,7 +194,7 @@ export default function PaymentCheckoutPage({ appId }: PaymentCheckoutPageProps)
                       譲渡契約書
                     </div>
                     <p className="text-sm text-gray-600">
-                      アプリの所有権譲渡に関する契約書に同意します
+                      プロダクトの所有権譲渡に関する契約書に同意します
                     </p>
                     <a href="/transfer-agreement" target="_blank" className="text-sm text-blue-600 hover:underline">
                       契約書を確認する →

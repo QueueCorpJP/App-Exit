@@ -26,7 +26,7 @@ export default function Header() {
         setIsDropdownOpen(false);
       }
       
-      // デスクトップ用の「アプリを掲載する」メニュー（モバイルメニューが開いている時は無視）
+      // デスクトップ用の「プロダクトを掲載する」メニュー（モバイルメニューが開いている時は無視）
       if (postMenuRef.current && !postMenuRef.current.contains(target) && !isMobileMenuOpen) {
         setIsPostMenuOpen(false);
       }
@@ -77,13 +77,13 @@ export default function Header() {
 
           {/* デスクトップナビゲーション */}
           <nav className="hidden md:flex items-center gap-6">
-            {/* アプリを掲載する - ドロップダウンメニュー */}
+            {/* プロダクトを掲載する - ドロップダウンメニュー */}
             <div className="relative" ref={postMenuRef}>
               <button
                 onClick={() => setIsPostMenuOpen(!isPostMenuOpen)}
                 className="text-gray-700 hover:text-gray-900 text-sm font-semibold flex items-center gap-1"
               >
-                アプリを掲載する
+                プロダクトを掲載する
                 <svg
                   className={`w-4 h-4 transition-transform ${isPostMenuOpen ? 'rotate-180' : ''}`}
                   fill="none"
@@ -110,7 +110,7 @@ export default function Header() {
                     onClick={() => setIsPostMenuOpen(false)}
                   >
                     <div className="font-semibold mb-1">取引投稿</div>
-                    <div className="text-xs text-gray-500">詳細情報付きでアプリを出品</div>
+                    <div className="text-xs text-gray-500">詳細情報付きでプロダクトを出品</div>
                   </Link>
                   <Link
                     href="/projects/new/secret"
@@ -125,7 +125,7 @@ export default function Header() {
             </div>
 
             <Link href="/projects" className="text-gray-700 hover:text-gray-900 text-sm font-semibold">
-              アプリをみつける
+              プロダクトをみつける
             </Link>
 
             {loading ? (
@@ -272,7 +272,7 @@ export default function Header() {
                     }}
                     className="flex-1 text-left text-gray-700 hover:text-gray-900 text-sm font-semibold flex items-center justify-between py-2"
                   >
-                    <span>アプリを掲載する</span>
+                    <span>プロダクトを掲載する</span>
                     <svg
                       className={`w-4 h-4 transition-transform ml-2 ${isMobilePostMenuOpen ? 'rotate-180' : ''}`}
                       fill="none"
@@ -329,7 +329,7 @@ export default function Header() {
                       }}
                     >
                       <div className="font-semibold">取引投稿</div>
-                      <div className="text-xs text-gray-500">詳細情報付きでアプリを出品</div>
+                      <div className="text-xs text-gray-500">詳細情報付きでプロダクトを出品</div>
                     </Link>
                     <Link
                       href="/projects/new/secret"
@@ -351,7 +351,7 @@ export default function Header() {
                 className="block text-gray-700 hover:text-gray-900 text-sm font-semibold py-2"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
-                アプリをみつける
+                プロダクトをみつける
               </Link>
 
               {user ? (

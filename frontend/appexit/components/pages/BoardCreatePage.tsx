@@ -66,8 +66,8 @@ export default function BoardCreatePage() {
         </h1>
         <p className="text-gray-600 mb-8">
           {userType === 'seller'
-            ? 'あなたのアプリについて簡単に紹介してください'
-            : 'どんなアプリをお探しですか?'}
+            ? 'あなたのプロダクトについて簡単に紹介してください'
+            : 'どんなプロダクトをお探しですか?'}
         </p>
 
         <form onSubmit={handleSubmit} className="bg-white border-2 border-gray-900 p-8">

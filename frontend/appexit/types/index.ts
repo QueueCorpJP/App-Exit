@@ -19,11 +19,11 @@ export interface UserProfile {
   updated_at: Date;
 }
 
-// アプリ投稿タイプ
+// プロダクト投稿タイプ
 export type PostType = 'board' | 'transaction' | 'secret';
 export type AppStatus = 'active' | 'sold' | 'draft' | 'closed';
 
-// アプリ情報
+// プロダクト情報
 export interface App {
   id: string;
   seller_id: string;

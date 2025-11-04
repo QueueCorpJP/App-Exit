@@ -185,7 +185,7 @@ export default function ProjectDetailPage({
                     {/* APIから取得した詳細情報 */}
                     {postDetails?.details && (
                       <div className="mt-8">
-                        <h3 className="text-lg font-bold text-gray-800 mb-4">アプリ詳細</h3>
+                        <h3 className="text-lg font-bold text-gray-800 mb-4">プロダクト詳細</h3>
                         <div className="space-y-4">
                           {postDetails.details.monthly_revenue !== undefined && (
                             <div className="rounded-lg p-4">
@@ -278,9 +278,9 @@ export default function ProjectDetailPage({
                 {displayTitle}
               </h1>
 
-              {/* アプリ名 */}
+              {/* プロダクト名 */}
               {displayAppName && (
-                <p className="text-sm text-gray-500 mb-2">アプリ名: {displayAppName}</p>
+                <p className="text-sm text-gray-500 mb-2">プロダクト名: {displayAppName}</p>
               )}
 
               {/* カテゴリ */}

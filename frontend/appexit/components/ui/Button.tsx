@@ -10,39 +10,97 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ 
-    variant = 'primary', 
-    size = 'md', 
-    isLoading = false, 
+  ({
+    variant = 'primary',
+    size = 'md',
+    isLoading = false,
     loadingText,
     disabled,
     className = '',
     as: Component = 'button',
     children,
-    ...props 
+    ...props
   }, ref) => {
-    const baseClasses = 'inline-flex items-center justify-center font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:cursor-not-allowed'
-    
+    const baseClasses = 'inline-flex items-center justify-center font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:cursor-not-allowed rounded-lg'
+
     const variantClasses = {
-      primary: 'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500 disabled:bg-gray-300 disabled:text-gray-500',
+      primary: 'text-white focus:ring-opacity-50 disabled:opacity-50',
       secondary: 'bg-gray-100 text-gray-700 hover:bg-gray-200 focus:ring-gray-500 disabled:bg-gray-300 disabled:text-gray-500',
       outline: 'border-2 border-gray-300 text-gray-700 hover:border-gray-400 focus:ring-gray-500 disabled:border-gray-300 disabled:text-gray-500',
-      ghost: 'text-blue-600 hover:text-blue-700 hover:bg-blue-50 focus:ring-blue-500 disabled:text-gray-500'
+      ghost: 'focus:ring-opacity-50 disabled:text-gray-500 disabled:opacity-50'
     }
-    
+
     const sizeClasses = {
       sm: 'px-3 py-2 text-sm',
       md: 'px-6 py-3 text-base',
       lg: 'px-8 py-4 text-lg'
     }
-    
+
+    const getStyles = () => {
+      if (disabled || isLoading) {
+        if (variant === 'primary') {
+          return { backgroundColor: '#9CA3AF', color: '#6B7280' }
+        }
+        if (variant === 'ghost') {
+          return { color: '#9CA3AF' }
+        }
+      }
+
+      if (variant === 'primary') {
+        return { backgroundColor: '#4285FF' }
+      }
+      if (variant === 'ghost') {
+        return { color: '#4285FF' }
+      }
+      return {}
+    }
+
+    const getHoverStyles = () => {
+      if (variant === 'primary' && !disabled && !isLoading) {
+        return {
+          ':hover': { backgroundColor: '#3367D6' }
+        }
+      }
+      if (variant === 'ghost' && !disabled && !isLoading) {
+        return {
+          ':hover': { color: '#3367D6', backgroundColor: '#E8F0FE' }
+        }
+      }
+      return {}
+    }
+
     const classes = `${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${className}`
-    
+    const inlineStyle = getStyles()
+
     return (
       <Component
         ref={ref}
         disabled={disabled || isLoading}
         className={classes}
+        style={{
+          ...inlineStyle,
+          ...(variant === 'primary' && !disabled && !isLoading && {
+            '--tw-ring-color': '#4285FF'
+          })
+        }}
+        onMouseEnter={(e: React.MouseEvent<HTMLButtonElement>) => {
+          if (variant === 'primary' && !disabled && !isLoading) {
+            e.currentTarget.style.backgroundColor = '#3367D6'
+          }
+          if (variant === 'ghost' && !disabled && !isLoading) {
+            e.currentTarget.style.color = '#3367D6'
+            e.currentTarget.style.backgroundColor = '#E8F0FE'
+          }
+        }}
+        onMouseLeave={(e: React.MouseEvent<HTMLButtonElement>) => {
+          if (variant === 'primary' && !disabled && !isLoading) {
+            e.currentTarget.style.backgroundColor = '#4285FF'
+          }
+          if (variant === 'ghost' && !disabled && !isLoading) {
+            e.currentTarget.style.color = '#4285FF'
+            e.currentTarget.style.backgroundColor = 'transparent'
+          }
+        }}
         {...props}
       >
         {isLoading ? (

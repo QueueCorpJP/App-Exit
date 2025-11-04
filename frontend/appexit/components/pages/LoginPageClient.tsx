@@ -65,26 +65,26 @@ export default function LoginPageClient({ error: serverError }: LoginPageClientP
 
   return (
     <div className="min-h-screen flex flex-col justify-center py-12 sm:px-6 lg:px-8" style={{ backgroundColor: '#F9F8F7' }}>
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-          アカウントにログイン
-        </h2>
-        <p className="mt-2 text-center text-sm text-gray-600">
-          または{' '}
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => router.push('/register')}
-            className="p-0 h-auto font-medium"
-          >
-            新しいアカウントを作成
-          </Button>
-        </p>
-      </div>
-
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+        <div className="bg-white py-8 px-4 sm:px-10">
+          <div className="mb-8">
+            <h2 className="text-center text-3xl font-extrabold text-gray-900">
+              アカウントにログイン
+            </h2>
+            <p className="mt-2 text-center text-sm text-gray-600">
+              または{' '}
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => router.push('/register')}
+                className="p-0 h-auto font-medium"
+              >
+                新しいアカウントを作成
+              </Button>
+            </p>
+          </div>
+
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700">
@@ -97,7 +97,19 @@ export default function LoginPageClient({ error: serverError }: LoginPageClientP
                   type="email"
                   autoComplete="email"
                   required
-                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-gray-900"
+                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none sm:text-sm text-gray-900"
+                  style={{
+                    '--tw-ring-color': '#4285FF'
+                  } as React.CSSProperties}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = '#4285FF'
+                    e.currentTarget.style.outline = '2px solid #4285FF'
+                    e.currentTarget.style.outlineOffset = '0px'
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = '#D1D5DB'
+                    e.currentTarget.style.outline = 'none'
+                  }}
                   placeholder="your@example.com"
                 />
               </div>
@@ -114,7 +126,19 @@ export default function LoginPageClient({ error: serverError }: LoginPageClientP
                   type="password"
                   autoComplete="current-password"
                   required
-                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-gray-900"
+                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none sm:text-sm text-gray-900"
+                  style={{
+                    '--tw-ring-color': '#4285FF'
+                  } as React.CSSProperties}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = '#4285FF'
+                    e.currentTarget.style.outline = '2px solid #4285FF'
+                    e.currentTarget.style.outlineOffset = '0px'
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = '#D1D5DB'
+                    e.currentTarget.style.outline = 'none'
+                  }}
                   placeholder="パスワードを入力"
                 />
               </div>
@@ -126,7 +150,10 @@ export default function LoginPageClient({ error: serverError }: LoginPageClientP
                   id="remember-me"
                   name="remember-me"
                   type="checkbox"
-                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                  className="h-4 w-4 border-gray-300 rounded"
+                  style={{
+                    accentColor: '#4285FF'
+                  }}
                 />
                 <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">
                   ログイン状態を保持
@@ -134,7 +161,7 @@ export default function LoginPageClient({ error: serverError }: LoginPageClientP
               </div>
 
               <div className="text-sm">
-                <a href="#" className="font-medium text-indigo-600 hover:text-indigo-500">
+                <a href="#" className="font-medium" style={{ color: '#4285FF' }} onMouseEnter={(e) => e.currentTarget.style.color = '#3367D6'} onMouseLeave={(e) => e.currentTarget.style.color = '#4285FF'}>
                   パスワードを忘れた場合
                 </a>
               </div>

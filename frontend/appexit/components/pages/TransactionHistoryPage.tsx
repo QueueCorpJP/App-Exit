@@ -32,7 +32,7 @@ export default function TransactionHistoryPage() {
       {
         id: '1',
         app_id: 'app1',
-        app_title: 'ECサイトアプリ',
+        app_title: 'ECサイトプロダクト',
         amount: 5000000,
         status: 'completed',
         buyer_name: '佐藤花子',
@@ -53,7 +53,7 @@ export default function TransactionHistoryPage() {
       {
         id: '3',
         app_id: 'app3',
-        app_title: '在庫管理アプリ',
+        app_title: '在庫管理プロダクト',
         amount: 2000000,
         status: 'completed',
         buyer_name: '高橋三郎',
@@ -257,7 +257,7 @@ export default function TransactionHistoryPage() {
                           href={`/projects/${transaction.app_id}`}
                           className="px-4 py-2 bg-blue-600 text-white border-2 text-sm font-medium hover:bg-blue-700 transition-colors"
                         >
-                          アプリを見る
+                          プロダクトを見る
                         </Link>
                         <button className="px-4 py-2 bg-gray-100 text-gray-700 border-2 text-sm font-medium hover:bg-gray-200 transition-colors">
                           領収書をダウンロード
@@ -275,14 +275,14 @@ export default function TransactionHistoryPage() {
                 </h3>
                 <p className="text-gray-600 mb-6">
                   {userType === 'seller'
-                    ? 'アプリを投稿して販売を始めましょう'
-                    : 'アプリを購入すると、ここに表示されます'}
+                    ? 'プロダクトを投稿して販売を始めましょう'
+                    : 'プロダクトを購入すると、ここに表示されます'}
                 </p>
                 <Link
                   href={userType === 'seller' ? '/projects/new' : '/apps'}
                   className="inline-block bg-blue-600 text-white px-6 py-3 border-2 font-semibold hover:bg-blue-700 transition-colors"
                 >
-                  {userType === 'seller' ? 'アプリを投稿' : 'アプリを探す'}
+                  {userType === 'seller' ? 'プロダクトを投稿' : 'プロダクトを探す'}
                 </Link>
               </div>
             )}

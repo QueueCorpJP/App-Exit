@@ -94,7 +94,7 @@ export default function SecretAppsPage() {
           </div>
         </div>
 
-        {/* アプリ一覧 */}
+        {/* プロダクト一覧 */}
         {isLoading ? (
           <div className="text-center py-12">
             <div className="inline-block animate-spin  h-12 w-12 border-b-2 border-purple-600"></div>
