@@ -14,7 +14,8 @@ type User struct {
 // Profile represents the user profile in the profiles table
 type Profile struct {
 	ID                string     `json:"id"`
-	Role              string     `json:"role"`
+    Role              string     `json:"role"`
+    Roles             []string   `json:"roles,omitempty"`
 	Party             string     `json:"party"`
 	DisplayName       string     `json:"display_name"`
 	Age               *int       `json:"age,omitempty"`
@@ -35,6 +36,23 @@ type Profile struct {
 	ProposalStyle     *string    `json:"proposal_style,omitempty"`
 	CreatedAt         time.Time  `json:"created_at"`
 	UpdatedAt         time.Time  `json:"updated_at"`
+}
+
+// UserLink represents a user's SNS/Web link
+type UserLink struct {
+	ID           string    `json:"id"`
+	UserID       string    `json:"user_id"`
+	Name         string    `json:"name"`
+	URL          string    `json:"url"`
+	DisplayOrder int       `json:"display_order"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+}
+
+// UserLinkInput represents input for creating/updating a link
+type UserLinkInput struct {
+	Name string `json:"name" validate:"required"`
+	URL  string `json:"url" validate:"required,url"`
 }
 
 // Register時は認証情報のみ
@@ -61,6 +79,25 @@ type UpdateProfileRequest struct {
 type LoginRequest struct {
 	Email    string `json:"email" validate:"required,email"`
 	Password string `json:"password" validate:"required"`
+}
+
+type LoginMethod string
+
+const (
+	LoginMethodEmail  LoginMethod = "email"
+	LoginMethodGoogle LoginMethod = "google"
+	LoginMethodGithub LoginMethod = "github"
+	LoginMethodX      LoginMethod = "x"
+)
+
+type OAuthLoginRequest struct {
+	Method      LoginMethod `json:"method"`
+	RedirectURL string      `json:"redirect_url,omitempty"`
+}
+
+type OAuthLoginResponse struct {
+	Type        string `json:"type"`
+	ProviderURL string `json:"provider_url"`
 }
 
 // Register時のレスポンス（認証情報のみ）
@@ -109,13 +146,14 @@ type RegistrationStep2Response struct {
 }
 
 type RegistrationStep3Request struct {
-	DisplayName  string   `json:"display_name"`
-	Party        string   `json:"party"`
-	IconURL      *string  `json:"icon_url,omitempty"`
-	Prefecture   *string  `json:"prefecture,omitempty"`
-	CompanyName  *string  `json:"company_name,omitempty"`
-	Introduction *string  `json:"introduction,omitempty"`
-	Links        []string `json:"links,omitempty"`
+	DisplayName  string          `json:"display_name"`
+	Party        string          `json:"party"`
+	IconURL      *string         `json:"icon_url,omitempty"`
+	Prefecture   *string         `json:"prefecture,omitempty"`
+	CompanyName  *string         `json:"company_name,omitempty"`
+	Introduction *string         `json:"introduction,omitempty"`
+	Links        []UserLinkInput `json:"links,omitempty"`
+    Roles        []string        `json:"roles"`
 }
 
 type RegistrationStep3Response struct {
@@ -160,9 +198,12 @@ type RegistrationCompletionResponse struct {
 }
 
 type ProfileUpsert struct {
-	ID          string  `json:"id"`
-	Role        string  `json:"role"`
-	Party       string  `json:"party"`
-	DisplayName string  `json:"display_name"`
-	IconURL     *string `json:"icon_url,omitempty"`
+	ID           string  `json:"id"`
+	Role         string  `json:"role"`
+	Party        *string `json:"party,omitempty"`
+	DisplayName  *string `json:"display_name,omitempty"`
+	IconURL      *string `json:"icon_url,omitempty"`
+	Prefecture   *string `json:"prefecture,omitempty"`
+	CompanyName  *string `json:"company_name,omitempty"`
+	Introduction *string `json:"introduction,omitempty"`
 }

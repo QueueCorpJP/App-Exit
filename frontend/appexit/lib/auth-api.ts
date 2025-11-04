@@ -56,10 +56,16 @@ export interface LoginRequest {
   password: string;
 }
 
-// Register時は認証情報のみ
-export interface RegisterRequest {
-  email: string;
-  password: string;
+export type LoginMethod = 'email' | 'google' | 'github' | 'x';
+
+export interface OAuthLoginRequest {
+  method: LoginMethod;
+  redirect_url?: string;
+}
+
+export interface OAuthLoginResponse {
+  type: 'oauth';
+  provider_url: string;
 }
 
 export interface User {
@@ -140,6 +146,21 @@ export interface RegistrationStep2Response {
   roles: string[];
 }
 
+export interface UserLinkInput {
+  name: string;
+  url: string;
+}
+
+export interface UserLink {
+  id: string;
+  user_id: string;
+  name: string;
+  url: string;
+  display_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface RegistrationStep3Request {
   display_name: string;
   party: 'individual' | 'organization';
@@ -147,7 +168,8 @@ export interface RegistrationStep3Request {
   prefecture?: string;
   company_name?: string;
   introduction?: string;
-  links?: string[];
+  links?: UserLinkInput[];
+  roles: string[];
 }
 
 export interface RegistrationStep3Response {
@@ -233,41 +255,6 @@ export async function loginWithBackend(data: LoginRequest): Promise<LoginRespons
     }
     throw error;
   }
-}
-
-/**
- * バックエンドAPIにサインアップリクエストを送信
- */
-export async function registerWithBackend(data: RegisterRequest): Promise<AuthResponse> {
-  const apiUrl = typeof window !== 'undefined' ? getApiUrlWithCache() : API_URL;
-  const response = await fetch(`${apiUrl}/api/auth/register`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(data),
-    credentials: 'include', // HTTPOnly Cookieを送受信するために必要
-    cache: 'no-store',
-  });
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: 'アカウント作成に失敗しました' }));
-    
-    // レート制限エラーの場合（現在は使用されないが、念のため残す）
-    if (response.status === 429) {
-      throw new Error('リクエストが多すぎます。しばらく時間をおいてから再度お試しください。');
-    }
-    
-    // 既存ユーザーエラーの場合
-    if (response.status === 409) {
-      throw new Error('このメールアドレスは既に登録されています。ログインページからサインインしてください。');
-    }
-    
-    throw new Error(error.error || error.message || 'アカウント作成に失敗しました');
-  }
-
-  const result = await response.json();
-  return result.data;
 }
 
 export async function registerStep1(data: RegistrationStep1Request): Promise<RegistrationStep1Response> {
@@ -372,6 +359,115 @@ export async function registerStep5(data: RegistrationStep5Request, token: strin
 
   const result = await response.json();
   return result.data as RegistrationCompletionResponse;
+}
+
+/**
+ * OAuthログインを開始
+ */
+export async function loginWithOAuth(data: OAuthLoginRequest): Promise<OAuthLoginResponse> {
+  const apiUrl = typeof window !== 'undefined' ? getApiUrlWithCache() : API_URL;
+  const response = await fetch(`${apiUrl}/api/auth/login/oauth`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+    cache: 'no-store',
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: 'OAuthログインの開始に失敗しました' }));
+    throw new Error(error.error || error.message || 'OAuthログインの開始に失敗しました');
+  }
+
+  const result = await response.json();
+  return result.data as OAuthLoginResponse;
+}
+
+/**
+ * ユーザーのリンク一覧を取得
+ */
+export async function getUserLinks(userId: string): Promise<UserLink[]> {
+  const apiUrl = typeof window !== 'undefined' ? getApiUrlWithCache() : API_URL;
+  const response = await fetch(`${apiUrl}/api/user-links?user_id=${userId}`, {
+    method: 'GET',
+    cache: 'no-store',
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: 'リンクの取得に失敗しました' }));
+    throw new Error(error.error || error.message || 'リンクの取得に失敗しました');
+  }
+
+  const result = await response.json();
+  return result.data as UserLink[];
+}
+
+/**
+ * 新しいリンクを作成
+ */
+export async function createUserLink(data: UserLinkInput, token: string): Promise<UserLink> {
+  const apiUrl = typeof window !== 'undefined' ? getApiUrlWithCache() : API_URL;
+  const response = await fetch(`${apiUrl}/api/user-links`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(data),
+    cache: 'no-store',
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: 'リンクの作成に失敗しました' }));
+    throw new Error(error.error || error.message || 'リンクの作成に失敗しました');
+  }
+
+  const result = await response.json();
+  return result.data as UserLink;
+}
+
+/**
+ * リンクを更新
+ */
+export async function updateUserLink(linkId: string, data: UserLinkInput, token: string): Promise<UserLink> {
+  const apiUrl = typeof window !== 'undefined' ? getApiUrlWithCache() : API_URL;
+  const response = await fetch(`${apiUrl}/api/user-links?id=${linkId}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(data),
+    cache: 'no-store',
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: 'リンクの更新に失敗しました' }));
+    throw new Error(error.error || error.message || 'リンクの更新に失敗しました');
+  }
+
+  const result = await response.json();
+  return result.data as UserLink;
+}
+
+/**
+ * リンクを削除
+ */
+export async function deleteUserLink(linkId: string, token: string): Promise<void> {
+  const apiUrl = typeof window !== 'undefined' ? getApiUrlWithCache() : API_URL;
+  const response = await fetch(`${apiUrl}/api/user-links?id=${linkId}`, {
+    method: 'DELETE',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    cache: 'no-store',
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: 'リンクの削除に失敗しました' }));
+    throw new Error(error.error || error.message || 'リンクの削除に失敗しました');
+  }
 }
 
 /**

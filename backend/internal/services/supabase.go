@@ -250,7 +250,8 @@ func (s *SupabaseService) MergeUserMetadata(userID string, updates map[string]in
 		return nil, fmt.Errorf("failed to marshal metadata payload: %w", err)
 	}
 
-	req, err := s.getAdminAuthRequest(http.MethodPatch, fmt.Sprintf("/auth/v1/admin/users/%s", userID), bytes.NewReader(body))
+    // GoTrue Admin API はユーザー更新を PUT で受け付ける（環境により PATCH は 405 を返す）
+    req, err := s.getAdminAuthRequest(http.MethodPut, fmt.Sprintf("/auth/v1/admin/users/%s", userID), bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("failed to build metadata update request: %w", err)
 	}

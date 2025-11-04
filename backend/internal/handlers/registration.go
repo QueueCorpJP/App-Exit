@@ -8,7 +8,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/yourusername/appexit-backend/internal/models"
+    "github.com/yourusername/appexit-backend/internal/middleware"
 	"github.com/yourusername/appexit-backend/internal/utils"
 	"github.com/yourusername/appexit-backend/pkg/response"
 )
@@ -99,7 +101,7 @@ func (s *Server) RegisterStep2(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req models.RegistrationStep2Request
+    var req models.RegistrationStep2Request
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		response.Error(w, http.StatusBadRequest, "リクエスト形式が不正です")
 		return
@@ -118,16 +120,33 @@ func (s *Server) RegisterStep2(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	updates := map[string]interface{}{
-		"profile": map[string]interface{}{
-			"selected_roles": roles,
-		},
-	}
+    // Step2でprofilesにロール行を作成（partyはNULL許可なので後で埋める）
+    impersonateJWT, ok := r.Context().Value("impersonate_jwt").(string)
+    if !ok || strings.TrimSpace(impersonateJWT) == "" {
+        response.Error(w, http.StatusUnauthorized, "Unauthorized")
+        return
+    }
+    impersonateClient := s.supabase.GetAuthenticatedClient(impersonateJWT)
 
-	if _, err := s.supabase.MergeUserMetadata(userID, updates); err != nil {
-		response.Error(w, http.StatusInternalServerError, fmt.Sprintf("ロール情報の保存に失敗しました: %v", err))
-		return
-	}
+    payloads := make([]models.ProfileUpsert, 0, len(roles))
+    for _, role := range roles {
+        payloads = append(payloads, models.ProfileUpsert{
+            ID:   userID,
+            Role: role,
+            // party, display_nameはStep3で設定
+        })
+    }
+    if len(payloads) > 0 {
+        if _, _, err := impersonateClient.From("profiles").Insert(payloads, true, "id,role", "minimal", "").Execute(); err != nil {
+            response.Error(w, http.StatusInternalServerError, fmt.Sprintf("ロール行の保存に失敗しました: %v", err))
+            return
+        }
+        // 配列カラムrolesも同期
+        if _, _, err := impersonateClient.From("profiles").Update(map[string]interface{}{"roles": roles}, "", "").Eq("id", userID).Execute(); err != nil {
+            response.Error(w, http.StatusInternalServerError, fmt.Sprintf("ロール配列の保存に失敗しました: %v", err))
+            return
+        }
+    }
 
 	response.Success(w, http.StatusOK, models.RegistrationStep2Response{Roles: roles})
 }
@@ -167,76 +186,72 @@ func (s *Server) RegisterStep3(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	metadata, err := s.supabase.GetUserMetadata(userID)
-	if err != nil {
-		response.Error(w, http.StatusInternalServerError, fmt.Sprintf("ユーザーメタデータの取得に失敗しました: %v", err))
-		return
-	}
+    impersonateClient := s.supabase.GetAuthenticatedClient(impersonateJWT)
+    // ロールはStep3のリクエストから受け取る
+    roles := uniqueStrings(req.Roles)
+    if len(roles) == 0 {
+        response.Error(w, http.StatusBadRequest, "ロール選択が完了していません")
+        return
+    }
+    for _, role := range roles {
+        if _, ok := allowedRegistrationRoles[role]; !ok {
+            response.Error(w, http.StatusBadRequest, fmt.Sprintf("不正なロールが含まれています: %s", role))
+            return
+        }
+    }
 
-	roles := extractSelectedRoles(metadata)
-	if len(roles) == 0 {
-		response.Error(w, http.StatusBadRequest, "ロール選択が完了していません")
-		return
-	}
+    payloads := make([]models.ProfileUpsert, 0, len(roles))
+    displayNamePtr := strings.TrimSpace(req.DisplayName)
+    for _, role := range roles {
+        payloads = append(payloads, models.ProfileUpsert{
+            ID:           userID,
+            Role:         role,
+            Party:        &party,
+            DisplayName:  &displayNamePtr,
+            IconURL:      req.IconURL,
+            Prefecture:   req.Prefecture,
+            CompanyName:  req.CompanyName,
+            Introduction: req.Introduction,
+        })
+    }
+    if len(payloads) > 0 {
+        if _, _, err := impersonateClient.From("profiles").Insert(payloads, true, "id,role", "minimal", "").Execute(); err != nil {
+            response.Error(w, http.StatusInternalServerError, fmt.Sprintf("プロフィール情報の保存に失敗しました: %v", err))
+            return
+        }
+        // 同期: 役割配列カラム（roles）を更新
+        if _, _, err := impersonateClient.From("profiles").Update(map[string]interface{}{"roles": roles}, "", "").Eq("id", userID).Execute(); err != nil {
+            response.Error(w, http.StatusInternalServerError, fmt.Sprintf("ロール配列の保存に失敗しました: %v", err))
+            return
+        }
+    }
 
-	impersonateClient := s.supabase.GetAuthenticatedClient(impersonateJWT)
+    // ユーザーリンクを保存
+    if len(req.Links) > 0 {
+        linkPayloads := make([]map[string]interface{}, 0, len(req.Links))
+        for i, link := range req.Links {
+            if strings.TrimSpace(link.Name) == "" || strings.TrimSpace(link.URL) == "" {
+                continue
+            }
+            linkPayloads = append(linkPayloads, map[string]interface{}{
+                "user_id":       userID,
+                "name":          strings.TrimSpace(link.Name),
+                "url":           strings.TrimSpace(link.URL),
+                "display_order": i,
+            })
+        }
+        if len(linkPayloads) > 0 {
+            if _, _, err := impersonateClient.From("user_links").Insert(linkPayloads, false, "", "minimal", "").Execute(); err != nil {
+                response.Error(w, http.StatusInternalServerError, fmt.Sprintf("リンク情報の保存に失敗しました: %v", err))
+                return
+            }
+        }
+    }
 
-	payloads := make([]models.ProfileUpsert, 0, len(roles))
-	for _, role := range roles {
-		payloads = append(payloads, models.ProfileUpsert{
-			ID:          userID,
-			Role:        role,
-			Party:       party,
-			DisplayName: strings.TrimSpace(req.DisplayName),
-			IconURL:     req.IconURL,
-		})
-	}
+    // メタデータ保存は廃止。追加フィールドが必要なら profiles にカラムを追加してください。
 
-	if len(payloads) > 0 {
-		_, _, err = impersonateClient.From("profiles").Insert(payloads, true, "id,role", "minimal", "").Execute()
-		if err != nil {
-			response.Error(w, http.StatusInternalServerError, fmt.Sprintf("プロフィール情報の保存に失敗しました: %v", err))
-			return
-		}
-	}
-
-	profileUpdates := map[string]interface{}{
-		"profile": map[string]interface{}{
-			"display_name": req.DisplayName,
-			"party":        party,
-		},
-	}
-
-	if req.Prefecture != nil {
-		profileUpdates["profile"].(map[string]interface{})["prefecture"] = strings.TrimSpace(*req.Prefecture)
-	}
-	if req.CompanyName != nil {
-		profileUpdates["profile"].(map[string]interface{})["company_name"] = strings.TrimSpace(*req.CompanyName)
-	}
-	if req.Introduction != nil {
-		profileUpdates["profile"].(map[string]interface{})["introduction"] = strings.TrimSpace(*req.Introduction)
-	}
-	if len(req.Links) > 0 {
-		cleanedLinks := make([]string, 0, len(req.Links))
-		for _, link := range req.Links {
-			l := strings.TrimSpace(link)
-			if l != "" {
-				cleanedLinks = append(cleanedLinks, l)
-			}
-		}
-		if len(cleanedLinks) > 0 {
-			profileUpdates["profile"].(map[string]interface{})["links"] = cleanedLinks
-		}
-	}
-
-	if _, err := s.supabase.MergeUserMetadata(userID, profileUpdates); err != nil {
-		response.Error(w, http.StatusInternalServerError, fmt.Sprintf("プロフィール基本情報の保存に失敗しました: %v", err))
-		return
-	}
-
-	var profiles []models.Profile
-	_, err = impersonateClient.From("profiles").Select("*", "", false).Eq("id", userID).ExecuteTo(&profiles)
-	if err != nil || len(profiles) == 0 {
+    var profiles []models.Profile
+    if _, err := impersonateClient.From("profiles").Select("*", "", false).Eq("id", userID).ExecuteTo(&profiles); err != nil || len(profiles) == 0 {
 		response.Error(w, http.StatusInternalServerError, "プロフィール情報の取得に失敗しました")
 		return
 	}
@@ -271,19 +286,25 @@ func (s *Server) RegisterStep4(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	metadata, err := s.supabase.GetUserMetadata(userID)
-	if err != nil {
-		response.Error(w, http.StatusInternalServerError, fmt.Sprintf("ユーザーメタデータの取得に失敗しました: %v", err))
-		return
-	}
-
-	roles := extractSelectedRoles(metadata)
-	if len(roles) == 0 {
-		response.Error(w, http.StatusBadRequest, "ロール選択が完了していません")
-		return
-	}
-
-	impersonateClient := s.supabase.GetAuthenticatedClient(impersonateJWT)
+    impersonateClient := s.supabase.GetAuthenticatedClient(impersonateJWT)
+    // ロールは profiles から取得
+    var rowsStep4 []struct{ Role string `json:"role"` }
+    if _, err := impersonateClient.From("profiles").Select("role", "", false).Eq("id", userID).ExecuteTo(&rowsStep4); err != nil {
+        response.Error(w, http.StatusInternalServerError, "ロール取得に失敗しました")
+        return
+    }
+    roles := make([]string, 0, len(rowsStep4))
+    for _, r := range rowsStep4 {
+        v := strings.ToLower(strings.TrimSpace(r.Role))
+        if v != "" {
+            roles = append(roles, v)
+        }
+    }
+    roles = uniqueStrings(roles)
+    if len(roles) == 0 {
+        response.Error(w, http.StatusBadRequest, "ロール選択が完了していません")
+        return
+    }
 
 	if req.Seller != nil {
 		if contains(roles, "seller") {
@@ -297,8 +318,8 @@ func (s *Server) RegisterStep4(w http.ResponseWriter, r *http.Request) {
 			if req.Seller.DesiredExitTiming != nil {
 				update["desired_exit_timing"] = strings.TrimSpace(*req.Seller.DesiredExitTiming)
 			}
-			if len(update) > 0 {
-				if _, _, err := impersonateClient.From("profiles").Update(update, "", "").Eq("id", userID).Eq("role", "seller").Execute(); err != nil {
+            if len(update) > 0 {
+                if _, _, err := impersonateClient.From("profiles").Update(update, "", "").Eq("id", userID).Execute(); err != nil {
 					response.Error(w, http.StatusInternalServerError, fmt.Sprintf("売り手情報の更新に失敗しました: %v", err))
 					return
 				}
@@ -324,8 +345,8 @@ func (s *Server) RegisterStep4(w http.ResponseWriter, r *http.Request) {
 			if req.Buyer.OperationType != nil {
 				update["operation_type"] = strings.TrimSpace(*req.Buyer.OperationType)
 			}
-			if len(update) > 0 {
-				if _, _, err := impersonateClient.From("profiles").Update(update, "", "").Eq("id", userID).Eq("role", "buyer").Execute(); err != nil {
+            if len(update) > 0 {
+                if _, _, err := impersonateClient.From("profiles").Update(update, "", "").Eq("id", userID).Execute(); err != nil {
 					response.Error(w, http.StatusInternalServerError, fmt.Sprintf("買い手情報の更新に失敗しました: %v", err))
 					return
 				}
@@ -348,8 +369,8 @@ func (s *Server) RegisterStep4(w http.ResponseWriter, r *http.Request) {
 			if req.Advisor.ProposalStyle != nil {
 				update["proposal_style"] = strings.TrimSpace(*req.Advisor.ProposalStyle)
 			}
-			if len(update) > 0 {
-				if _, _, err := impersonateClient.From("profiles").Update(update, "", "").Eq("id", userID).Eq("role", "advisor").Execute(); err != nil {
+            if len(update) > 0 {
+                if _, _, err := impersonateClient.From("profiles").Update(update, "", "").Eq("id", userID).Execute(); err != nil {
 					response.Error(w, http.StatusInternalServerError, fmt.Sprintf("提案者情報の更新に失敗しました: %v", err))
 					return
 				}
@@ -360,9 +381,8 @@ func (s *Server) RegisterStep4(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	var profiles []models.Profile
-	_, err = impersonateClient.From("profiles").Select("*", "", false).Eq("id", userID).ExecuteTo(&profiles)
-	if err != nil {
+    var profiles []models.Profile
+    if _, err := impersonateClient.From("profiles").Select("*", "", false).Eq("id", userID).ExecuteTo(&profiles); err != nil {
 		response.Error(w, http.StatusInternalServerError, "プロフィール情報の取得に失敗しました")
 		return
 	}
@@ -394,51 +414,42 @@ func (s *Server) RegisterStep5(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	metadata, err := s.supabase.GetUserMetadata(userID)
-	if err != nil {
-		response.Error(w, http.StatusInternalServerError, fmt.Sprintf("ユーザーメタデータの取得に失敗しました: %v", err))
-		return
-	}
-
-	roles := extractSelectedRoles(metadata)
-	if len(roles) == 0 {
-		response.Error(w, http.StatusBadRequest, "ロール選択が完了していません")
-		return
-	}
-
-	impersonateClient := s.supabase.GetAuthenticatedClient(impersonateJWT)
+    impersonateClient := s.supabase.GetAuthenticatedClient(impersonateJWT)
+    // ロールは profiles から取得
+    var rowsStep5 []struct{ Role string `json:"role"` }
+    if _, err := impersonateClient.From("profiles").Select("role", "", false).Eq("id", userID).ExecuteTo(&rowsStep5); err != nil {
+        response.Error(w, http.StatusInternalServerError, "ロール取得に失敗しました")
+        return
+    }
+    roles := make([]string, 0, len(rowsStep5))
+    for _, r := range rowsStep5 {
+        v := strings.ToLower(strings.TrimSpace(r.Role))
+        if v != "" {
+            roles = append(roles, v)
+        }
+    }
+    roles = uniqueStrings(roles)
+    if len(roles) == 0 {
+        response.Error(w, http.StatusBadRequest, "ロール選択が完了していません")
+        return
+    }
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 
-	for _, role := range roles {
-		update := map[string]interface{}{
-			"nda_flag": req.NDAAgreed,
-		}
-		if req.TermsAccepted {
-			update["terms_accepted_at"] = now
-		}
-		if req.PrivacyAccepted {
-			update["privacy_accepted_at"] = now
-		}
+    update := map[string]interface{}{
+        "nda_flag": req.NDAAgreed,
+    }
+    if req.TermsAccepted {
+        update["terms_accepted_at"] = now
+    }
+    if req.PrivacyAccepted {
+        update["privacy_accepted_at"] = now
+    }
+    if _, _, err := impersonateClient.From("profiles").Update(update, "", "").Eq("id", userID).Execute(); err != nil {
+        response.Error(w, http.StatusInternalServerError, fmt.Sprintf("同意情報の保存に失敗しました: %v", err))
+        return
+    }
 
-		if _, _, err := impersonateClient.From("profiles").Update(update, "", "").Eq("id", userID).Eq("role", role).Execute(); err != nil {
-			response.Error(w, http.StatusInternalServerError, fmt.Sprintf("同意情報の保存に失敗しました: %v", err))
-			return
-		}
-	}
-
-	completionUpdates := map[string]interface{}{
-		"profile": map[string]interface{}{
-			"nda_agreed":           req.NDAAgreed,
-			"terms_accepted":       req.TermsAccepted,
-			"privacy_accepted":     req.PrivacyAccepted,
-			"onboarding_completed": true,
-		},
-	}
-
-	if _, err := s.supabase.MergeUserMetadata(userID, completionUpdates); err != nil {
-		response.Error(w, http.StatusInternalServerError, fmt.Sprintf("メタデータの更新に失敗しました: %v", err))
-		return
-	}
+    // メタデータ更新は廃止（profiles を正とする）
 
 	response.Success(w, http.StatusOK, models.RegistrationCompletionResponse{
 		Completed: true,
@@ -446,39 +457,176 @@ func (s *Server) RegisterStep5(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// GetRegistrationProgress はユーザーの登録進捗に応じて次に進むべきステップとパスを返す
+// 認証は Cookie(auth_token) を用いたセッション検証で行う（Authorization ヘッダ不要）
+func (s *Server) GetRegistrationProgress(w http.ResponseWriter, r *http.Request) {
+    if r.Method != http.MethodGet {
+        response.Error(w, http.StatusMethodNotAllowed, "Method not allowed")
+        return
+    }
+
+    // auth_token クッキーからユーザー特定
+    cookie, err := r.Cookie("auth_token")
+    if err != nil || strings.TrimSpace(cookie.Value) == "" {
+        response.Error(w, http.StatusUnauthorized, "No session found")
+        return
+    }
+
+    // JWT を検証し userID を取得
+    token, err := jwt.ParseWithClaims(cookie.Value, &middleware.SupabaseJWTClaims{}, func(token *jwt.Token) (interface{}, error) {
+        if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+            return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+        }
+        return []byte(s.config.SupabaseJWTSecret), nil
+    })
+    if err != nil {
+        response.Error(w, http.StatusUnauthorized, "Invalid session")
+        return
+    }
+
+    claims, ok := token.Claims.(*middleware.SupabaseJWTClaims)
+    if !ok || !token.Valid {
+        response.Error(w, http.StatusUnauthorized, "Invalid session")
+        return
+    }
+
+    userID := claims.Sub
+
+    // プロフィールDBのみで進捗判定
+    userClient := s.supabase.GetAuthenticatedClient(cookie.Value)
+    var profiles []models.Profile
+    if _, err := userClient.From("profiles").Select("*", "", false).Eq("id", userID).ExecuteTo(&profiles); err != nil {
+        response.Error(w, http.StatusInternalServerError, "プロフィール取得に失敗しました")
+        return
+    }
+
+    if len(profiles) == 0 {
+        response.Success(w, http.StatusOK, map[string]interface{}{
+            "step":          2,
+            "redirect_path": "/onboarding",
+        })
+        return
+    }
+
+    // 基本プロフィール（display_name, party）: すべてのロールで埋まっているか判定
+    needBasic := false
+    for _, p := range profiles {
+        if strings.TrimSpace(p.DisplayName) == "" || (p.Party != "individual" && p.Party != "organization") {
+            needBasic = true
+            break
+        }
+    }
+    if needBasic {
+        response.Success(w, http.StatusOK, map[string]interface{}{
+            "step":          3,
+            "redirect_path": "/settings/profile",
+        })
+        return
+    }
+
+    // 同意完了（NDA/規約/プライバシー）: 全ロールで完了していれば完了
+    needConsent := false
+    for _, p := range profiles {
+        if !p.NDAFlag || p.TermsAcceptedAt == nil || p.PrivacyAcceptedAt == nil {
+            needConsent = true
+            break
+        }
+    }
+    if needConsent {
+        response.Success(w, http.StatusOK, map[string]interface{}{
+            "step":          5,
+            "redirect_path": "/settings/profile",
+        })
+        return
+    }
+
+    // すべて完了
+    response.Success(w, http.StatusOK, map[string]interface{}{
+        "step":          6,
+        "redirect_path": "/dashboard",
+    })
+}
+
 func extractSelectedRoles(metadata map[string]interface{}) []string {
-	if metadata == nil {
-		return []string{}
-	}
+    if metadata == nil {
+        return []string{}
+    }
 
-	profileMeta, ok := metadata["profile"].(map[string]interface{})
-	if !ok {
-		return []string{}
-	}
+    // 1) トップレベル roles 優先
+    if rawTop, ok := metadata["roles"]; ok {
+        switch v := rawTop.(type) {
+        case []interface{}:
+            roles := make([]string, 0, len(v))
+            for _, item := range v {
+                if s, ok := item.(string); ok {
+                    s = strings.ToLower(strings.TrimSpace(s))
+                    if s != "" {
+                        roles = append(roles, s)
+                    }
+                }
+            }
+            roles = uniqueStrings(roles)
+            if len(roles) > 0 {
+                return roles
+            }
+        case []string:
+            roles := make([]string, 0, len(v))
+            for _, s := range v {
+                s = strings.ToLower(strings.TrimSpace(s))
+                if s != "" {
+                    roles = append(roles, s)
+                }
+            }
+            roles = uniqueStrings(roles)
+            if len(roles) > 0 {
+                return roles
+            }
+        }
+    }
 
-	rawRoles, ok := profileMeta["selected_roles"]
-	if !ok {
-		return []string{}
-	}
+    // 2) 互換: profile.selected_roles
+    if profileMeta, ok := metadata["profile"].(map[string]interface{}); ok {
+        if rawRoles, ok := profileMeta["selected_roles"]; ok {
+            switch v := rawRoles.(type) {
+            case []interface{}:
+                roles := []string{}
+                for _, item := range v {
+                    if role, ok := item.(string); ok {
+                        roles = append(roles, strings.ToLower(strings.TrimSpace(role)))
+                    }
+                }
+                return uniqueStrings(roles)
+            case []string:
+                normalized := make([]string, 0, len(v))
+                for _, role := range v {
+                    normalized = append(normalized, strings.ToLower(strings.TrimSpace(role)))
+                }
+                return uniqueStrings(normalized)
+            }
+        }
+    }
 
-	switch v := rawRoles.(type) {
-	case []interface{}:
-		roles := []string{}
-		for _, item := range v {
-			if role, ok := item.(string); ok {
-				roles = append(roles, strings.ToLower(role))
-			}
-		}
-		return uniqueStrings(roles)
-	case []string:
-		normalized := make([]string, 0, len(v))
-		for _, role := range v {
-			normalized = append(normalized, strings.ToLower(role))
-		}
-		return uniqueStrings(normalized)
-	default:
-		return []string{}
-	}
+    // 3) 旧: 単数 role（トップレベル or profile 内）
+    if rawSingle, ok := metadata["role"]; ok {
+        if s, ok := rawSingle.(string); ok {
+            s = strings.ToLower(strings.TrimSpace(s))
+            if s != "" {
+                return []string{s}
+            }
+        }
+    }
+    if profileMeta, ok := metadata["profile"].(map[string]interface{}); ok {
+        if rawSingle, ok := profileMeta["role"]; ok {
+            if s, ok := rawSingle.(string); ok {
+                s = strings.ToLower(strings.TrimSpace(s))
+                if s != "" {
+                    return []string{s}
+                }
+            }
+        }
+    }
+
+    return []string{}
 }
 
 func uniqueStrings(values []string) []string {
@@ -505,3 +653,4 @@ func contains(list []string, target string) bool {
 	}
 	return false
 }
+

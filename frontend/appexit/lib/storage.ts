@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 
 const STORAGE_BUCKET = 'post-images';
+const AVATAR_BUCKET = 'avatars';
 
 /**
  * Supabase Storageに画像をアップロードする
@@ -124,4 +125,41 @@ export async function deleteImage(path: string): Promise<void> {
   }
 
   console.log('Image deleted successfully:', path);
+}
+
+/**
+ * Supabase Storageにアバター画像をアップロードする
+ * @param file アップロードする画像ファイル
+ * @param userId アップロードするユーザーのID（オプション）
+ * @returns 公開URLの文字列
+ */
+export async function uploadAvatarImage(file: File, userId?: string): Promise<string> {
+  // ファイル名を生成 (タイムスタンプ_元のファイル名 または ユーザーID_タイムスタンプ)
+  const timestamp = Date.now();
+  const fileExt = file.name.split('.').pop();
+  const fileName = userId 
+    ? `${userId}_${timestamp}.${fileExt}`
+    : `avatar_${timestamp}.${fileExt}`;
+  const filePath = `avatars/${fileName}`;
+
+  // Supabase Storageにアップロード
+  const { data, error } = await supabase.storage
+    .from(AVATAR_BUCKET)
+    .upload(filePath, file, {
+      cacheControl: '3600',
+      upsert: false,
+    });
+
+  if (error) {
+    console.error('Avatar upload error:', error);
+    throw new Error(`アバター画像のアップロードに失敗しました: ${error.message}`);
+  }
+
+  // 公開URLを取得
+  const { data: publicUrlData } = supabase.storage
+    .from(AVATAR_BUCKET)
+    .getPublicUrl(data.path);
+
+  console.log('Avatar uploaded successfully:', publicUrlData.publicUrl);
+  return publicUrlData.publicUrl;
 }

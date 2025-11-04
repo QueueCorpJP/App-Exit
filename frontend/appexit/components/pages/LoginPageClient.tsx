@@ -2,31 +2,8 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useFormStatus } from 'react-dom';
 import Button from '@/components/ui/Button';
-import { loginWithBackend } from '@/lib/auth-api';
-
-function SubmitButton() {
-  const { pending } = useFormStatus();
-  const [isHovered, setIsHovered] = useState(false);
-
-  return (
-    <Button
-      type="submit"
-      variant="primary"
-      className="w-full"
-      isLoading={pending}
-      loadingText="ログイン中..."
-      style={{
-        backgroundColor: isHovered ? '#D14C54' : '#E65D65',
-      }}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-    >
-      ログイン
-    </Button>
-  );
-}
+import { loginWithBackend, loginWithOAuth, LoginMethod } from '@/lib/auth-api';
 
 interface LoginPageClientProps {
   error?: string;
@@ -34,11 +11,33 @@ interface LoginPageClientProps {
 
 export default function LoginPageClient({ error: serverError }: LoginPageClientProps) {
   const [error, setError] = useState(serverError);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
   const router = useRouter();
+
+  async function handleOAuthLogin(method: LoginMethod) {
+    setError(undefined);
+    setIsLoading(true);
+    try {
+      const redirectUrl = typeof window !== 'undefined' ? `${window.location.origin}/login` : undefined;
+      const result = await loginWithOAuth({ method, redirect_url: redirectUrl });
+      if (result.type === 'oauth' && result.provider_url) {
+        window.location.href = result.provider_url;
+        return;
+      }
+      throw new Error('OAuthの初期化に失敗しました');
+    } catch (err) {
+      console.error('OAuth login error:', err);
+      setError(err instanceof Error ? err.message : 'OAuthログインに失敗しました');
+    } finally {
+      setIsLoading(false);
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(undefined);
+    setIsLoading(true);
 
     const formData = new FormData(e.currentTarget);
     const email = formData.get('email') as string;
@@ -67,6 +66,7 @@ export default function LoginPageClient({ error: serverError }: LoginPageClientP
     } catch (err) {
       console.error('Login error:', err);
       setError(err instanceof Error ? err.message : 'ログインに失敗しました');
+      setIsLoading(false);
     }
   }
 
@@ -180,7 +180,20 @@ export default function LoginPageClient({ error: serverError }: LoginPageClientP
               </div>
             )}
 
-            <SubmitButton />
+            <Button
+              type="submit"
+              variant="primary"
+              className="w-full"
+              isLoading={isLoading}
+              loadingText="ログイン中..."
+              style={{
+                backgroundColor: isHovered ? '#D14C54' : '#E65D65',
+              }}
+              onMouseEnter={() => setIsHovered(true)}
+              onMouseLeave={() => setIsHovered(false)}
+            >
+              ログイン
+            </Button>
           </form>
 
           <div className="mt-6">
@@ -198,6 +211,8 @@ export default function LoginPageClient({ error: serverError }: LoginPageClientP
                 type="button"
                 variant="outline"
                 className="w-full"
+                onClick={() => handleOAuthLogin('google')}
+                isLoading={isLoading}
               >
                 <svg className="w-5 h-5" viewBox="0 0 24 24">
                   <path

@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Button from '@/components/ui/Button';
 import {
@@ -11,6 +11,7 @@ import {
   RegistrationStep4Request,
   RegistrationStep5Request,
   SellerProfileInput,
+  UserLinkInput,
   registerStep1,
   registerStep2,
   registerStep3,
@@ -18,6 +19,9 @@ import {
   registerStep5,
 } from '@/lib/auth-api';
 import { supabase } from '@/lib/supabase';
+import { UserRound, Building, Camera, X } from 'lucide-react';
+import RoleSelector from '@/components/register/RoleSelector';
+import { uploadAvatarImage } from '@/lib/storage';
 
 const TOTAL_STEPS = 5;
 
@@ -97,7 +101,7 @@ interface BasicProfileForm {
   companyName: string;
   iconUrl: string;
   introduction: string;
-  links: string[];
+  links: UserLinkInput[];
 }
 
 interface SellerFormState {
@@ -195,6 +199,10 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
   const [confirmPassword, setConfirmPassword] = useState<string>('');
   const [showMethodOptions, setShowMethodOptions] = useState<boolean>(false);
   const [isHovered, setIsHovered] = useState<boolean>(false);
+  const [isPrefectureFocused, setIsPrefectureFocused] = useState<boolean>(false);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string>('');
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState<boolean>(false);
   const [basicForm, setBasicForm] = useState<BasicProfileForm>({
     displayName: '',
     party: 'individual',
@@ -202,7 +210,7 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
     companyName: '',
     iconUrl: '',
     introduction: '',
-    links: [''],
+    links: [{ name: '', url: '' }],
   });
   const [sellerForm, setSellerForm] = useState<SellerFormState>({
     listingCount: '',
@@ -226,6 +234,19 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
     privacy: false,
   });
 
+  // OAuthで戻ってきて既にSupabaseセッションがある場合はステップ2へ進める
+  useEffect(() => {
+    const checkSessionAndAdvance = async () => {
+      if (step !== 1) return;
+      const { data } = await supabase.auth.getSession();
+      if (data.session?.access_token) {
+        setAccessToken(data.session.access_token);
+        setStep(2);
+      }
+    };
+    checkSessionAndAdvance();
+  }, [step]);
+
   const ensureAccessToken = async (): Promise<string> => {
     if (accessToken) {
       return accessToken;
@@ -236,6 +257,59 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
     }
     setAccessToken(data.session.access_token);
     return data.session.access_token;
+  };
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // ファイルサイズチェック (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setError('画像ファイルは5MB以下にしてください');
+      return;
+    }
+
+    // ファイルタイプチェック
+    if (!file.type.startsWith('image/')) {
+      setError('画像ファイルを選択してください');
+      return;
+    }
+
+    setAvatarFile(file);
+    
+    // プレビュー表示
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setAvatarPreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+
+    // 即座にアップロード
+    setIsUploadingAvatar(true);
+    setError(undefined);
+    try {
+      // ユーザーIDを取得（認証済みの場合）
+      const { data: sessionData } = await supabase.auth.getSession();
+      const userId = sessionData?.session?.user?.id;
+      
+      console.log('Uploading avatar, userId:', userId);
+      const publicUrl = await uploadAvatarImage(file, userId);
+      setBasicForm((prev) => ({ ...prev, iconUrl: publicUrl }));
+      console.log('Avatar uploaded successfully:', publicUrl);
+    } catch (err) {
+      console.error('Avatar upload error:', err);
+      setError(err instanceof Error ? err.message : 'アバター画像のアップロードに失敗しました');
+      setAvatarFile(null);
+      setAvatarPreview('');
+      // エラー時でもプレビューは残す
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setAvatarPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    } finally {
+      setIsUploadingAvatar(false);
+    }
   };
 
   const handleEmailSignup = async () => {
@@ -278,7 +352,7 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
     setError(undefined);
     setIsLoading(true);
     try {
-      const redirectUrl = typeof window !== 'undefined' ? `${window.location.origin}/dashboard` : undefined;
+      const redirectUrl = typeof window !== 'undefined' ? `${window.location.origin}/register` : undefined;
       const result = await registerStep1({ method, redirect_url: redirectUrl });
       if (result.type === 'oauth' && result.provider_url) {
         window.location.href = result.provider_url;
@@ -300,24 +374,28 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
       }
       return [...prev, role];
     });
+    // ロール選択時にエラーをクリア
+    if (error === '少なくとも1つのロールを選択してください') {
+      setError(undefined);
+    }
   };
 
-  const updateLink = (index: number, value: string) => {
+  const updateLink = (index: number, field: 'name' | 'url', value: string) => {
     setBasicForm((prev) => {
       const nextLinks = [...prev.links];
-      nextLinks[index] = value;
+      nextLinks[index] = { ...nextLinks[index], [field]: value };
       return { ...prev, links: nextLinks };
     });
   };
 
   const addLinkField = () => {
-    setBasicForm((prev) => ({ ...prev, links: [...prev.links, ''] }));
+    setBasicForm((prev) => ({ ...prev, links: [...prev.links, { name: '', url: '' }] }));
   };
 
   const removeLinkField = (index: number) => {
     setBasicForm((prev) => {
       const nextLinks = prev.links.filter((_, i) => i !== index);
-      return { ...prev, links: nextLinks.length > 0 ? nextLinks : [''] };
+      return { ...prev, links: nextLinks.length > 0 ? nextLinks : [{ name: '', url: '' }] };
     });
   };
 
@@ -329,7 +407,14 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
     setIsLoading(true);
     try {
       const token = await ensureAccessToken();
-      const result = await registerStep2({ roles: selectedRoles }, token);
+      const rolesPayload = Array.from(
+        new Set(
+          selectedRoles
+            .map((r) => r.toLowerCase().trim())
+            .filter((r) => r.length > 0)
+        )
+      );
+      const result = await registerStep2({ roles: rolesPayload }, token);
       setSelectedRoles(result.roles);
       setStep(3);
     } catch (err) {
@@ -351,12 +436,15 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
       const payload: RegistrationStep3Request = {
         display_name: basicForm.displayName.trim(),
         party: basicForm.party,
+        roles: selectedRoles,
       };
       if (basicForm.iconUrl.trim()) payload.icon_url = basicForm.iconUrl.trim();
       if (basicForm.prefecture) payload.prefecture = basicForm.prefecture;
       if (basicForm.companyName.trim()) payload.company_name = basicForm.companyName.trim();
       if (basicForm.introduction.trim()) payload.introduction = basicForm.introduction.trim();
-      const cleanedLinks = basicForm.links.map((link) => link.trim()).filter((link) => link !== '');
+      const cleanedLinks = basicForm.links
+        .filter((link) => link.name.trim() !== '' && link.url.trim() !== '')
+        .map((link) => ({ name: link.name.trim(), url: link.url.trim() }));
       if (cleanedLinks.length > 0) payload.links = cleanedLinks;
       await registerStep3(payload, token);
       setStep(4);
@@ -464,7 +552,7 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
     switch (step) {
       case 1:
         return (
-          <div className="space-y-6">
+          <div className="space-y-5">
             <div>
               <button
                 type="button"
@@ -503,7 +591,7 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
               )}
             </div>
             <div className="pt-6">
-              <div className="relative mb-6">
+              <div className="relative mb-5">
                 <div className="absolute inset-0 flex items-center">
                   <div className="w-full border-t border-gray-200" />
                 </div>
@@ -565,51 +653,17 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
         return (
           <div className="space-y-6">
             <h3 className="text-lg font-medium text-gray-900">あなたの目的に合うロールを選択してください（複数選択可）</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {[
-                {
-                  key: 'seller',
-                  title: '売り手',
-                  description: '自分のサービス・アプリを出品・査定したい',
-                  emoji: '💼',
-                },
-                {
-                  key: 'buyer',
-                  title: '買い手',
-                  description: 'プロダクト買収・投資案件を探したい',
-                  emoji: '🛒',
-                },
-                {
-                  key: 'advisor',
-                  title: '提案者',
-                  description: '改善提案や運営支援を行いたい',
-                  emoji: '💡',
-                },
-              ].map(({ key, title, description, emoji }) => {
-                const isActive = selectedRoles.includes(key);
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => toggleRole(key)}
-                    className={`p-6 text-left border-2 transition-all duration-200 ${
-                      isActive ? 'border-gray-900 bg-gray-50' : 'border-gray-200 hover:border-gray-900'
-                    }`}
-                  >
-                    <div className="text-3xl mb-2">{emoji}</div>
-                    <div className="font-semibold text-lg text-gray-900">{title}</div>
-                    <p className="text-sm text-gray-600 mt-1">{description}</p>
-                  </button>
-                );
-              })}
-            </div>
+            <RoleSelector
+              selectedRoles={selectedRoles}
+              onToggle={(key) => toggleRole(key)}
+            />
           </div>
         );
       case 3:
         return (
           <div className="space-y-6">
-            <h3 className="text-lg font-medium text-gray-900">基本プロフィール</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <h3 className="text-lg font-bold" style={{ color: '#323232' }}>基本プロフィール</h3>
+            <div className="flex flex-col gap-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700" htmlFor="displayName">表示名</label>
                 <input
@@ -633,32 +687,77 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
                       key={value}
                       type="button"
                       onClick={() => setBasicForm((prev) => ({ ...prev, party: value }))}
-                      className={`px-4 py-2 border-2 transition-all duration-200 ${
-                        basicForm.party === value ? 'border-gray-900 bg-gray-50' : 'border-gray-200 hover:border-gray-900'
-                      }`}
+                      className={`px-4 py-3 border border-gray-200 rounded-md transition ${
+                        basicForm.party === value ? 'bg-gray-100' : 'bg-white hover:bg-gray-50'
+                      } flex items-center justify-center gap-2 text-gray-900`}
                     >
-                      {label}
+                      {value === 'individual' ? (
+                        <UserRound className="w-4 h-4" />
+                      ) : (
+                        <Building className="w-4 h-4" />
+                      )}
+                      <span className="font-bold text-gray-500">{label}</span>
                     </button>
                   ))}
                 </div>
               </div>
-              <div>
+              <div
+                style={{
+                  maxHeight: basicForm.party === 'organization' ? '200px' : '0',
+                  opacity: basicForm.party === 'organization' ? 1 : 0,
+                  overflow: 'hidden',
+                  transition: 'max-height 0.2s ease, opacity 0.2s ease'
+                }}
+              >
                 <label className="block text-sm font-medium text-gray-700" htmlFor="prefecture">拠点（都道府県）</label>
-                <select
-                  id="prefecture"
-                  value={basicForm.prefecture}
-                  onChange={(e) => setBasicForm((prev) => ({ ...prev, prefecture: e.target.value }))}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:border-gray-900 focus:outline-none"
-                >
-                  <option value="">選択してください</option>
-                  {prefectures.map((pref) => (
-                    <option key={pref} value={pref}>
-                      {pref}
-                    </option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <select
+                    id="prefecture"
+                    value={basicForm.prefecture}
+                    onChange={(e) => {
+                      setBasicForm((prev) => ({ ...prev, prefecture: e.target.value }));
+                      // 選択によりドロップダウンが閉じたタイミングでアイコンを元に戻す
+                      setIsPrefectureFocused(false);
+                    }}
+                    onFocus={() => setIsPrefectureFocused(true)}
+                    onBlur={() => setIsPrefectureFocused(false)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Escape') {
+                        // Escで閉じた場合も確実に戻す
+                        setIsPrefectureFocused(false);
+                      }
+                    }}
+                    className="mt-1 block w-full px-3 py-2 pr-10 border border-gray-300 rounded-md text-gray-900 focus:border-gray-900 focus:outline-none appearance-none bg-white"
+                  >
+                    <option value="">選択してください</option>
+                    {prefectures.map((pref) => (
+                      <option key={pref} value={pref}>
+                        {pref}
+                      </option>
+                    ))}
+                  </select>
+                  <div
+                    className="absolute right-3 top-1/2 pointer-events-none"
+                    style={{
+                      transform: `translateY(-50%) rotate(${isPrefectureFocused ? '180deg' : '0deg'})`,
+                      transition: 'transform 0.2s ease',
+                      marginTop: '0.5px'
+                    }}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none">
+                      <path d="M4 6L8 10L12 6" stroke="#323232" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </div>
+                </div>
               </div>
-              <div>
+              <div
+                style={{
+                  maxHeight: basicForm.party === 'organization' ? '200px' : '0',
+                  opacity: basicForm.party === 'organization' ? 1 : 0,
+                  overflow: 'hidden',
+                  transition: 'max-height 0.2s ease, opacity 0.2s ease'
+                }}
+              >
                 <label className="block text-sm font-medium text-gray-700" htmlFor="companyName">
                   会社名 / 屋号（法人のみ）
                 </label>
@@ -672,17 +771,47 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700" htmlFor="iconUrl">
-                  アイコン画像URL
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  アイコン画像
                 </label>
-                <input
-                  id="iconUrl"
-                  type="url"
-                  value={basicForm.iconUrl}
-                  onChange={(e) => setBasicForm((prev) => ({ ...prev, iconUrl: e.target.value }))}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:border-gray-900 focus:outline-none"
-                  placeholder="https://example.com/avatar.png"
-                />
+                <div className="flex items-center space-x-4">
+                  {/* プレビュー画像 - クリック可能 */}
+                  <input
+                    id="avatarInput"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleAvatarChange}
+                    className="hidden"
+                    disabled={isUploadingAvatar}
+                  />
+                  <label
+                    htmlFor="avatarInput"
+                    className={`relative w-20 h-20 rounded-full overflow-hidden cursor-pointer group ${
+                      isUploadingAvatar ? 'opacity-50 cursor-not-allowed' : ''
+                    }`}
+                  >
+                    {/* 背景画像 */}
+                    {avatarPreview || basicForm.iconUrl ? (
+                      <img
+                        src={avatarPreview || basicForm.iconUrl}
+                        alt="アイコンプレビュー"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+                        <span className="text-4xl text-gray-400">👤</span>
+                      </div>
+                    )}
+                    {/* 薄暗いオーバーレイとカメラアイコン */}
+                    <div className="absolute inset-0 bg-black/30 flex items-center justify-center group-hover:bg-black/40 transition-all">
+
+                      <Camera className="w-8 h-8 text-white" strokeWidth={1.5} />
+                    </div>
+                  </label>
+                  {isUploadingAvatar && (
+                    <span className="text-sm text-gray-600">アップロード中...</span>
+                  )}
+                </div>
               </div>
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700" htmlFor="introduction">
@@ -702,23 +831,34 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
                 <label className="block text-sm font-medium text-gray-700">Web / SNSリンク（任意）</label>
                 <div className="space-y-3 mt-2">
                   {basicForm.links.map((link, index) => (
-                    <div key={`link-${index}`} className="flex items-center gap-2">
-                      <input
-                        type="url"
-                        value={link}
-                        onChange={(e) => updateLink(index, e.target.value)}
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:border-gray-900 focus:outline-none"
-                        placeholder="https://example.com"
-                      />
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => removeLinkField(index)}
-                        disabled={basicForm.links.length === 1}
-                      >
-                        削除
-                      </Button>
+                    <div key={`link-${index}`} className="space-y-2">
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={link.name}
+                          onChange={(e) => updateLink(index, 'name', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:border-gray-900 focus:outline-none"
+                          placeholder="リンク名（例: X, GitHub）"
+                        />
+                      </div>
+                      <div className="relative">
+                        <input
+                          type="url"
+                          value={link.url}
+                          onChange={(e) => updateLink(index, 'url', e.target.value)}
+                          className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md text-gray-900 focus:border-gray-900 focus:outline-none"
+                          placeholder="https://example.com"
+                        />
+                        {basicForm.links.length > 1 && (link.name || link.url) && (
+                          <button
+                            type="button"
+                            onClick={() => removeLinkField(index)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                          >
+                            <X className="w-5 h-5" />
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ))}
                   <Button type="button" variant="ghost" size="sm" onClick={addLinkField}>
@@ -1027,10 +1167,14 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
     buyerForm,
     advisorForm,
     agreements,
+    isPrefectureFocused,
+    isUploadingAvatar,
+    avatarPreview,
   ]);
 
   return (
     <>
+      
       <style dangerouslySetInnerHTML={{__html: `
         .register-title-custom {
           color: #323232 !important;
@@ -1047,7 +1191,7 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
       <div className="min-h-screen flex flex-col justify-center py-12 sm:px-6 lg:px-8" style={{ backgroundColor: '#F9F8F7' }}>
         <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
           <StepIndicator current={step} />
-        <div className="bg-white py-8 px-6 sm:px-10">
+        <div className="bg-white py-8 px-6 sm:px-10" style={{ marginBottom: '400px' }}>
           <form onSubmit={handleSubmit}>
             {renderStepContent}
             {error && (

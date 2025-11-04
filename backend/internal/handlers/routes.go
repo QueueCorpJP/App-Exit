@@ -37,7 +37,10 @@ func SetupRoutes(cfg *config.Config) http.Handler {
 	// Auth routes
 	mux.HandleFunc("/api/auth/register", server.Register)
 	mux.HandleFunc("/api/auth/register/step1", server.RegisterStep1)
+	// 進捗確認（Cookieベース認証）
+	mux.HandleFunc("/api/auth/register/progress", server.GetRegistrationProgress)
 	mux.HandleFunc("/api/auth/login", server.Login)
+	mux.HandleFunc("/api/auth/login/oauth", server.LoginWithOAuth)
 	mux.HandleFunc("/api/auth/logout", server.Logout)
 	mux.HandleFunc("/api/auth/session", server.CheckSession)
 	mux.HandleFunc("/api/auth/refresh", server.RefreshToken)
@@ -54,6 +57,23 @@ func SetupRoutes(cfg *config.Config) http.Handler {
 	// User routes (must be registered AFTER /api/auth/profile to avoid matching conflicts)
 	mux.HandleFunc("/api/users", auth(server.GetUsers))       // List users (protected)
 	mux.HandleFunc("/api/users/", server.HandleUserByIDRoute) // Get user profile by ID (public)
+
+	// User links routes
+	mux.HandleFunc("/api/user-links", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			server.GetUserLinks(w, r)
+		case http.MethodPost:
+			auth(server.CreateUserLink)(w, r)
+		case http.MethodPut:
+			auth(server.UpdateUserLink)(w, r)
+		case http.MethodDelete:
+			auth(server.DeleteUserLink)(w, r)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
+	fmt.Println("[ROUTES] Registered: /api/user-links")
 
 	// Product routes
 	mux.HandleFunc("/api/products", server.HandleProducts)

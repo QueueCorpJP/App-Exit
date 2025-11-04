@@ -71,7 +71,7 @@ export default function Header() {
               <input
                 type="text"
                 placeholder="キーワード検索"
-                className="w-full px-4 py-2 border border-gray-300 rounded-l-full rounded-r-none text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
+                className="w-full px-4 py-2 border border-gray-400 rounded-l-full rounded-r-none text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
               />
               <button className="px-4 bg-red-600 text-white rounded-l-none rounded-r-full text-sm font-semibold hover:bg-red-700 transition-colors border border-red-600 flex items-center whitespace-nowrap">
                 検索
@@ -261,7 +261,7 @@ export default function Header() {
             <input
               type="text"
               placeholder="キーワード検索"
-              className="flex-1 px-4 py-2 border border-gray-300 rounded-l-full rounded-r-none text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
+              className="flex-1 px-4 py-2 border border-gray-400 rounded-l-full rounded-r-none text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
             />
             <button className="px-4 bg-red-600 text-white rounded-l-none rounded-r-full text-sm font-semibold hover:bg-red-700 transition-colors border border-red-600 flex items-center whitespace-nowrap">
               検索

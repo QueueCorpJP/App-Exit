@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -540,6 +541,52 @@ func (s *Server) CheckSession(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response.Success(w, http.StatusOK, userInfo)
+}
+
+// LoginWithOAuth OAuth経由でログインを開始
+func (s *Server) LoginWithOAuth(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		response.Error(w, http.StatusMethodNotAllowed, "Method not allowed")
+		return
+	}
+
+	var req models.OAuthLoginRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.Error(w, http.StatusBadRequest, "リクエスト形式が不正です")
+		return
+	}
+
+	method := strings.ToLower(string(req.Method))
+	switch method {
+	case "google", "github", "x":
+		provider := method
+		if provider == "x" {
+			provider = "twitter"
+		}
+
+		redirect := strings.TrimSpace(req.RedirectURL)
+		builder, err := url.Parse(fmt.Sprintf("%s/auth/v1/authorize", s.config.SupabaseURL))
+		if err != nil {
+			response.Error(w, http.StatusInternalServerError, "OAuth URLの生成に失敗しました")
+			return
+		}
+
+		query := builder.Query()
+		query.Set("provider", provider)
+		if redirect != "" {
+			query.Set("redirect_to", redirect)
+		}
+		builder.RawQuery = query.Encode()
+
+		response.Success(w, http.StatusOK, models.OAuthLoginResponse{
+			Type:        "oauth",
+			ProviderURL: builder.String(),
+		})
+		return
+	default:
+		response.Error(w, http.StatusBadRequest, "サポートされていないログイン方法です")
+		return
+	}
 }
 
 // RefreshToken リフレッシュトークンを使って新しいアクセストークンを取得
