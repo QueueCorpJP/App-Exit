@@ -81,14 +81,14 @@ export default function Footer() {
               </li>
               <li className="mt-4">
                 <div className="text-sm text-gray-400 mb-2">APPEXITアカデミーとは</div>
-                <Link href="/academy/crowdfunding" className="text-gray-300 hover:text-white transition-colors text-sm block mb-2">
-                  クラウドファンディングとは
+                <Link href="/academy/marketplace" className="text-gray-300 hover:text-white transition-colors text-sm block mb-2">
+                  アプリ売買とは
                 </Link>
-                <Link href="/academy/how-to-start" className="text-gray-300 hover:text-white transition-colors text-sm block mb-2">
-                  プロジェクトの作り方
+                <Link href="/academy/how-to-sell" className="text-gray-300 hover:text-white transition-colors text-sm block mb-2">
+                  アプリを売る方法
                 </Link>
-                <Link href="/academy/promotion" className="text-gray-300 hover:text-white transition-colors text-sm block">
-                  プロジェクトの広め方
+                <Link href="/academy/how-to-buy" className="text-gray-300 hover:text-white transition-colors text-sm block">
+                  アプリを買う方法
                 </Link>
               </li>
             </ul>
@@ -139,7 +139,7 @@ export default function Footer() {
               </ul>
 
               <div className="mt-8">
-                <div className="text-sm text-gray-400 mb-2">クラウドファンディングのノウハウを無料で学ぼう</div>
+                <div className="text-sm text-gray-400 mb-2">アプリ・サービス売買のノウハウを無料で学ぼう</div>
                 <div className="flex items-center space-x-4 mt-4">
                   <Link href="/seminar" className="text-gray-300 hover:text-white transition-colors text-sm">
                     説明会・相談会
@@ -149,8 +149,8 @@ export default function Footer() {
                   </Link>
                 </div>
                 <div className="flex items-center space-x-4 mt-2">
-                  <Link href="/consulting" className="text-gray-300 hover:text-white transition-colors text-sm">
-                    実施事例
+                  <Link href="/case-studies" className="text-gray-300 hover:text-white transition-colors text-sm">
+                    取引事例
                   </Link>
                   <Link href="/data" className="text-gray-300 hover:text-white transition-colors text-sm">
                     統計データ
@@ -210,8 +210,8 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/jfa" className="text-gray-300 hover:text-white transition-colors text-sm">
-                  JFAクラウドファンディング
+                <Link href="/marketplace" className="text-gray-300 hover:text-white transition-colors text-sm">
+                  APPEXITマーケットプレイス
                 </Link>
               </li>
               <li>
@@ -282,12 +282,12 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/harassment" className="text-gray-300 hover:text-white transition-colors text-sm">
+                <Link href="/customer-harassment" className="text-gray-300 hover:text-white transition-colors text-sm">
                   カスタマーハラスメントに対する考え方
                 </Link>
               </li>
               <li>
-                <Link href="/cookie" className="text-gray-300 hover:text-white transition-colors text-sm">
+                <Link href="/cookie-policy" className="text-gray-300 hover:text-white transition-colors text-sm">
                   クッキーポリシー
                 </Link>
               </li>
