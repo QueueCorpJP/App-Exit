@@ -63,7 +63,9 @@ func (s *Server) RegisterStep1(w http.ResponseWriter, r *http.Request) {
 			provider = "twitter"
 		}
 
-		redirect := strings.TrimSpace(req.RedirectURL)
+		// リダイレクト先はバックエンドのコールバックURL
+		backendCallbackURL := fmt.Sprintf("%s/api/auth/callback", s.config.BackendURL)
+
 		builder, err := url.Parse(fmt.Sprintf("%s/auth/v1/authorize", s.config.SupabaseURL))
 		if err != nil {
 			response.Error(w, http.StatusInternalServerError, "OAuth URLの生成に失敗しました")
@@ -72,9 +74,7 @@ func (s *Server) RegisterStep1(w http.ResponseWriter, r *http.Request) {
 
 		query := builder.Query()
 		query.Set("provider", provider)
-		if redirect != "" {
-			query.Set("redirect_to", redirect)
-		}
+		query.Set("redirect_to", backendCallbackURL)
 		builder.RawQuery = query.Encode()
 
 		response.Success(w, http.StatusOK, models.RegistrationStep1Response{

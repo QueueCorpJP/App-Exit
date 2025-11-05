@@ -9,6 +9,7 @@ import (
 type Config struct {
 	ServerPort         string
 	Environment        string
+	BackendURL         string
 	SupabaseURL        string
 	SupabaseAnonKey    string
 	SupabaseServiceKey string
@@ -20,6 +21,7 @@ func LoadConfig() *Config {
 	cfg := &Config{
 		ServerPort:         getEnv("PORT", "8080"),
 		Environment:        getEnv("ENV", "development"),
+		BackendURL:         getEnv("BACKEND_URL", "http://localhost:8080"),
 		SupabaseURL:        getEnv("SUPABASE_URL", ""),
 		SupabaseAnonKey:    getEnv("SUPABASE_ANON_KEY", ""),
 		SupabaseServiceKey: getEnv("SUPABASE_SERVICE_ROLE_KEY", ""),
@@ -37,6 +39,10 @@ func LoadConfig() *Config {
 
 // Validate checks if required configuration values are set
 func (c *Config) Validate() error {
+	if c.BackendURL == "" {
+		return fmt.Errorf("BACKEND_URL is required")
+	}
+
 	if c.SupabaseURL == "" {
 		return fmt.Errorf("SUPABASE_URL is required")
 	}

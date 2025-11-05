@@ -44,24 +44,10 @@ export default function LoginPageClient({ error: serverError }: LoginPageClientP
     const password = formData.get('password') as string;
 
     try {
-      // auth-api.tsの関数を使用してログイン
-      const result = await loginWithBackend({ email, password });
+      // バックエンドAPIでログイン（バックエンドがHTTPOnly Cookieを設定）
+      await loginWithBackend({ email, password });
 
-      // トークンの取得
-      const accessToken = result.token;
-      const refreshToken = result.refresh_token;
-
-      // Supabaseセッション設定（バックグラウンドで実行）
-      const { supabase } = await import('@/lib/supabase');
-
-      // setSessionを非同期で実行（awaitしない）
-      supabase.auth.setSession({
-        access_token: accessToken,
-        refresh_token: refreshToken,
-      });
-
-      // 即座にハードリロードして状態を完全にリセット
-      // バックエンドのHTTPOnly Cookieが既に設定されているので、これで十分
+      // バックエンドがCookieを設定済みなので、そのままリダイレクト
       window.location.href = '/';
     } catch (err) {
       console.error('Login error:', err);

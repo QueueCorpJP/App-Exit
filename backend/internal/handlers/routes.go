@@ -39,6 +39,7 @@ func SetupRoutes(cfg *config.Config) http.Handler {
 	// 進捗確認（Cookieベース認証）
 	mux.HandleFunc("/api/auth/register/progress", server.GetRegistrationProgress)
 	mux.HandleFunc("/api/auth/register", server.Register)
+	mux.HandleFunc("/api/auth/callback", server.HandleOAuthCallback)
 	mux.HandleFunc("/api/auth/login/oauth", server.LoginWithOAuth)
 	mux.HandleFunc("/api/auth/login", server.Login)
 	mux.HandleFunc("/api/auth/logout", server.Logout)

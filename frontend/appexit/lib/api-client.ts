@@ -240,9 +240,8 @@ class ApiClient {
           errorData = { error: errorText || response.statusText };
         }
 
-        // 404エラー（Not Found）の場合はログレベルを下げる（正常なフローの一部の可能性がある）
+        // 404エラー（Not Found）の場合は例外をスローするがログは出さない（正常なフローの一部の可能性がある）
         if (response.status === 404) {
-          console.log('[API-CLIENT] Resource not found:', errorText);
           const errorMessage = (typeof errorData === 'string' ? errorData : errorData?.error) || 'リソースが見つかりません';
           const error = new Error(errorMessage);
           (error as any).status = 404;
@@ -358,7 +357,6 @@ class ApiClient {
 
         // 404エラー（Not Found）の場合はログレベルを下げる（正常なフローの一部の可能性がある）
         if (response.status === 404) {
-          console.log('[API-CLIENT] Resource not found:', errorText);
         } else {
           console.error('[API-CLIENT] Error response:', errorText);
         }
@@ -454,7 +452,6 @@ class ApiClient {
 
         // 404エラー（Not Found）の場合はログレベルを下げる（正常なフローの一部の可能性がある）
         if (response.status === 404) {
-          console.log('[API-CLIENT] Resource not found:', errorText);
         } else {
           console.error('[API-CLIENT] Error response:', errorText);
         }
@@ -548,7 +545,6 @@ class ApiClient {
 
         // 404エラー（Not Found）の場合はログレベルを下げる（正常なフローの一部の可能性がある）
         if (response.status === 404) {
-          console.log('[API-CLIENT] Resource not found:', errorText);
         } else {
           console.error('[API-CLIENT] Error response:', errorText);
         }

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
-import { ArrowLeft, ArrowUp, ArrowDown, MessageCircle, Share2, MoreHorizontal, Award, Flame, Image as ImageIcon, X, ChevronDown, Calendar, Globe } from 'lucide-react';
+import { ArrowLeft, ArrowUp, ArrowDown, MessageCircle, Share2, MoreHorizontal, Award, Flame, Image as ImageIcon, X, ChevronDown, Calendar, Globe, Send } from 'lucide-react';
 import { postApi } from '@/lib/api-client';
 import { uploadImage, getImageUrls } from '@/lib/storage';
 import Image from 'next/image';
@@ -231,19 +231,29 @@ export default function PostBoardPage({ initialPosts = [] }: PostBoardPageProps)
                 required
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="タイトルを入力..."
               />
             </div>
 
-            <textarea
-              required
-              rows={3}
-              value={formData.body}
-              onChange={(e) => setFormData({ ...formData, body: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-3"
-              placeholder="詳細を記載してください..."
-            />
+            <div className="relative mb-3">
+              <textarea
+                required
+                rows={3}
+                value={formData.body}
+                onChange={(e) => setFormData({ ...formData, body: e.target.value })}
+                className="w-full px-4 py-2 pb-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="詳細を記載してください..."
+              />
+              <button
+                type="submit"
+                disabled={loading}
+                className="absolute bottom-2 right-2 p-2 text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                title={loading ? '投稿中...' : '投稿する'}
+              >
+                <Send className="w-5 h-5 rotate-45" />
+              </button>
+            </div>
 
             {/* Image Preview */}
             {imagePreview && (
@@ -259,7 +269,7 @@ export default function PostBoardPage({ initialPosts = [] }: PostBoardPageProps)
               </div>
             )}
 
-            <div className="flex justify-between items-center">
+            <div className="flex items-center">
               <label className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-900 cursor-pointer">
                 <ImageIcon className="w-5 h-5" />
                 <span className="text-sm">画像を追加</span>
@@ -270,14 +280,6 @@ export default function PostBoardPage({ initialPosts = [] }: PostBoardPageProps)
                   className="hidden"
                 />
               </label>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="px-6 py-2 bg-blue-500 text-white font-semibold rounded-full hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {loading ? '投稿中...' : '投稿する'}
-              </button>
             </div>
           </form>
         </div>

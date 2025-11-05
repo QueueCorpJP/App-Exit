@@ -85,7 +85,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.log('[AUTH-CONTEXT] Profile loaded');
         }
       } catch (e) {
-        console.log('[AUTH-CONTEXT] No profile found or error:', e);
+        // 404エラー（プロフィール未作成）は正常な状態なのでログを出さない
+        if ((e as any)?.status === 404) {
+          console.log('[AUTH-CONTEXT] Profile not created yet (this is normal for new users)');
+        } else {
+          // その他のエラー（接続エラーなど）は表示
+          console.error('[AUTH-CONTEXT] Error fetching profile:', e);
+        }
       }
     } else {
       console.log('[AUTH-CONTEXT] No session found');

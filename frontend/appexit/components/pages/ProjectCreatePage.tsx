@@ -172,8 +172,8 @@ export default function ProjectCreatePage() {
       <div className="py-8">
         {/* プログレスバー - 幅制限あり */}
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 mb-8">
-          <div className="flex justify-between items-center mb-6">
-            <h1 className="text-2xl font-bold text-gray-900">プロダクト投稿を作成</h1>
+          <h1 className="text-xl font-extrabold text-center mb-4" style={{ color: '#323232' }}>プロダクト投稿を作成</h1>
+          <div className="flex justify-end items-center mb-6">
             <span className="text-sm font-medium" style={{ color: '#323232' }}>
               ステップ {currentStep} / {totalSteps}
             </span>
@@ -214,18 +214,18 @@ export default function ProjectCreatePage() {
           </div>
         </div>
 
-        {/* フォーム - より広い幅 */}
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* フォーム - プログレスバーと同じ幅 */}
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <form onSubmit={handleSubmit} className="space-y-2">
           {/* ステップ1: プロダクト名 */}
           <div className="bg-white rounded-lg py-8 px-8">
             <div className="max-w-4xl mx-auto">
               <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 border" style={{ borderColor: '#323232', backgroundColor: 'transparent' }}>
-                <span className="font-bold text-lg" style={{ color: '#323232' }}>1</span>
+              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 border" style={{ borderColor: '#4B5563', backgroundColor: 'transparent' }}>
+                <span className="font-bold text-base" style={{ color: '#4B5563' }}>1</span>
               </div>
               <div className="flex-1">
-                <h2 className="text-xl font-bold text-gray-900 mb-2">
+                <h2 className="text-lg font-bold mb-2" style={{ color: '#4B5563' }}>
                   投稿タイトル
                 </h2>
                 <p className="text-sm text-gray-600 mb-4">
@@ -252,11 +252,11 @@ export default function ProjectCreatePage() {
           <div className="bg-white rounded-lg py-8 px-8">
             <div className="max-w-4xl mx-auto">
               <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 border" style={{ borderColor: '#323232', backgroundColor: 'transparent' }}>
-                <span className="font-bold text-lg" style={{ color: '#323232' }}>2</span>
+              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 border" style={{ borderColor: '#4B5563', backgroundColor: 'transparent' }}>
+                <span className="font-bold text-base" style={{ color: '#4B5563' }}>2</span>
               </div>
               <div className="flex-1">
-                <h2 className="text-xl font-bold text-gray-900 mb-2">
+                <h2 className="text-lg font-bold mb-2" style={{ color: '#4B5563' }}>
                   プロダクト名
                 </h2>
                 <p className="text-sm text-gray-600 mb-4">
@@ -283,11 +283,11 @@ export default function ProjectCreatePage() {
           <div className="bg-white rounded-lg py-8 px-8">
             <div className="max-w-4xl mx-auto">
               <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 border" style={{ borderColor: '#323232', backgroundColor: 'transparent' }}>
-                <span className="font-bold text-lg" style={{ color: '#323232' }}>3</span>
+              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 border" style={{ borderColor: '#4B5563', backgroundColor: 'transparent' }}>
+                <span className="font-bold text-base" style={{ color: '#4B5563' }}>3</span>
               </div>
               <div className="flex-1">
-                <h2 className="text-xl font-bold text-gray-900 mb-2">
+                <h2 className="text-lg font-bold mb-2" style={{ color: '#4B5563' }}>
                   プロダクトカテゴリー
                 </h2>
                 <p className="text-sm text-gray-600 mb-4">
@@ -326,11 +326,11 @@ export default function ProjectCreatePage() {
           <div className="bg-white rounded-lg py-8 px-8">
             <div className="max-w-4xl mx-auto">
               <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 border" style={{ borderColor: '#323232', backgroundColor: 'transparent' }}>
-                <span className="font-bold text-lg" style={{ color: '#323232' }}>4</span>
+              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 border" style={{ borderColor: '#4B5563', backgroundColor: 'transparent' }}>
+                <span className="font-bold text-base" style={{ color: '#4B5563' }}>4</span>
               </div>
               <div className="flex-1">
-                <h2 className="text-xl font-bold text-gray-900 mb-2">
+                <h2 className="text-lg font-bold mb-2" style={{ color: '#4B5563' }}>
                   カバー画像
                 </h2>
                 <p className="text-sm text-gray-600 mb-4">
@@ -380,11 +380,11 @@ export default function ProjectCreatePage() {
           <div className="bg-white rounded-lg py-8 px-8">
             <div className="max-w-4xl mx-auto">
               <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 border" style={{ borderColor: '#323232', backgroundColor: 'transparent' }}>
-                <span className="font-bold text-lg" style={{ color: '#323232' }}>5</span>
+              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 border" style={{ borderColor: '#4B5563', backgroundColor: 'transparent' }}>
+                <span className="font-bold text-base" style={{ color: '#4B5563' }}>5</span>
               </div>
               <div className="flex-1">
-                <h2 className="text-xl font-bold text-gray-900 mb-2">
+                <h2 className="text-lg font-bold mb-2" style={{ color: '#4B5563' }}>
                   プロダクトの説明
                 </h2>
                 <p className="text-sm text-gray-600 mb-4">
@@ -411,11 +411,11 @@ export default function ProjectCreatePage() {
           <div className="bg-white rounded-lg py-8 px-8">
             <div className="max-w-4xl mx-auto">
               <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 border" style={{ borderColor: '#323232', backgroundColor: 'transparent' }}>
-                <span className="font-bold text-lg" style={{ color: '#323232' }}>6</span>
+              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 border" style={{ borderColor: '#4B5563', backgroundColor: 'transparent' }}>
+                <span className="font-bold text-base" style={{ color: '#4B5563' }}>6</span>
               </div>
               <div className="flex-1">
-                <h2 className="text-xl font-bold text-gray-900 mb-2">
+                <h2 className="text-lg font-bold mb-2" style={{ color: '#4B5563' }}>
                   財務情報・ユーザー数
                 </h2>
                 <p className="text-sm text-gray-600 mb-4">
@@ -487,11 +487,11 @@ export default function ProjectCreatePage() {
           <div className="bg-white rounded-lg py-8 px-8">
             <div className="max-w-4xl mx-auto">
               <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 border" style={{ borderColor: '#323232', backgroundColor: 'transparent' }}>
-                <span className="font-bold text-lg" style={{ color: '#323232' }}>7</span>
+              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 border" style={{ borderColor: '#4B5563', backgroundColor: 'transparent' }}>
+                <span className="font-bold text-base" style={{ color: '#4B5563' }}>7</span>
               </div>
               <div className="flex-1">
-                <h2 className="text-xl font-bold text-gray-900 mb-2">
+                <h2 className="text-lg font-bold mb-2" style={{ color: '#4B5563' }}>
                   希望売却価格と技術情報
                 </h2>
                 <p className="text-sm text-gray-600 mb-4">

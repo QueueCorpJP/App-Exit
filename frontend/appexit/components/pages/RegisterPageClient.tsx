@@ -362,10 +362,8 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
       if (result.type !== 'email' || !result.auth) {
         throw new Error('メール登録に失敗しました');
       }
-      await supabase.auth.setSession({
-        access_token: result.auth.access_token,
-        refresh_token: result.auth.refresh_token,
-      });
+      // バックエンドがHTTPOnly Cookieを設定済み
+      // トークンは後続のstep2-5で使用するため保持
       setAccessToken(result.auth.access_token);
       setSelectedMethod('email');
       setStep(2);

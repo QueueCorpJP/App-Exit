@@ -1,11 +1,14 @@
 package handlers
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/supabase-community/gotrue-go/types"
@@ -543,6 +546,141 @@ func (s *Server) CheckSession(w http.ResponseWriter, r *http.Request) {
 	response.Success(w, http.StatusOK, userInfo)
 }
 
+// HandleOAuthCallback OAuthコールバックを処理
+func (s *Server) HandleOAuthCallback(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		response.Error(w, http.StatusMethodNotAllowed, "Method not allowed")
+		return
+	}
+
+	// クエリパラメータからアクセストークンとリフレッシュトークンを取得
+	// Supabaseは認証後にaccess_token, refresh_token, expires_inなどをフラグメント(#)で返すが、
+	// バックエンドではフラグメントを受け取れないため、クエリパラメータ(?)で受け取る設定が必要
+	// または、フロントエンドの一時ページで受け取ってバックエンドに送る
+
+	code := r.URL.Query().Get("code")
+	if code == "" {
+		// エラーの場合
+		errorDesc := r.URL.Query().Get("error_description")
+		if errorDesc == "" {
+			errorDesc = "OAuth認証に失敗しました"
+		}
+		http.Redirect(w, r, "/login?error="+url.QueryEscape(errorDesc), http.StatusTemporaryRedirect)
+		return
+	}
+
+	// 認証コードをトークンに交換
+	// Supabaseのトークンエンドポイントに直接リクエスト
+	tokenURL := fmt.Sprintf("%s/auth/v1/token?grant_type=authorization_code", s.config.SupabaseURL)
+	reqBody := map[string]string{
+		"auth_code": code,
+	}
+	reqBodyJSON, _ := json.Marshal(reqBody)
+
+	tokenReq, err := http.NewRequest("POST", tokenURL, bytes.NewBuffer(reqBodyJSON))
+	if err != nil {
+		fmt.Printf("[ERROR] OAuth callback: Failed to create token request: %v\n", err)
+		http.Redirect(w, r, "/login?error=OAuth認証に失敗しました", http.StatusTemporaryRedirect)
+		return
+	}
+	tokenReq.Header.Set("Content-Type", "application/json")
+	tokenReq.Header.Set("apikey", s.config.SupabaseAnonKey)
+
+	client := &http.Client{}
+	tokenResp, err := client.Do(tokenReq)
+	if err != nil {
+		fmt.Printf("[ERROR] OAuth callback: Failed to exchange code: %v\n", err)
+		http.Redirect(w, r, "/login?error=OAuth認証に失敗しました", http.StatusTemporaryRedirect)
+		return
+	}
+	defer tokenResp.Body.Close()
+
+	if tokenResp.StatusCode != http.StatusOK {
+		bodyBytes, _ := io.ReadAll(tokenResp.Body)
+		fmt.Printf("[ERROR] OAuth callback: Token exchange failed with status %d: %s\n", tokenResp.StatusCode, string(bodyBytes))
+		http.Redirect(w, r, "/login?error=OAuth認証に失敗しました", http.StatusTemporaryRedirect)
+		return
+	}
+
+	var tokenData struct {
+		AccessToken  string `json:"access_token"`
+		RefreshToken string `json:"refresh_token"`
+		User         struct {
+			ID string `json:"id"`
+		} `json:"user"`
+	}
+	if err := json.NewDecoder(tokenResp.Body).Decode(&tokenData); err != nil {
+		fmt.Printf("[ERROR] OAuth callback: Failed to decode token response: %v\n", err)
+		http.Redirect(w, r, "/login?error=OAuth認証に失敗しました", http.StatusTemporaryRedirect)
+		return
+	}
+
+	// ユーザーIDは既に文字列形式で返される
+	userID := tokenData.User.ID
+
+	// プロフィールを取得
+	userClient := s.supabase.GetAuthenticatedClient(tokenData.AccessToken)
+	var profiles []models.Profile
+	_, err = userClient.From("profiles").Select("*", "", false).Eq("id", userID).ExecuteTo(&profiles)
+
+	var profilePtr *models.Profile
+	if err == nil && len(profiles) > 0 {
+		profilePtr = &profiles[0]
+	}
+
+	// ユーザー情報を取得（Supabase Auth APIから）
+	userInfoURL := fmt.Sprintf("%s/auth/v1/user", s.config.SupabaseURL)
+	userReq, _ := http.NewRequest("GET", userInfoURL, nil)
+	userReq.Header.Set("apikey", s.config.SupabaseAnonKey)
+	userReq.Header.Set("Authorization", "Bearer "+tokenData.AccessToken)
+
+	userResp, err := client.Do(userReq)
+	var userEmail string
+	var userCreatedAt, userUpdatedAt time.Time
+
+	if err == nil && userResp.StatusCode == http.StatusOK {
+		var userInfo struct {
+			Email     string `json:"email"`
+			CreatedAt string `json:"created_at"`
+			UpdatedAt string `json:"updated_at"`
+		}
+		json.NewDecoder(userResp.Body).Decode(&userInfo)
+		userResp.Body.Close()
+		userEmail = userInfo.Email
+
+		// Parse timestamps
+		if userInfo.CreatedAt != "" {
+			userCreatedAt, _ = time.Parse(time.RFC3339, userInfo.CreatedAt)
+		}
+		if userInfo.UpdatedAt != "" {
+			userUpdatedAt, _ = time.Parse(time.RFC3339, userInfo.UpdatedAt)
+		}
+	}
+
+	displayName := userEmail
+	if profilePtr != nil {
+		displayName = profilePtr.DisplayName
+	}
+
+	user := models.User{
+		ID:        userID,
+		Email:     userEmail,
+		Name:      displayName,
+		CreatedAt: userCreatedAt,
+		UpdatedAt: userUpdatedAt,
+	}
+
+	// HTTPOnly Cookieにトークンを設定
+	setAuthCookies(w, tokenData.AccessToken, tokenData.RefreshToken, &user, profilePtr)
+
+	// プロフィールがあればダッシュボード、なければ登録フローへ
+	if profilePtr != nil {
+		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
+	} else {
+		http.Redirect(w, r, "/register", http.StatusTemporaryRedirect)
+	}
+}
+
 // LoginWithOAuth OAuth経由でログインを開始
 func (s *Server) LoginWithOAuth(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -564,7 +702,10 @@ func (s *Server) LoginWithOAuth(w http.ResponseWriter, r *http.Request) {
 			provider = "twitter"
 		}
 
-		redirect := strings.TrimSpace(req.RedirectURL)
+		// リダイレクト先はバックエンドのコールバックURL
+		// フロントエンドのURLは使用せず、バックエンドで処理
+		backendCallbackURL := fmt.Sprintf("%s/api/auth/callback", s.config.BackendURL)
+
 		builder, err := url.Parse(fmt.Sprintf("%s/auth/v1/authorize", s.config.SupabaseURL))
 		if err != nil {
 			response.Error(w, http.StatusInternalServerError, "OAuth URLの生成に失敗しました")
@@ -573,9 +714,7 @@ func (s *Server) LoginWithOAuth(w http.ResponseWriter, r *http.Request) {
 
 		query := builder.Query()
 		query.Set("provider", provider)
-		if redirect != "" {
-			query.Set("redirect_to", redirect)
-		}
+		query.Set("redirect_to", backendCallbackURL)
 		builder.RawQuery = query.Encode()
 
 		response.Success(w, http.StatusOK, models.OAuthLoginResponse{
