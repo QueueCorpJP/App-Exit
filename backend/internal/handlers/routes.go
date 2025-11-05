@@ -34,13 +34,13 @@ func SetupRoutes(cfg *config.Config) http.Handler {
 	mux.HandleFunc("/health", server.HealthCheck)
 	fmt.Println("[ROUTES] Registered: /health")
 
-	// Auth routes
-	mux.HandleFunc("/api/auth/register", server.Register)
+	// Auth routes (register longer paths first to avoid matching issues)
 	mux.HandleFunc("/api/auth/register/step1", server.RegisterStep1)
 	// 進捗確認（Cookieベース認証）
 	mux.HandleFunc("/api/auth/register/progress", server.GetRegistrationProgress)
-	mux.HandleFunc("/api/auth/login", server.Login)
+	mux.HandleFunc("/api/auth/register", server.Register)
 	mux.HandleFunc("/api/auth/login/oauth", server.LoginWithOAuth)
+	mux.HandleFunc("/api/auth/login", server.Login)
 	mux.HandleFunc("/api/auth/logout", server.Logout)
 	mux.HandleFunc("/api/auth/session", server.CheckSession)
 	mux.HandleFunc("/api/auth/refresh", server.RefreshToken)
