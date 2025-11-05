@@ -78,7 +78,7 @@ export default function PostSecretPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!user || !token) {
+    if (!user) {
       setError('ログインが必要です');
       return;
     }

@@ -120,7 +120,7 @@ export default function PostBoardPage({ initialPosts = [] }: PostBoardPageProps)
       }
 
       const payload = {
-        type: 'board',
+        type: 'board' as const,
         title: formData.title,
         body: formData.body,
         cover_image_url: coverImagePath,

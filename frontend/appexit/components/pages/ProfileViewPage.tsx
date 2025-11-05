@@ -33,11 +33,11 @@ export default function ProfileViewPage({ userId }: ProfileViewPageProps) {
 
         // ユーザーの投稿を取得（エラーが発生してもプロフィールは表示する）
         try {
-          const postsResponse = await postApi.getPosts({ 
+          const postsResponse = await postApi.getPosts({
             author_user_id: userId,
-            limit: 50 
+            limit: 50
           });
-          setPosts(postsResponse);
+          setPosts(postsResponse.data);
         } catch (postError) {
           console.error('投稿の取得に失敗しました:', postError);
           // 投稿の取得に失敗しても続行

@@ -45,7 +45,7 @@ function MessageThread({
   };
 
   const getOtherParticipant = () => {
-    if (!threadDetail) return null;
+    if (!threadDetail || !threadDetail.participants) return null;
     return threadDetail.participants.find(p => p.id !== currentUserId);
   };
 
@@ -163,8 +163,8 @@ function MessageThread({
                       : 'bg-gray-100 text-gray-900'
                   }`}
                 >
-                  {!isOwnMessage && (
-                    <p className="text-xs mb-1 opacity-70">{message.sender_name}</p>
+                  {!isOwnMessage && message.sender && (
+                    <p className="text-xs mb-1 opacity-70">{message.sender.display_name}</p>
                   )}
                   {message.type === 'image' && message.image_url && (
                     <img

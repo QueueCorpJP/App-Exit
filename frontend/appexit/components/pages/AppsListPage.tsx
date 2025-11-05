@@ -19,8 +19,8 @@ export default function AppsListPage() {
     try {
       setIsLoading(true)
       setError('')
-      const data = await postApi.getPosts({ type: 'transaction' })
-      setPosts(data)
+      const response = await postApi.getPosts({ type: 'transaction' })
+      setPosts(response.data)
     } catch (err) {
       console.error('Failed to load posts:', err)
       setError('プロダクトの読み込みに失敗しました')

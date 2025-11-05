@@ -149,15 +149,19 @@ function MessageThreadContainer({ threadId, onBack }: MessageThreadContainerProp
     const optimisticMessage: MessageWithSender = {
       id: tempId,
       thread_id: threadId,
+      sender_id: user.id,
       sender_user_id: user.id,
       type: imageFile ? 'image' : 'text',
+      content: messageText,
       text: messageText,
       image_url: imageFile ? URL.createObjectURL(imageFile) : undefined,
-      sender_name: user.name || 'あなた',
-      sender_icon_url: null,
+      sender: {
+        id: user.id,
+        display_name: user.name || 'あなた',
+        icon_url: undefined,
+      },
       created_at: new Date().toISOString(),
-      is_sending: true,
-    };
+    } as any;
 
     setMessages(prev => [...prev, optimisticMessage]);
     setIsSending(true);

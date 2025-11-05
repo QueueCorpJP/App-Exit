@@ -1,18 +1,8 @@
 import TopPage from '@/components/pages/TopPage';
+import { Post } from '@/lib/api-client';
 
 // キャッシュ設定: 60秒ごとに再検証
 export const revalidate = 60;
-
-interface Post {
-  id: string;
-  title: string;
-  body: string | null;
-  cover_image_url: string | null;
-  price: number | null;
-  budget_max: number | null;
-  updated_at: string;
-  created_at: string;
-}
 
 async function getPosts(): Promise<Post[]> {
   try {

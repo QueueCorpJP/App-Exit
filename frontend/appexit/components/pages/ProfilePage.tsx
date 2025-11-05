@@ -48,7 +48,7 @@ export default function ProfilePage() {
             limit: 50
           });
           if (isMounted) {
-            setPosts(postsResponse);
+            setPosts(postsResponse.data);
           }
         } catch (postError) {
           console.error('投稿の取得に失敗しました:', postError);

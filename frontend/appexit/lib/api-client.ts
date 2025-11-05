@@ -155,6 +155,7 @@ export interface Profile {
  */
 export const profileApi = {
   getProfile: () => apiClient.get<Profile>('/api/profiles'),
+  getProfileById: (userId: string) => apiClient.get<{ success: boolean; data: Profile }>(`/api/users/${userId}`),
   updateProfile: (data: Partial<Profile>) => apiClient.put<Profile>('/api/profiles', data),
 };
 
@@ -191,8 +192,8 @@ export interface Post {
  * Post API
  */
 export const postApi = {
-  getPosts: (params?: { type?: string; limit?: number; offset?: number }) =>
-    apiClient.get<Post[]>('/api/posts', { params }),
+  getPosts: (params?: { type?: string; author_user_id?: string; limit?: number; offset?: number }) =>
+    apiClient.get<{ data: Post[] }>('/api/posts', { params }),
   createPost: (data: Partial<Post>) => apiClient.post<Post>('/api/posts', data),
   getPost: (id: string) => apiClient.get<Post>(`/api/posts/${id}`),
   updatePost: (id: string, data: Partial<Post>) => apiClient.put<Post>(`/api/posts/${id}`, data),
@@ -208,6 +209,7 @@ export interface PostCommentWithDetails {
   user_id: string;
   content: string;
   like_count: number;
+  reply_count: number;
   is_liked: boolean;
   created_at: string;
   updated_at: string;
@@ -247,8 +249,10 @@ export interface ThreadDetail {
   participant_ids: string[];
   created_at: string;
   updated_at: string;
+  unread_count: number;
   last_message?: {
     content: string;
+    text?: string;
     created_at: string;
   };
   participants?: Array<{
@@ -258,11 +262,16 @@ export interface ThreadDetail {
   }>;
 }
 
+export type ThreadWithLastMessage = ThreadDetail;
+
 export interface MessageWithSender {
   id: string;
   thread_id: string;
   sender_id: string;
+  sender_user_id: string;
+  type: string;
   content: string;
+  text?: string;
   image_url?: string;
   created_at: string;
   sender?: {
@@ -274,8 +283,15 @@ export interface MessageWithSender {
 
 export interface SendMessageRequest {
   thread_id: string;
-  content: string;
+  type?: string;
+  content?: string;
+  text?: string;
   image_url?: string;
+  file_url?: string;
+}
+
+export interface CreateThreadRequest {
+  participant_ids: string[];
 }
 
 export interface UploadImageResponse {
@@ -290,6 +306,8 @@ export const messageApi = {
     apiClient.get<{ success: boolean; data: ThreadDetail[] }>('/api/threads'),
   getThread: (threadId: string) =>
     apiClient.get<{ success: boolean; data: ThreadDetail }>(`/api/threads/${threadId}`),
+  createThread: (data: CreateThreadRequest) =>
+    apiClient.post<{ success: boolean; data: ThreadDetail }>('/api/threads', data),
   getMessages: (threadId: string) =>
     apiClient.get<{ success: boolean; data: MessageWithSender[] }>(`/api/threads/${threadId}/messages`),
   sendMessage: (data: SendMessageRequest) =>

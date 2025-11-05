@@ -4,17 +4,7 @@ import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import ProjectCard from '../ui/ProjectCard';
 import { getImageUrls } from '@/lib/storage';
-import { postApi } from '@/lib/api-client';
-
-interface Post {
-  id: string;
-  title: string;
-  body: string | null;
-  eyecatch_url: string | null;
-  price: number | null;
-  updated_at: string;
-  created_at: string;
-}
+import { postApi, Post } from '@/lib/api-client';
 
 interface ProjectWithImage {
   id: string;
@@ -72,7 +62,7 @@ export default function TopPage({ initialPosts = [] }: TopPageProps) {
           title: post.title,
           category: post.body || 'プロジェクト',
           image: 'https://placehold.co/600x400/e2e8f0/64748b?text=No+Image',
-          imagePath: post.eyecatch_url,
+          imagePath: post.eyecatch_url || null,
           supporters: 0,
           daysLeft: Math.max(30 - Math.floor((Date.now() - new Date(post.created_at).getTime()) / (1000 * 60 * 60 * 24)), 1),
           amountRaised: post.price || 0,
@@ -138,7 +128,7 @@ export default function TopPage({ initialPosts = [] }: TopPageProps) {
               title: post.title,
               category: post.body || 'プロジェクト',
               image: imageUrl,
-              imagePath: post.eyecatch_url,
+              imagePath: post.eyecatch_url || null,
               supporters: 0,
               daysLeft: Math.max(30 - Math.floor((Date.now() - new Date(post.created_at).getTime()) / (1000 * 60 * 60 * 24)), 1),
               amountRaised: post.price || 0,

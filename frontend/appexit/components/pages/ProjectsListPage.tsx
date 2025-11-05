@@ -36,7 +36,8 @@ export default function ProjectsListPage() {
     try {
       // バックエンドAPI経由で投稿を取得
       const params = activeTab !== 'all' ? { type: activeTab } : undefined;
-      const data = await postApi.getPosts(params);
+      const response = await postApi.getPosts(params);
+      const data = response.data;
 
       if (data.length === 0) {
         console.log('No posts found');
