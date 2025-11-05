@@ -79,6 +79,7 @@ export interface User {
 export interface Profile {
   id?: string;
   role: string;
+  roles?: string[];
   party: string;
   display_name: string;
   age?: number | null;
@@ -96,9 +97,13 @@ export interface Profile {
   investment_max?: number | null;
   target_categories?: string[] | null;
   operation_type?: string | null;
+  desired_purchase_timing?: string | null;
   expertise?: string[] | null;
   portfolio_summary?: string | null;
   proposal_style?: string | null;
+  prefecture?: string | null;
+  company_name?: string | null;
+  introduction?: string | null;
 }
 
 export interface CreateProfileRequest {
@@ -188,9 +193,14 @@ export interface BuyerProfileInput {
   investment_max?: number;
   target_categories?: string[];
   operation_type?: string;
+  desired_acquisition_timing?: string;
 }
 
 export interface AdvisorProfileInput {
+  investment_min?: number;
+  investment_max?: number;
+  target_categories?: string[];
+  desired_acquisition_timing?: string;
   expertise?: string[];
   portfolio_summary?: string;
   proposal_style?: string;

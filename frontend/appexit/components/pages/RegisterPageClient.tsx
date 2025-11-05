@@ -75,8 +75,27 @@ const prefectures = [
   '沖縄県',
 ];
 
-const sellerCategoryOptions = ['SaaS', 'アプリ', 'Webサービス', 'メディア', 'AI', 'その他'];
-const exitTimingOptions = ['即時〜3ヶ月以内', '3〜6ヶ月以内', '未定'];
+const sellerCategoryOptions = [
+  'SaaS', 
+  'アプリ', 
+  'Webサービス', 
+  'メディア', 
+  'AI', 
+  'EC', 
+  'マッチング', 
+  'SNS',
+  'ゲーム',
+  'FinTech',
+  'EdTech',
+  'HealthTech',
+  'HRTech',
+  'BtoB',
+  'BtoC',
+  'プラットフォーム',
+  'コミュニティ',
+  'コンテンツ',
+  'その他'
+];
 const investmentRangeOptions = [
   { label: '〜100万円', value: 1_000_000 },
   { label: '100〜500万円', value: 5_000_000 },
@@ -115,9 +134,14 @@ interface BuyerFormState {
   investmentMax: string;
   targetCategories: string[];
   operationType: string;
+  desiredAcquisitionTiming: string;
 }
 
 interface AdvisorFormState {
+  investmentMin: string;
+  investmentMax: string;
+  targetCategories: string[];
+  desiredAcquisitionTiming: string;
   expertise: string[];
   portfolioSummary: string;
   proposalStyle: string;
@@ -222,8 +246,13 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
     investmentMax: '',
     targetCategories: [],
     operationType: '',
+    desiredAcquisitionTiming: '',
   });
   const [advisorForm, setAdvisorForm] = useState<AdvisorFormState>({
+    investmentMin: '',
+    investmentMax: '',
+    targetCategories: [],
+    desiredAcquisitionTiming: '',
     expertise: [],
     portfolioSummary: '',
     proposalStyle: '',
@@ -465,25 +494,57 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
         if (!Number.isNaN(count)) sellerPayload.listing_count = count;
       }
       if (sellerForm.serviceCategories.length > 0) sellerPayload.service_categories = sellerForm.serviceCategories;
-      if (sellerForm.exitTiming) sellerPayload.desired_exit_timing = sellerForm.exitTiming;
+      if (sellerForm.exitTiming) {
+        const months = parseInt(sellerForm.exitTiming, 10);
+        if (!Number.isNaN(months) && months > 0) {
+          sellerPayload.desired_exit_timing = `${months}ヶ月以内`;
+        }
+      }
       payload.seller = sellerPayload;
     }
     if (selectedRoles.includes('buyer')) {
       const buyerPayload: BuyerProfileInput = {};
       if (buyerForm.investmentMin) {
         const min = parseInt(buyerForm.investmentMin, 10);
-        if (!Number.isNaN(min)) buyerPayload.investment_min = min;
+        if (!Number.isNaN(min)) buyerPayload.investment_min = min * 10000; // 万円を円に変換
       }
       if (buyerForm.investmentMax) {
         const max = parseInt(buyerForm.investmentMax, 10);
-        if (!Number.isNaN(max)) buyerPayload.investment_max = max;
+        if (!Number.isNaN(max)) buyerPayload.investment_max = max * 10000; // 万円を円に変換
       }
       if (buyerForm.targetCategories.length > 0) buyerPayload.target_categories = buyerForm.targetCategories;
       if (buyerForm.operationType) buyerPayload.operation_type = buyerForm.operationType;
+      if (buyerForm.desiredAcquisitionTiming) {
+        const months = parseInt(buyerForm.desiredAcquisitionTiming, 10);
+        if (!Number.isNaN(months) && months > 0) {
+          buyerPayload.desired_acquisition_timing = `${months}ヶ月以内`;
+        }
+      }
       payload.buyer = buyerPayload;
     }
     if (selectedRoles.includes('advisor')) {
       const advisorPayload: AdvisorProfileInput = {};
+      
+      // 買い手の投資情報を提案者にもコピー（提案者は買い手のフォームを使う）
+      if (selectedRoles.includes('buyer')) {
+        if (buyerForm.investmentMin) {
+          const min = parseInt(buyerForm.investmentMin, 10);
+          if (!Number.isNaN(min)) advisorPayload.investment_min = min * 10000; // 万円を円に変換
+        }
+        if (buyerForm.investmentMax) {
+          const max = parseInt(buyerForm.investmentMax, 10);
+          if (!Number.isNaN(max)) advisorPayload.investment_max = max * 10000; // 万円を円に変換
+        }
+        if (buyerForm.targetCategories.length > 0) advisorPayload.target_categories = buyerForm.targetCategories;
+        if (buyerForm.desiredAcquisitionTiming) {
+          const months = parseInt(buyerForm.desiredAcquisitionTiming, 10);
+          if (!Number.isNaN(months) && months > 0) {
+            advisorPayload.desired_acquisition_timing = `${months}ヶ月以内`;
+          }
+        }
+      }
+      
+      // 提案者固有の情報
       if (advisorForm.expertise.length > 0) advisorPayload.expertise = advisorForm.expertise;
       if (advisorForm.portfolioSummary.trim()) advisorPayload.portfolio_summary = advisorForm.portfolioSummary.trim();
       if (advisorForm.proposalStyle) advisorPayload.proposal_style = advisorForm.proposalStyle;
@@ -520,7 +581,7 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
         privacy_accepted: agreements.privacy,
       };
       await registerStep5(payload, token);
-      router.push('/dashboard');
+      router.push('/');
       router.refresh();
     } catch (err) {
       console.error('Step5 error:', err);
@@ -873,9 +934,9 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
         return (
           <div className="space-y-6">
             {selectedRoles.includes('seller') && (
-              <section className="border border-gray-200 p-6">
+              <section className="">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">売り手の追加情報</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex flex-col gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700" htmlFor="listingCount">
                       出品予定サービス数
@@ -917,54 +978,53 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">希望売却時期</label>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {exitTimingOptions.map((option) => (
-                        <button
-                          key={option}
-                          type="button"
-                          onClick={() => setSellerForm((prev) => ({ ...prev, exitTiming: option }))}
-                          className={`px-3 py-1 text-sm border rounded-full transition ${
-                            sellerForm.exitTiming === option ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-200 text-gray-700'
-                          }`}
-                        >
-                          {option}
-                        </button>
-                      ))}
-                    </div>
+                    <label className="block text-sm font-medium text-gray-700" htmlFor="exitTiming">
+                      希望売却時期（ヶ月以内）
+                    </label>
+                    <input
+                      id="exitTiming"
+                      type="number"
+                      min="1"
+                      max="99"
+                      value={sellerForm.exitTiming}
+                      onChange={(e) => setSellerForm((prev) => ({ ...prev, exitTiming: e.target.value }))}
+                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:border-gray-900 focus:outline-none"
+                      placeholder="例: 3"
+                    />
                   </div>
                 </div>
               </section>
             )}
 
-            {selectedRoles.includes('buyer') && (
-              <section className="border border-gray-200 p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">買い手の追加情報</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {(selectedRoles.includes('buyer') || selectedRoles.includes('advisor')) && (
+              <section className="space-y-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                  {selectedRoles.includes('advisor') ? '買い手 / 提案者の追加情報' : '買い手の追加情報'}
+                </h3>
+                <div className="flex flex-col gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">希望買収金額レンジ</label>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {investmentRangeOptions.map(({ label, value }) => {
-                        const isSelected = buyerForm.investmentMin === String(value);
-                        return (
-                          <button
-                            key={value}
-                            type="button"
-                            onClick={() =>
-                              setBuyerForm((prev) => ({
-                                ...prev,
-                                investmentMin: String(value),
-                                investmentMax: String(value),
-                              }))
-                            }
-                            className={`px-3 py-1 text-sm border rounded-full transition ${
-                              isSelected ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-200 text-gray-700'
-                            }`}
-                          >
-                            {label}
-                          </button>
-                        );
-                      })}
+                    <label className="block text-sm font-medium text-gray-700">希望投資金額レンジ</label>
+                    <div className="mt-2 flex items-center gap-3">
+                      <input
+                        type="number"
+                        min="0"
+                        step="10000"
+                        value={buyerForm.investmentMin}
+                        onChange={(e) => setBuyerForm((prev) => ({ ...prev, investmentMin: e.target.value }))}
+                        className="w-24 px-2 py-1.5 text-sm border border-gray-300 rounded-md text-gray-900 focus:border-gray-900 focus:outline-none"
+                        placeholder="最小"
+                      />
+                      <span className="font-bold text-gray-900 text-sm">万円〜</span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="10000"
+                        value={buyerForm.investmentMax}
+                        onChange={(e) => setBuyerForm((prev) => ({ ...prev, investmentMax: e.target.value }))}
+                        className="w-24 px-2 py-1.5 text-sm border border-gray-300 rounded-md text-gray-900 focus:border-gray-900 focus:outline-none"
+                        placeholder="最大"
+                      />
+                      <span className="font-bold text-gray-900 text-sm">万円</span>
                     </div>
                   </div>
                   <div>
@@ -995,89 +1055,19 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">運営体制 / 投資形態</label>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {operationTypes.map((option) => (
-                        <button
-                          key={option}
-                          type="button"
-                          onClick={() => setBuyerForm((prev) => ({ ...prev, operationType: option }))}
-                          className={`px-3 py-1 text-sm border rounded-full transition ${
-                            buyerForm.operationType === option ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-200 text-gray-700'
-                          }`}
-                        >
-                          {option}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </section>
-            )}
-
-            {selectedRoles.includes('advisor') && (
-              <section className="border border-gray-200 p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">提案者の追加情報</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">専門領域</label>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {advisorExpertiseOptions.map((option) => {
-                        const isActive = advisorForm.expertise.includes(option);
-                        return (
-                          <button
-                            key={option}
-                            type="button"
-                            onClick={() =>
-                              setAdvisorForm((prev) => ({
-                                ...prev,
-                                expertise: isActive
-                                  ? prev.expertise.filter((v) => v !== option)
-                                  : [...prev.expertise, option],
-                              }))
-                            }
-                            className={`px-3 py-1 text-sm border rounded-full transition ${
-                              isActive ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-200 text-gray-700'
-                            }`}
-                          >
-                            {option}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700" htmlFor="portfolioSummary">
-                      実績・スキル概要
+                    <label className="block text-sm font-medium text-gray-700" htmlFor="buyerDesiredAcquisitionTiming">
+                      希望買収時期（ヶ月以内）
                     </label>
-                    <textarea
-                      id="portfolioSummary"
-                      value={advisorForm.portfolioSummary}
-                      onChange={(e) => setAdvisorForm((prev) => ({ ...prev, portfolioSummary: e.target.value }))}
+                    <input
+                      id="buyerDesiredAcquisitionTiming"
+                      type="number"
+                      min="1"
+                      max="99"
+                      value={buyerForm.desiredAcquisitionTiming}
+                      onChange={(e) => setBuyerForm((prev) => ({ ...prev, desiredAcquisitionTiming: e.target.value }))}
                       className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:border-gray-900 focus:outline-none"
-                      rows={4}
-                      maxLength={400}
-                      placeholder="簡易ポートフォリオや得意領域を記入してください"
+                      placeholder="例: 6"
                     />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">提案スタイル</label>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {proposalStyleOptions.map((option) => (
-                        <button
-                          key={option}
-                          type="button"
-                          onClick={() => setAdvisorForm((prev) => ({ ...prev, proposalStyle: option }))}
-                          className={`px-3 py-1 text-sm border rounded-full transition ${
-                            advisorForm.proposalStyle === option
-                              ? 'border-gray-900 bg-gray-900 text-white'
-                              : 'border-gray-200 text-gray-700'
-                          }`}
-                        >
-                          {option}
-                        </button>
-                      ))}
-                    </div>
                   </div>
                 </div>
               </section>
@@ -1091,12 +1081,13 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
       case 5:
         return (
           <div className="space-y-6">
-            <h3 className="text-lg font-medium text-gray-900">同意事項</h3>
+            <h3 className="text-lg font-bold" style={{ color: '#323232' }}>同意事項</h3>
             <div className="space-y-4">
-              <label className="flex items-start gap-3 text-sm text-gray-900">
+              <label className="flex items-center gap-3 text-sm text-gray-900">
                 <input
                   type="checkbox"
-                  className="mt-1 h-4 w-4 border-gray-300"
+                  className="h-4 w-4 border-gray-300"
+                  style={{ accentColor: '#323232' }}
                   checked={agreements.nda}
                   onChange={(e) => setAgreements((prev) => ({ ...prev, nda: e.target.checked }))}
                   required
@@ -1105,10 +1096,11 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
                   <span className="font-medium">NDA（秘密保持契約）の締結に同意します（必須）</span>
                 </span>
               </label>
-              <label className="flex items-start gap-3 text-sm text-gray-900">
+              <label className="flex items-center gap-3 text-sm text-gray-900">
                 <input
                   type="checkbox"
-                  className="mt-1 h-4 w-4 border-gray-300"
+                  className="h-4 w-4 border-gray-300"
+                  style={{ accentColor: '#323232' }}
                   checked={agreements.terms}
                   onChange={(e) => setAgreements((prev) => ({ ...prev, terms: e.target.checked }))}
                   required
@@ -1126,10 +1118,11 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
                   </Button>
                 </span>
               </label>
-              <label className="flex items-start gap-3 text-sm text-gray-900">
+              <label className="flex items-center gap-3 text-sm text-gray-900">
                 <input
                   type="checkbox"
-                  className="mt-1 h-4 w-4 border-gray-300"
+                  className="h-4 w-4 border-gray-300"
+                  style={{ accentColor: '#323232' }}
                   checked={agreements.privacy}
                   onChange={(e) => setAgreements((prev) => ({ ...prev, privacy: e.target.checked }))}
                   required
