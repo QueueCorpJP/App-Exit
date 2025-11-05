@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
+import { contactPageData, contactFAQ } from './metadata'
 
 type Step = 'input' | 'confirm' | 'complete' | 'error'
 
@@ -260,7 +261,16 @@ export default function ContactPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(contactPageData) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(contactFAQ) }}
+      />
+      <div className="min-h-screen bg-gray-50">
       <div className="max-w-4xl mx-auto px-4 py-8">
         <div className="bg-white rounded-lg shadow-sm p-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">お問い合わせ</h1>
@@ -499,6 +509,7 @@ export default function ContactPage() {
         </div>
       </div>
     </div>
+    </>
   )
 }
 

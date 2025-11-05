@@ -1,8 +1,22 @@
 import Link from 'next/link'
+import { seminarStructuredData, seminarFAQ, seminarService } from './metadata'
 
 export default function SeminarPage() {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(seminarStructuredData) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(seminarFAQ) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(seminarService) }}
+      />
+      <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 py-12">
         {/* ヘッダー */}
         <div className="text-center mb-12">
@@ -272,6 +286,7 @@ export default function SeminarPage() {
         </div>
       </div>
     </div>
+    </>
   )
 }
 
