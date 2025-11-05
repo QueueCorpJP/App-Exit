@@ -1,0 +1,18 @@
+{
+  "schema_version": "v1",
+  "name_for_human": "APPEXIT",
+  "name_for_model": "appexit",
+  "description_for_human": "アプリ・Webサービスの売買プラットフォーム。安心・安全なM&Aをサポートします。",
+  "description_for_model": "APPEXITは、アプリケーションとWebサービスの売買に特化したマーケットプレイスです。売り手は専任担当のサポートを受けながら適正価格で売却でき、買い手は既存の運営中サービスを購入してすぐに事業を開始できます。デューデリジェンス、契約書作成、エスクロー、引き継ぎまで一貫サポート。手数料は売り手10%、買い手5%。",
+  "auth": {
+    "type": "none"
+  },
+  "api": {
+    "type": "openapi",
+    "url": "https://appexit.jp/openapi.json"
+  },
+  "logo_url": "https://appexit.jp/logo.png",
+  "contact_email": "support@appexit.jp",
+  "legal_info_url": "https://appexit.jp/terms"
+}
+

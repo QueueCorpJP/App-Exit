@@ -1,8 +1,22 @@
 import Link from 'next/link'
+import { supportServiceData, howToSellApp, howToBuyApp } from './metadata'
 
 export default function SupportServicePage() {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(supportServiceData) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(howToSellApp) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(howToBuyApp) }}
+      />
+      <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 py-12">
         {/* ヘッダー */}
         <div className="text-center mb-12">
@@ -344,6 +358,7 @@ export default function SupportServicePage() {
         </div>
       </div>
     </div>
+    </>
   )
 }
 
