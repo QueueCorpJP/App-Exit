@@ -167,9 +167,11 @@ func (s *Server) Login(w http.ResponseWriter, r *http.Request) {
 		UpdatedAt: authResp.User.UpdatedAt,
 	}
 
-	// 3. HTTPOnly Cookieにトークンを設定
-	// セキュアなCookie設定（SameSite=Lax、HttpOnly）
+	// 3. Cookieにトークンを設定
+	// セキュアなCookie設定（SameSite=Lax）
 	// 開発環境ではSecure: falseにしてHTTPでも動作させる
+
+	// セッション管理用（HTTPOnly）
 	http.SetCookie(w, &http.Cookie{
 		Name:     "auth_token",
 		Value:    authResp.AccessToken,
@@ -177,6 +179,17 @@ func (s *Server) Login(w http.ResponseWriter, r *http.Request) {
 		MaxAge:   3600, // 1時間
 		HttpOnly: true,
 		Secure:   false, // 開発環境用（本番環境ではtrueにすること）
+		SameSite: http.SameSiteLaxMode,
+	})
+
+	// JavaScriptからアクセス可能なトークン（Authorization ヘッダー用）
+	http.SetCookie(w, &http.Cookie{
+		Name:     "access_token",
+		Value:    authResp.AccessToken,
+		Path:     "/",
+		MaxAge:   3600, // 1時間
+		HttpOnly: false, // JavaScriptからアクセス可能
+		Secure:   false,
 		SameSite: http.SameSiteLaxMode,
 	})
 
@@ -430,15 +443,26 @@ func (s *Server) GetProfile(w http.ResponseWriter, r *http.Request) {
 	response.Success(w, http.StatusOK, profile)
 }
 
-// setAuthCookies sets authentication cookies for the client (all HttpOnly for security)
+// setAuthCookies sets authentication cookies for the client
 func setAuthCookies(w http.ResponseWriter, accessToken, refreshToken string, user *models.User, profile *models.Profile) {
-	// 1. auth_token (HttpOnly) - アクセストークン（1時間有効）
+	// 1. auth_token (HttpOnly) - セッション管理用アクセストークン（1時間有効）
 	http.SetCookie(w, &http.Cookie{
 		Name:     "auth_token",
 		Value:    accessToken,
 		Path:     "/",
 		HttpOnly: true,
 		Secure:   false, // productionではtrueにする
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   60 * 60, // 1時間
+	})
+
+	// 1.5. access_token (JavaScriptアクセス可能) - Authorization ヘッダー用（1時間有効）
+	http.SetCookie(w, &http.Cookie{
+		Name:     "access_token",
+		Value:    accessToken,
+		Path:     "/",
+		HttpOnly: false, // JavaScriptからアクセス可能
+		Secure:   false,
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   60 * 60, // 1時間
 	})
@@ -473,6 +497,16 @@ func (s *Server) Logout(w http.ResponseWriter, r *http.Request) {
 		Secure:   false,
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   -1, // 即座に削除
+	})
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     "access_token",
+		Value:    "",
+		Path:     "/",
+		HttpOnly: false,
+		Secure:   false,
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   -1,
 	})
 
 	http.SetCookie(w, &http.Cookie{

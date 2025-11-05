@@ -8,7 +8,8 @@ export default async function RegisterPageRoute() {
   const authToken = cookieStore.get('auth_token')?.value;
 
   try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/auth/register/progress`, {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+    const res = await fetch(`${apiUrl}/api/auth/register/progress`, {
       method: 'GET',
       headers: authToken
         ? { Cookie: `auth_token=${encodeURIComponent(authToken)}` }

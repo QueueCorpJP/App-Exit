@@ -4,10 +4,11 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { uploadImage } from '@/lib/storage';
+import { getAuthToken } from '@/lib/cookie-utils';
 
 export default function PostSecretPage() {
   const router = useRouter();
-  const { user, token, profile } = useAuth();
+  const { user, profile } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
@@ -118,6 +119,11 @@ export default function PostSecretPage() {
           notes: formData.notes || null,
         }
       };
+
+      const token = getAuthToken();
+      if (!token) {
+        throw new Error('認証トークンが見つかりません。再度ログインしてください。');
+      }
 
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts`, {
         method: 'POST',

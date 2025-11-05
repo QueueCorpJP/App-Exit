@@ -49,9 +49,12 @@ export default function TopPage({ initialPosts = [] }: TopPageProps) {
         if (data.length === 0) {
           setLoading(true);
           // 初期データがない場合のみAPIから取得
-          data = await postApi.getPosts({ type: 'transaction' });
+          const response = await postApi.getPosts({ type: 'transaction' });
 
           if (!isMounted) return;
+
+          // バックエンドレスポンスから data を取り出す
+          data = response?.data || [];
 
           if (!data || data.length === 0) {
             console.log('No posts found');

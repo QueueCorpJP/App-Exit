@@ -76,9 +76,11 @@ func SetupRoutes(cfg *config.Config) http.Handler {
 	})
 	fmt.Println("[ROUTES] Registered: /api/user-links")
 
-	// Product routes
-	mux.HandleFunc("/api/products", server.HandleProducts)
-	mux.HandleFunc("/api/products/", server.HandleProductByID)
+	// Product routes (conditional auth)
+	mux.HandleFunc("/api/products", server.HandleProductsRoute)
+	mux.HandleFunc("/api/products/", server.HandleProductByIDRoute)
+	fmt.Println("[ROUTES] Registered: /api/products")
+	fmt.Println("[ROUTES] Registered: /api/products/")
 
 	// Message routes (protected)
 	fmt.Println("[ROUTES] Registering message routes with auth middleware...")
@@ -113,6 +115,14 @@ func SetupRoutes(cfg *config.Config) http.Handler {
 	fmt.Println("[ROUTES] Registered: /api/comments/*")
 	fmt.Println("[ROUTES] Registered: /api/replies/*")
 	fmt.Println("[ROUTES] Registered: /api/comments/*/likes")
+
+	// Storage routes (protected)
+	mux.HandleFunc("/api/storage/upload", auth(server.UploadFile))
+	mux.HandleFunc("/api/storage/signed-url", server.GetSignedURL)      // 公開（画像表示用）
+	mux.HandleFunc("/api/storage/signed-urls", server.GetSignedURLs)    // 公開（複数画像表示用）
+	fmt.Println("[ROUTES] Registered: /api/storage/upload (with auth)")
+	fmt.Println("[ROUTES] Registered: /api/storage/signed-url")
+	fmt.Println("[ROUTES] Registered: /api/storage/signed-urls")
 
 	// Apply global middleware (order matters: Recovery -> CORS -> Logger)
 	handler := middleware.Recovery(mux)
@@ -200,6 +210,30 @@ func (s *Server) HandleCommentRoute(w http.ResponseWriter, r *http.Request) {
 		} else {
 			auth(s.HandleCommentByID)(w, r)
 		}
+	}
+}
+
+// HandleProductsRoute handles products with conditional auth
+func (s *Server) HandleProductsRoute(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodPost {
+		// POST requires authentication
+		auth := middleware.AuthWithSupabase(s.config.SupabaseJWTSecret, s.supabase)
+		auth(s.HandleProducts)(w, r)
+	} else {
+		// GET is public
+		s.HandleProducts(w, r)
+	}
+}
+
+// HandleProductByIDRoute handles product by ID with conditional auth
+func (s *Server) HandleProductByIDRoute(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodGet {
+		// GET is public
+		s.HandleProductByID(w, r)
+	} else {
+		// PUT, DELETE require authentication
+		auth := middleware.AuthWithSupabase(s.config.SupabaseJWTSecret, s.supabase)
+		auth(s.HandleProductByID)(w, r)
 	}
 }
 

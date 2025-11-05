@@ -1,3 +1,5 @@
+import { getAuthHeader, getAuthToken } from './cookie-utils';
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 
 interface RequestOptions extends RequestInit {
@@ -6,7 +8,7 @@ interface RequestOptions extends RequestInit {
 
 /**
  * API クライアント
- * Go バックエンドとの通信を担当（Cookie認証）
+ * Go バックエンドとの通信を担当（Bearer Token認証）
  */
 class ApiClient {
   private baseUrl: string;
@@ -16,12 +18,15 @@ class ApiClient {
   }
 
   /**
-   * リクエストヘッダーを構築（Cookie認証）
+   * リクエストヘッダーを構築（Bearer Token認証）
    */
   private getHeaders(): HeadersInit {
-    return {
+    const headers: HeadersInit = {
       'Content-Type': 'application/json',
+      ...getAuthHeader(),
     };
+
+    return headers;
   }
 
   /**
@@ -129,19 +134,188 @@ class ApiClient {
 export const apiClient = new ApiClient(API_URL);
 
 /**
+ * Profile types
+ */
+export interface Profile {
+  id: string;
+  user_id: string;
+  role: string;
+  party: string;
+  display_name: string;
+  age?: number;
+  icon_url?: string;
+  created_at: string;
+  updated_at: string;
+  // その他のフィールド
+  [key: string]: any;
+}
+
+/**
  * Profile API
  */
 export const profileApi = {
-  getProfile: () => apiClient.get<any>('/api/profiles'),
-  updateProfile: (data: any) => apiClient.put<any>('/api/profiles', data),
+  getProfile: () => apiClient.get<Profile>('/api/profiles'),
+  updateProfile: (data: Partial<Profile>) => apiClient.put<Profile>('/api/profiles', data),
 };
+
+/**
+ * Post types
+ */
+export interface AuthorProfile {
+  id: string;
+  display_name: string;
+  icon_url?: string;
+  role: string;
+  party: string;
+}
+
+export interface Post {
+  id: string;
+  author_user_id: string;
+  author_org_id?: string;
+  type: 'board' | 'transaction' | 'secret';
+  title: string;
+  body?: string;
+  price?: number;
+  secret_visibility?: 'full' | 'price_only' | 'hidden';
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  eyecatch_url?: string;
+  author_profile?: AuthorProfile;
+  // その他のフィールド
+  [key: string]: any;
+}
 
 /**
  * Post API
  */
 export const postApi = {
-  createPost: (data: any) => apiClient.post<any>('/api/posts', data),
-  getPost: (id: string) => apiClient.get<any>(`/api/posts/${id}`),
-  updatePost: (id: string, data: any) => apiClient.put<any>(`/api/posts/${id}`, data),
-  deletePost: (id: string) => apiClient.delete<any>(`/api/posts/${id}`),
+  getPosts: (params?: { type?: string; limit?: number; offset?: number }) =>
+    apiClient.get<Post[]>('/api/posts', { params }),
+  createPost: (data: Partial<Post>) => apiClient.post<Post>('/api/posts', data),
+  getPost: (id: string) => apiClient.get<Post>(`/api/posts/${id}`),
+  updatePost: (id: string, data: Partial<Post>) => apiClient.put<Post>(`/api/posts/${id}`, data),
+  deletePost: (id: string) => apiClient.delete<void>(`/api/posts/${id}`),
+};
+
+/**
+ * Comment types
+ */
+export interface PostCommentWithDetails {
+  id: string;
+  post_id: string;
+  user_id: string;
+  content: string;
+  like_count: number;
+  is_liked: boolean;
+  created_at: string;
+  updated_at: string;
+  author_profile?: {
+    id: string;
+    display_name: string;
+    icon_url?: string;
+  };
+}
+
+export interface CreateCommentRequest {
+  content: string;
+}
+
+export interface ToggleLikeResponse {
+  like_count: number;
+  is_liked: boolean;
+}
+
+/**
+ * Comment API
+ */
+export const commentApi = {
+  getPostComments: (postId: string) =>
+    apiClient.get<PostCommentWithDetails[]>(`/api/posts/${postId}/comments`),
+  createComment: (postId: string, data: CreateCommentRequest) =>
+    apiClient.post<PostCommentWithDetails>(`/api/posts/${postId}/comments`, data),
+  toggleCommentLike: (commentId: string) =>
+    apiClient.post<ToggleLikeResponse>(`/api/comments/${commentId}/likes`, {}),
+};
+
+/**
+ * Message types
+ */
+export interface ThreadDetail {
+  id: string;
+  participant_ids: string[];
+  created_at: string;
+  updated_at: string;
+  last_message?: {
+    content: string;
+    created_at: string;
+  };
+  participants?: Array<{
+    id: string;
+    display_name: string;
+    icon_url?: string;
+  }>;
+}
+
+export interface MessageWithSender {
+  id: string;
+  thread_id: string;
+  sender_id: string;
+  content: string;
+  image_url?: string;
+  created_at: string;
+  sender?: {
+    id: string;
+    display_name: string;
+    icon_url?: string;
+  };
+}
+
+export interface SendMessageRequest {
+  thread_id: string;
+  content: string;
+  image_url?: string;
+}
+
+export interface UploadImageResponse {
+  path: string;
+}
+
+/**
+ * Message API
+ */
+export const messageApi = {
+  getThreads: () =>
+    apiClient.get<{ success: boolean; data: ThreadDetail[] }>('/api/threads'),
+  getThread: (threadId: string) =>
+    apiClient.get<{ success: boolean; data: ThreadDetail }>(`/api/threads/${threadId}`),
+  getMessages: (threadId: string) =>
+    apiClient.get<{ success: boolean; data: MessageWithSender[] }>(`/api/threads/${threadId}/messages`),
+  sendMessage: (data: SendMessageRequest) =>
+    apiClient.post<{ success: boolean; data: MessageWithSender }>('/api/messages', data),
+  uploadMessageImage: async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    // FormData送信時はContent-Typeを自動設定させるため、手動で設定しない
+    const token = getAuthToken();
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+
+    const response = await fetch(`${API_URL}/api/messages/upload-image`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: token ? {
+        'Authorization': `Bearer ${token}`,
+      } : {},
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Upload failed' }));
+      throw new Error(error.error || 'Failed to upload image');
+    }
+
+    return response.json();
+  },
 };

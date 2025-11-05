@@ -147,18 +147,16 @@ export default function ProjectCreatePage() {
     setIsSubmitting(true);
 
     try {
-      // Check if user has Supabase session (as a backup check)
-      // The main authentication is handled by the backend via HttpOnly cookies
-      const { supabase } = await import('@/lib/supabase');
-      const { data: { session } } = await supabase.auth.getSession();
-
-      console.log('[PROJECT-CREATE] Supabase session:', session ? 'exists' : 'missing');
-
-      if (!session) {
-        alert('ログインセッションが見つかりません。再度ログインしてください。');
-        router.push('/login');
-        return;
-      }
+      // Cookie認証（バックエンドが認証をチェック）
+      console.log('[PROJECT-CREATE] Submitting project with Cookie authentication');
+      console.log('[PROJECT-CREATE] Form data:', {
+        title: formData.title,
+        appCategories: formData.appCategories,
+        appealText: formData.appealText.length,
+        monthlyRevenue: formData.monthlyRevenue,
+        monthlyCost: formData.monthlyCost,
+        price: formData.price
+      });
 
       // 画像をStorageにアップロード
       setUploadingImage(true);
@@ -170,25 +168,25 @@ export default function ProjectCreatePage() {
       try {
         if (selectedImageFile) {
           console.log('[PROJECT-CREATE] Uploading eyecatch image to storage...');
-          eyecatchPath = await uploadImage(selectedImageFile, session.user.id);
+          eyecatchPath = await uploadImage(selectedImageFile);
           console.log('[PROJECT-CREATE] Eyecatch image uploaded successfully:', eyecatchPath);
         }
 
         if (selectedDashboardImageFile) {
           console.log('[PROJECT-CREATE] Uploading dashboard image to storage...');
-          dashboardPath = await uploadImage(selectedDashboardImageFile, session.user.id);
+          dashboardPath = await uploadImage(selectedDashboardImageFile);
           console.log('[PROJECT-CREATE] Dashboard image uploaded successfully:', dashboardPath);
         }
 
         if (selectedUserUiImageFile) {
           console.log('[PROJECT-CREATE] Uploading user UI image to storage...');
-          userUiPath = await uploadImage(selectedUserUiImageFile, session.user.id);
+          userUiPath = await uploadImage(selectedUserUiImageFile);
           console.log('[PROJECT-CREATE] User UI image uploaded successfully:', userUiPath);
         }
 
         if (selectedPerformanceImageFile) {
           console.log('[PROJECT-CREATE] Uploading performance image to storage...');
-          performancePath = await uploadImage(selectedPerformanceImageFile, session.user.id);
+          performancePath = await uploadImage(selectedPerformanceImageFile);
           console.log('[PROJECT-CREATE] Performance image uploaded successfully:', performancePath);
         }
       } catch (error) {
@@ -204,7 +202,7 @@ export default function ProjectCreatePage() {
       for (const extraImage of extraImages) {
         try {
           console.log('[PROJECT-CREATE] Uploading extra image to storage...');
-          const path = await uploadImage(extraImage.file, session.user.id);
+          const path = await uploadImage(extraImage.file);
           extraImagePaths.push(path);
           console.log('[PROJECT-CREATE] Extra image uploaded successfully:', path);
         } catch (error) {
@@ -226,15 +224,35 @@ export default function ProjectCreatePage() {
 
       // Add all image and data fields for transaction posts
       if (formData.type === 'transaction') {
+        // Validate required fields for transaction posts
+        const missingFields: string[] = [];
+
+        if (!eyecatchPath) missingFields.push('アイキャッチ画像');
+        if (!dashboardPath) missingFields.push('管理画面画像');
+        if (!userUiPath) missingFields.push('ユーザーUI画像');
+        if (!performancePath) missingFields.push('パフォーマンス画像');
+        if (!formData.appCategories || formData.appCategories.length === 0) missingFields.push('アプリのカテゴリー');
+        if (!formData.monthlyRevenue) missingFields.push('月間売上');
+        if (!formData.monthlyCost) missingFields.push('月間コスト');
+        if (!formData.appealText || formData.appealText.length < 50) {
+          missingFields.push('アピールポイント（50文字以上必須）');
+        }
+
+        if (missingFields.length > 0) {
+          alert(`以下の必須項目が入力されていません:\n\n${missingFields.join('\n')}`);
+          setIsSubmitting(false);
+          return;
+        }
+
         // Required fields for transaction
         payload.eyecatch_url = eyecatchPath;
         payload.dashboard_url = dashboardPath;
         payload.user_ui_url = userUiPath;
         payload.performance_url = performancePath;
-        payload.app_categories = formData.appCategories.length > 0 ? formData.appCategories : null;
-        payload.monthly_revenue = formData.monthlyRevenue ? parseInt(formData.monthlyRevenue) * parseInt(formData.monthlyRevenueUnit) : null;
-        payload.monthly_cost = formData.monthlyCost ? parseInt(formData.monthlyCost) * parseInt(formData.monthlyCostUnit) : null;
-        payload.appeal_text = formData.appealText || null;
+        payload.app_categories = formData.appCategories;
+        payload.monthly_revenue = parseInt(formData.monthlyRevenue) * parseInt(formData.monthlyRevenueUnit);
+        payload.monthly_cost = parseInt(formData.monthlyCost) * parseInt(formData.monthlyCostUnit);
+        payload.appeal_text = formData.appealText;
 
         // Optional fields for transaction
         if (formData.serviceUrls) {
@@ -291,17 +309,39 @@ export default function ProjectCreatePage() {
       // Use apiClient which automatically gets token from localStorage
       const result = await apiClient.post('/api/posts', payload);
 
+      console.log('[PROJECT-CREATE] Post created successfully:', result);
       alert('投稿が作成されました!');
-      router.push('/apps');
+      router.push('/');
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : '不明なエラー';
+      console.error('[PROJECT-CREATE] Error during submission:', error);
+
+      // エラーの詳細を取得
+      let errorMessage = '不明なエラー';
+      let errorDetails = '';
+
+      if (error && typeof error === 'object') {
+        const err = error as any;
+        errorMessage = err.message || '不明なエラー';
+
+        // バックエンドからのエラー詳細
+        if (err.data) {
+          console.error('[PROJECT-CREATE] Error data:', err.data);
+          errorDetails = JSON.stringify(err.data, null, 2);
+        }
+      }
+
+      console.error('[PROJECT-CREATE] Error message:', errorMessage);
+      console.error('[PROJECT-CREATE] Error details:', errorDetails);
 
       // 401エラーの場合はログインページにリダイレクト
       if (errorMessage.includes('401') || errorMessage.includes('Unauthorized')) {
         alert('セッションが無効です。再度ログインしてください。');
         router.push('/login');
       } else {
-        alert(`投稿の作成中にエラーが発生しました: ${errorMessage}`);
+        const displayMessage = errorDetails
+          ? `投稿の作成中にエラーが発生しました:\n${errorMessage}\n\n詳細:\n${errorDetails}`
+          : `投稿の作成中にエラーが発生しました: ${errorMessage}`;
+        alert(displayMessage);
       }
     } finally {
       setIsSubmitting(false);
@@ -769,7 +809,7 @@ export default function ProjectCreatePage() {
                         value={formData.monthlyRevenue}
                         onChange={(e) => {
                           setFormData({ ...formData, monthlyRevenue: e.target.value });
-                          if (currentStep === 5 && e.target.value) setCurrentStep(6);
+                          if (currentStep === 5 && e.target.value && formData.monthlyCost) setCurrentStep(6);
                         }}
                         placeholder="100"
                         className="w-1/3 md:flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent"
@@ -812,7 +852,10 @@ export default function ProjectCreatePage() {
                       <input
                         type="number"
                         value={formData.monthlyCost}
-                        onChange={(e) => setFormData({ ...formData, monthlyCost: e.target.value })}
+                        onChange={(e) => {
+                          setFormData({ ...formData, monthlyCost: e.target.value });
+                          if (currentStep === 5 && e.target.value && formData.monthlyRevenue) setCurrentStep(6);
+                        }}
                         placeholder="50"
                         className="w-1/3 md:flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent"
                         style={{ '--tw-ring-color': colors.primary } as React.CSSProperties}
@@ -929,7 +972,7 @@ export default function ProjectCreatePage() {
                           value={formData.operationForm}
                           onChange={(e) => {
                             setFormData({ ...formData, operationForm: e.target.value });
-                            if (currentStep === 6 && e.target.value) setCurrentStep(7);
+                            if (currentStep === 6) setCurrentStep(7);
                           }}
                           className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent appearance-none"
                           style={{ '--tw-ring-color': colors.primary } as React.CSSProperties}
@@ -1035,7 +1078,7 @@ export default function ProjectCreatePage() {
                               ? formData.transferItems.filter(i => i !== item)
                               : [...formData.transferItems, item];
                             setFormData({ ...formData, transferItems: newItems });
-                            if (currentStep === 7 && newItems.length > 0) setCurrentStep(8);
+                            if (currentStep === 7) setCurrentStep(8);
                           }}
                           className={`px-3 py-1 text-sm border rounded-full transition ${
                             formData.transferItems.includes(item)
@@ -1111,6 +1154,7 @@ export default function ProjectCreatePage() {
                       value={formData.targetCustomers}
                       onChange={(e) => {
                         setFormData({ ...formData, targetCustomers: e.target.value });
+                        if (currentStep === 8) setCurrentStep(9);
                       }}
                       placeholder="例: 20-30代のビジネスパーソン"
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent"

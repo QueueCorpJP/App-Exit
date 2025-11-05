@@ -1,165 +1,153 @@
-import { supabase } from './supabase';
+import { getAuthToken } from './cookie-utils';
 
-const STORAGE_BUCKET = 'post-images';
-const AVATAR_BUCKET = 'avatars';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 
 /**
- * Supabase Storageに画像をアップロードする
+ * バックエンドAPI経由で画像をアップロードする
  * @param file アップロードする画像ファイル
- * @param userId アップロードするユーザーのID
+ * @param userId アップロードするユーザーのID（オプション、認証済みの場合は不要）
+ * @param bucket バケット名（デフォルト: post-images）
+ * @param filePath カスタムファイルパス（オプション）
  * @returns アップロードされた画像のパス
  */
-export async function uploadImage(file: File, userId: string): Promise<string> {
-  // ファイル名を生成 (ユーザーID_タイムスタンプ_元のファイル名)
-  const timestamp = Date.now();
-  const fileExt = file.name.split('.').pop();
-  const fileName = `${userId}_${timestamp}.${fileExt}`;
-  const filePath = `covers/${fileName}`;
+export async function uploadImage(
+  file: File,
+  userId?: string,
+  bucket: string = 'post-images',
+  filePath?: string
+): Promise<string> {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('bucket', bucket);
 
-  // Supabase Storageにアップロード
-  const { data, error } = await supabase.storage
-    .from(STORAGE_BUCKET)
-    .upload(filePath, file, {
-      cacheControl: '3600',
-      upsert: false,
-    });
-
-  if (error) {
-    console.error('Image upload error:', error);
-    throw new Error(`画像のアップロードに失敗しました: ${error.message}`);
+  if (filePath) {
+    formData.append('filePath', filePath);
   }
 
-  console.log('Image uploaded successfully:', data.path);
-  return data.path;
+  console.log('[STORAGE] Uploading image:', { bucket, filePath, size: file.size });
+
+  // Get token from cookie
+  const token = getAuthToken();
+  if (!token) {
+    console.error('[STORAGE] No authentication token found in cookies');
+    throw new Error('Missing authentication token');
+  }
+
+  console.log('[STORAGE] Using auth token from cookie');
+
+  const response = await fetch(`${API_URL}/api/storage/upload`, {
+    method: 'POST',
+    credentials: 'include', // Cookie認証
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: 'Upload failed' }));
+    console.error('[STORAGE] Upload error:', error);
+    throw new Error(error.error || 'Failed to upload image');
+  }
+
+  const result = await response.json();
+  console.log('[STORAGE] Upload successful:', result.data.path);
+  return result.data.path;
 }
 
 /**
- * Supabase Storageから画像の署名付きURLを取得する
+ * アバター画像をアップロードする
+ * @param file アップロードする画像ファイル
+ * @param userId アップロードするユーザーのID（オプション）
+ * @returns アップロードされた画像のパス
+ */
+export async function uploadAvatarImage(file: File, userId?: string): Promise<string> {
+  return uploadImage(file, userId, 'avatars');
+}
+
+/**
+ * バックエンドAPI経由で画像の署名付きURLを取得する
  * @param path 画像のパス
+ * @param bucket バケット名（デフォルト: post-images）
  * @param expiresIn URL の有効期限（秒）デフォルトは1時間
  * @returns 署名付きURL
  */
-export async function getImageUrl(path: string | null | undefined, expiresIn: number = 3600): Promise<string> {
+export async function getImageUrl(
+  path: string | null | undefined,
+  bucket: string = 'post-images',
+  expiresIn: number = 3600
+): Promise<string> {
   if (!path) {
     return 'https://placehold.co/600x400/e2e8f0/64748b?text=No+Image';
   }
 
-  const { data, error } = await supabase.storage
-    .from(STORAGE_BUCKET)
-    .createSignedUrl(path, expiresIn);
+  try {
+    const response = await fetch(`${API_URL}/api/storage/signed-url`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify({ bucket, path, expiresIn }),
+    });
 
-  if (error) {
-    console.error('Failed to get signed URL:', error);
-    return 'https://placehold.co/600x400/e2e8f0/64748b?text=No+Image';
+    if (!response.ok) {
+      console.error('[STORAGE] Failed to get signed URL:', response.status);
+      return 'https://placehold.co/600x400/e2e8f0/64748b?text=Error';
+    }
+
+    const result = await response.json();
+    return result.data.signedUrl;
+  } catch (error) {
+    console.error('[STORAGE] Error getting signed URL:', error);
+    return 'https://placehold.co/600x400/e2e8f0/64748b?text=Error';
   }
-
-  return data.signedUrl;
 }
 
 /**
- * 複数の画像パスから署名付きURLを一括取得
- * @param paths 画像パスの配列
+ * 複数の画像の署名付きURLを一括取得する
+ * @param paths 画像のパスの配列
+ * @param bucket バケット名（デフォルト: post-images）
  * @param expiresIn URL の有効期限（秒）デフォルトは1時間
- * @returns パスとURLのマップ
+ * @returns パスをキーとした署名付きURLのマップ
  */
 export async function getImageUrls(
-  paths: (string | null | undefined)[],
+  paths: string[],
+  bucket: string = 'post-images',
   expiresIn: number = 3600
 ): Promise<Map<string, string>> {
   const urlMap = new Map<string, string>();
-  const validPaths = paths.filter((p): p is string => !!p);
 
-  console.log('[STORAGE] getImageUrls called with paths:', paths);
-  console.log('[STORAGE] Valid paths count:', validPaths.length);
-
-  if (validPaths.length === 0) {
-    console.log('[STORAGE] No valid paths, returning empty map');
+  if (paths.length === 0) {
     return urlMap;
   }
 
-  // 413エラー回避のため、バッチサイズを制限（最大10個ずつ）
-  const BATCH_SIZE = 10;
+  try {
+    const response = await fetch(`${API_URL}/api/storage/signed-urls`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify({ bucket, paths, expiresIn }),
+    });
 
-  for (let i = 0; i < validPaths.length; i += BATCH_SIZE) {
-    const batch = validPaths.slice(i, i + BATCH_SIZE);
-    console.log(`[STORAGE] Processing batch ${i / BATCH_SIZE + 1}, paths:`, batch);
-
-    const { data, error } = await supabase.storage
-      .from(STORAGE_BUCKET)
-      .createSignedUrls(batch, expiresIn);
-
-    if (error) {
-      console.error('[STORAGE] Failed to get signed URLs for batch:', error);
-      console.error('[STORAGE] Error details:', JSON.stringify(error));
-      continue; // エラーがあっても次のバッチを処理
+    if (!response.ok) {
+      console.error('[STORAGE] Failed to get signed URLs:', response.status);
+      return urlMap;
     }
 
-    console.log(`[STORAGE] Batch response:`, data);
+    const result = await response.json();
+    const urls = result.data.urls;
 
-    data.forEach((item) => {
-      if (item.signedUrl && item.path) {
-        console.log(`[STORAGE] ✓ Generated URL for: ${item.path}`);
-        urlMap.set(item.path, item.signedUrl);
-      } else {
-        console.warn(`[STORAGE] ✗ No URL generated for: ${item.path}`, item);
-      }
-    });
+    // マップに変換
+    for (const [path, url] of Object.entries(urls)) {
+      urlMap.set(path, url as string);
+    }
+
+    return urlMap;
+  } catch (error) {
+    console.error('[STORAGE] Error getting signed URLs:', error);
+    return urlMap;
   }
-
-  console.log('[STORAGE] Final URL map size:', urlMap.size);
-  return urlMap;
-}
-
-/**
- * Supabase Storageから画像を削除する
- * @param path 削除する画像のパス
- */
-export async function deleteImage(path: string): Promise<void> {
-  const { error } = await supabase.storage
-    .from(STORAGE_BUCKET)
-    .remove([path]);
-
-  if (error) {
-    console.error('Image deletion error:', error);
-    throw new Error(`画像の削除に失敗しました: ${error.message}`);
-  }
-
-  console.log('Image deleted successfully:', path);
-}
-
-/**
- * Supabase Storageにアバター画像をアップロードする
- * @param file アップロードする画像ファイル
- * @param userId アップロードするユーザーのID（オプション）
- * @returns 公開URLの文字列
- */
-export async function uploadAvatarImage(file: File, userId?: string): Promise<string> {
-  // ファイル名を生成 (タイムスタンプ_元のファイル名 または ユーザーID_タイムスタンプ)
-  const timestamp = Date.now();
-  const fileExt = file.name.split('.').pop();
-  const fileName = userId 
-    ? `${userId}_${timestamp}.${fileExt}`
-    : `avatar_${timestamp}.${fileExt}`;
-  const filePath = `avatars/${fileName}`;
-
-  // Supabase Storageにアップロード
-  const { data, error } = await supabase.storage
-    .from(AVATAR_BUCKET)
-    .upload(filePath, file, {
-      cacheControl: '3600',
-      upsert: false,
-    });
-
-  if (error) {
-    console.error('Avatar upload error:', error);
-    throw new Error(`アバター画像のアップロードに失敗しました: ${error.message}`);
-  }
-
-  // 公開URLを取得
-  const { data: publicUrlData } = supabase.storage
-    .from(AVATAR_BUCKET)
-    .getPublicUrl(data.path);
-
-  console.log('Avatar uploaded successfully:', publicUrlData.publicUrl);
-  return publicUrlData.publicUrl;
 }

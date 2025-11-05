@@ -45,7 +45,7 @@ type Post struct {
 	AppealText              *string           `json:"appeal_text,omitempty"`
 	TechStack               []string          `json:"tech_stack,omitempty"`
 	UserCount               *int              `json:"user_count,omitempty"`
-	ReleaseDate             *time.Time        `json:"release_date,omitempty"`
+	ReleaseDate             *Date             `json:"release_date,omitempty"`
 	OperationForm           *string           `json:"operation_form,omitempty"`
 	OperationEffort         *string           `json:"operation_effort,omitempty"`
 	TransferItems           []string          `json:"transfer_items,omitempty"`
@@ -93,7 +93,7 @@ type CreatePostRequest struct {
 	AppealText            *string           `json:"appeal_text,omitempty"`
 	TechStack             []string          `json:"tech_stack,omitempty"`
 	UserCount             *int              `json:"user_count,omitempty" validate:"omitempty,min=0"`
-	ReleaseDate           *time.Time        `json:"release_date,omitempty"`
+	ReleaseDate           *Date             `json:"release_date,omitempty"`
 	OperationForm         *string           `json:"operation_form,omitempty"`
 	OperationEffort       *string           `json:"operation_effort,omitempty"`
 	TransferItems         []string          `json:"transfer_items,omitempty"`
@@ -124,7 +124,7 @@ type UpdatePostRequest struct {
 	AppealText            *string           `json:"appeal_text,omitempty"`
 	TechStack             []string          `json:"tech_stack,omitempty"`
 	UserCount             *int              `json:"user_count,omitempty" validate:"omitempty,min=0"`
-	ReleaseDate           *time.Time        `json:"release_date,omitempty"`
+	ReleaseDate           *Date             `json:"release_date,omitempty"`
 	OperationForm         *string           `json:"operation_form,omitempty"`
 	OperationEffort       *string           `json:"operation_effort,omitempty"`
 	TransferItems         []string          `json:"transfer_items,omitempty"`
