@@ -195,17 +195,58 @@ export default function PostBoardPage({ initialPosts = [] }: PostBoardPageProps)
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#F9F8F7' }}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {/* Header with back button */}
-        <div className="mb-6 flex items-center gap-4">
-          <button
-            onClick={() => router.back()}
-            className="p-2 hover:bg-gray-200 rounded-full transition-colors"
-          >
-            <ArrowLeft className="w-6 h-6 text-gray-700" />
-          </button>
-          <h1 className="text-xl font-bold text-gray-900">掲示板</h1>
+      {/* Community Header - Reddit style */}
+      <div className="pt-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="relative">
+            {/* Banner Background - Rounded */}
+            <div
+              className="h-24 rounded-2xl bg-red-500"
+              style={{
+                backgroundImage: 'url(https://images.unsplash.com/photo-1534361960057-19889db9621e?w=1200&h=200&fit=crop)',
+                backgroundSize: 'cover',
+                backgroundPosition: 'center'
+              }}
+            />
+
+            {/* Community Icon with background circle - Overlapping banner */}
+            <div className="absolute bottom-0 left-8 transform translate-y-1/2">
+              <div className="relative">
+                {/* Background circle - same color as page background */}
+                <div
+                  className="absolute inset-0 w-22 h-22 rounded-full -left-1 -top-1"
+                  style={{ backgroundColor: '#F9F8F7', zIndex: 1 }}
+                />
+
+                {/* Community Icon */}
+                <div
+                  className="relative w-20 h-20 rounded-full bg-black flex items-center justify-center text-white font-bold text-2xl"
+                  style={{
+                    backgroundImage: 'url(https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=80&h=80&fit=crop)',
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                    zIndex: 2
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Community Name - Below banner, next to icon */}
+          <div className="flex items-center gap-4 mt-3 ml-8">
+            <div className="w-20" />
+            <div className="flex items-baseline gap-3">
+              <h1 className="text-2xl" style={{ color: '#4a4a4a', fontWeight: '800' }}>掲示板投稿</h1>
+              <p className="text-sm" style={{ color: '#6b7280', fontWeight: '700' }}>気軽にやり取りしよう</p>
+            </div>
+          </div>
+
+          {/* Spacer */}
+          <div className="h-4" />
         </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
 
         {/* Main Layout - Grid with sidebar */}
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6">

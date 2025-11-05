@@ -22,34 +22,40 @@ const (
 
 // Post represents a post in the posts table (partitioned view)
 type Post struct {
-	ID               string            `json:"id"`
-	AuthorUserID     string            `json:"author_user_id"`
-	AuthorOrgID      *string           `json:"author_org_id,omitempty"`
-	Type             PostType          `json:"type"`
-	Title            string            `json:"title"`
-	Body             *string           `json:"body,omitempty"`
-	CoverImageURL    *string           `json:"cover_image_url,omitempty"`
-	BudgetMin        *int64            `json:"budget_min,omitempty"`
-	BudgetMax        *int64            `json:"budget_max,omitempty"`
-	Price            *int64            `json:"price,omitempty"`
-	SecretVisibility *SecretVisibility `json:"secret_visibility,omitempty"`
-	IsActive         bool              `json:"is_active"`
-	CreatedAt        time.Time         `json:"created_at"`
-	UpdatedAt        time.Time         `json:"updated_at"`
-}
-
-// PostDetail represents additional details for transaction/secret posts
-type PostDetail struct {
-	PostID         string  `json:"post_id"`
-	AppName        *string `json:"app_name,omitempty"`
-	AppCategory    *string `json:"app_category,omitempty"`
-	MonthlyRevenue *int64  `json:"monthly_revenue,omitempty"`
-	MonthlyProfit  *int64  `json:"monthly_profit,omitempty"`
-	MAU            *int64  `json:"mau,omitempty"`
-	DAU            *int64  `json:"dau,omitempty"`
-	StoreURL       *string `json:"store_url,omitempty"`
-	TechStack      *string `json:"tech_stack,omitempty"`
-	Notes          *string `json:"notes,omitempty"`
+	ID                      string            `json:"id"`
+	AuthorUserID            string            `json:"author_user_id"`
+	AuthorOrgID             *string           `json:"author_org_id,omitempty"`
+	Type                    PostType          `json:"type"`
+	Title                   string            `json:"title"`
+	Body                    *string           `json:"body,omitempty"`
+	Price                   *int64            `json:"price,omitempty"`
+	SecretVisibility        *SecretVisibility `json:"secret_visibility,omitempty"`
+	IsActive                bool              `json:"is_active"`
+	CreatedAt               time.Time         `json:"created_at"`
+	UpdatedAt               time.Time         `json:"updated_at"`
+	EyecatchURL             *string           `json:"eyecatch_url,omitempty"`
+	DashboardURL            *string           `json:"dashboard_url,omitempty"`
+	UserUIURL               *string           `json:"user_ui_url,omitempty"`
+	PerformanceURL          *string           `json:"performance_url,omitempty"`
+	AppCategories           []string          `json:"app_categories,omitempty"`
+	ServiceURLs             []string          `json:"service_urls,omitempty"`
+	RevenueModels           []string          `json:"revenue_models,omitempty"`
+	MonthlyRevenue          *int64            `json:"monthly_revenue,omitempty"`
+	MonthlyCost             *int64            `json:"monthly_cost,omitempty"`
+	AppealText              *string           `json:"appeal_text,omitempty"`
+	TechStack               []string          `json:"tech_stack,omitempty"`
+	UserCount               *int              `json:"user_count,omitempty"`
+	ReleaseDate             *time.Time        `json:"release_date,omitempty"`
+	OperationForm           *string           `json:"operation_form,omitempty"`
+	OperationEffort         *string           `json:"operation_effort,omitempty"`
+	TransferItems           []string          `json:"transfer_items,omitempty"`
+	DesiredTransferTiming   *string           `json:"desired_transfer_timing,omitempty"`
+	GrowthPotential         *string           `json:"growth_potential,omitempty"`
+	TargetCustomers         *string           `json:"target_customers,omitempty"`
+	MarketingChannels       []string          `json:"marketing_channels,omitempty"`
+	MediaMentions           *string           `json:"media_mentions,omitempty"`
+	ExtraImageURLs          []string          `json:"extra_image_urls,omitempty"`
+	MonthlyProfit           *int64            `json:"monthly_profit,omitempty"`
 }
 
 // AuthorProfile represents the profile of the post author
@@ -61,57 +67,73 @@ type AuthorProfile struct {
 	Party       string  `json:"party"`
 }
 
-// PostWithDetails combines Post and PostDetail
+// PostWithDetails combines Post with author profile
 type PostWithDetails struct {
 	Post
-	Details       *PostDetail    `json:"details,omitempty"`
 	AuthorProfile *AuthorProfile `json:"author_profile,omitempty"`
 }
 
+
 // CreatePostRequest represents a request to create a new post
 type CreatePostRequest struct {
-	Type             PostType          `json:"type" validate:"required,oneof=board transaction secret"`
-	Title            string            `json:"title" validate:"required,min=1,max=200"`
-	Body             *string           `json:"body,omitempty"`
-	CoverImageURL    *string           `json:"cover_image_url,omitempty"`
-	BudgetMin        *int64            `json:"budget_min,omitempty" validate:"omitempty,min=0"`
-	BudgetMax        *int64            `json:"budget_max,omitempty" validate:"omitempty,min=0"`
-	Price            *int64            `json:"price,omitempty" validate:"omitempty,min=0"`
-	SecretVisibility *SecretVisibility `json:"secret_visibility,omitempty"`
-
-	// Post details (for transaction/secret posts)
-	AppName        *string `json:"app_name,omitempty"`
-	AppCategory    *string `json:"app_category,omitempty"`
-	MonthlyRevenue *int64  `json:"monthly_revenue,omitempty" validate:"omitempty,min=0"`
-	MonthlyProfit  *int64  `json:"monthly_profit,omitempty"`
-	MAU            *int64  `json:"mau,omitempty" validate:"omitempty,min=0"`
-	DAU            *int64  `json:"dau,omitempty" validate:"omitempty,min=0"`
-	StoreURL       *string `json:"store_url,omitempty"`
-	TechStack      *string `json:"tech_stack,omitempty"`
-	Notes          *string `json:"notes,omitempty"`
+	Type                  PostType          `json:"type" validate:"required,oneof=board transaction secret"`
+	Title                 string            `json:"title" validate:"required,min=1,max=200"`
+	Body                  *string           `json:"body,omitempty"`
+	Price                 *int64            `json:"price,omitempty" validate:"omitempty,min=0"`
+	SecretVisibility      *SecretVisibility `json:"secret_visibility,omitempty"`
+	EyecatchURL           *string           `json:"eyecatch_url,omitempty"`
+	DashboardURL          *string           `json:"dashboard_url,omitempty"`
+	UserUIURL             *string           `json:"user_ui_url,omitempty"`
+	PerformanceURL        *string           `json:"performance_url,omitempty"`
+	AppCategories         []string          `json:"app_categories,omitempty"`
+	ServiceURLs           []string          `json:"service_urls,omitempty"`
+	RevenueModels         []string          `json:"revenue_models,omitempty"`
+	MonthlyRevenue        *int64            `json:"monthly_revenue,omitempty" validate:"omitempty,min=0"`
+	MonthlyCost           *int64            `json:"monthly_cost,omitempty" validate:"omitempty,min=0"`
+	AppealText            *string           `json:"appeal_text,omitempty"`
+	TechStack             []string          `json:"tech_stack,omitempty"`
+	UserCount             *int              `json:"user_count,omitempty" validate:"omitempty,min=0"`
+	ReleaseDate           *time.Time        `json:"release_date,omitempty"`
+	OperationForm         *string           `json:"operation_form,omitempty"`
+	OperationEffort       *string           `json:"operation_effort,omitempty"`
+	TransferItems         []string          `json:"transfer_items,omitempty"`
+	DesiredTransferTiming *string           `json:"desired_transfer_timing,omitempty"`
+	GrowthPotential       *string           `json:"growth_potential,omitempty"`
+	TargetCustomers       *string           `json:"target_customers,omitempty"`
+	MarketingChannels     []string          `json:"marketing_channels,omitempty"`
+	MediaMentions         *string           `json:"media_mentions,omitempty"`
+	ExtraImageURLs        []string          `json:"extra_image_urls,omitempty"`
 }
 
 // UpdatePostRequest represents a request to update an existing post
 type UpdatePostRequest struct {
-	Title            *string           `json:"title,omitempty" validate:"omitempty,min=1,max=200"`
-	Body             *string           `json:"body,omitempty"`
-	CoverImageURL    *string           `json:"cover_image_url,omitempty"`
-	BudgetMin        *int64            `json:"budget_min,omitempty" validate:"omitempty,min=0"`
-	BudgetMax        *int64            `json:"budget_max,omitempty" validate:"omitempty,min=0"`
-	Price            *int64            `json:"price,omitempty" validate:"omitempty,min=0"`
-	SecretVisibility *SecretVisibility `json:"secret_visibility,omitempty"`
-	IsActive         *bool             `json:"is_active,omitempty"`
-
-	// Post details (for transaction/secret posts)
-	AppName        *string `json:"app_name,omitempty"`
-	AppCategory    *string `json:"app_category,omitempty"`
-	MonthlyRevenue *int64  `json:"monthly_revenue,omitempty" validate:"omitempty,min=0"`
-	MonthlyProfit  *int64  `json:"monthly_profit,omitempty"`
-	MAU            *int64  `json:"mau,omitempty" validate:"omitempty,min=0"`
-	DAU            *int64  `json:"dau,omitempty" validate:"omitempty,min=0"`
-	StoreURL       *string `json:"store_url,omitempty"`
-	TechStack      *string `json:"tech_stack,omitempty"`
-	Notes          *string `json:"notes,omitempty"`
+	Title                 *string           `json:"title,omitempty" validate:"omitempty,min=1,max=200"`
+	Body                  *string           `json:"body,omitempty"`
+	Price                 *int64            `json:"price,omitempty" validate:"omitempty,min=0"`
+	SecretVisibility      *SecretVisibility `json:"secret_visibility,omitempty"`
+	IsActive              *bool             `json:"is_active,omitempty"`
+	EyecatchURL           *string           `json:"eyecatch_url,omitempty"`
+	DashboardURL          *string           `json:"dashboard_url,omitempty"`
+	UserUIURL             *string           `json:"user_ui_url,omitempty"`
+	PerformanceURL        *string           `json:"performance_url,omitempty"`
+	AppCategories         []string          `json:"app_categories,omitempty"`
+	ServiceURLs           []string          `json:"service_urls,omitempty"`
+	RevenueModels         []string          `json:"revenue_models,omitempty"`
+	MonthlyRevenue        *int64            `json:"monthly_revenue,omitempty" validate:"omitempty,min=0"`
+	MonthlyCost           *int64            `json:"monthly_cost,omitempty" validate:"omitempty,min=0"`
+	AppealText            *string           `json:"appeal_text,omitempty"`
+	TechStack             []string          `json:"tech_stack,omitempty"`
+	UserCount             *int              `json:"user_count,omitempty" validate:"omitempty,min=0"`
+	ReleaseDate           *time.Time        `json:"release_date,omitempty"`
+	OperationForm         *string           `json:"operation_form,omitempty"`
+	OperationEffort       *string           `json:"operation_effort,omitempty"`
+	TransferItems         []string          `json:"transfer_items,omitempty"`
+	DesiredTransferTiming *string           `json:"desired_transfer_timing,omitempty"`
+	GrowthPotential       *string           `json:"growth_potential,omitempty"`
+	TargetCustomers       *string           `json:"target_customers,omitempty"`
+	MarketingChannels     []string          `json:"marketing_channels,omitempty"`
+	MediaMentions         *string           `json:"media_mentions,omitempty"`
+	ExtraImageURLs        []string          `json:"extra_image_urls,omitempty"`
 }
 
 // PostQueryParams represents query parameters for listing posts

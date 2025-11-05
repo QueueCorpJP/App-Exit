@@ -152,28 +152,48 @@ func validateCreatePostRequest(req models.CreatePostRequest) error {
 	}
 
 	// Validate numeric fields if provided
-	if req.BudgetMin != nil && *req.BudgetMin < 0 {
-		return fmt.Errorf("budget_min must be non-negative")
-	}
-	if req.BudgetMax != nil && *req.BudgetMax < 0 {
-		return fmt.Errorf("budget_max must be non-negative")
-	}
 	if req.Price != nil && *req.Price < 0 {
 		return fmt.Errorf("price must be non-negative")
 	}
 	if req.MonthlyRevenue != nil && *req.MonthlyRevenue < 0 {
 		return fmt.Errorf("monthly_revenue must be non-negative")
 	}
-	if req.MAU != nil && *req.MAU < 0 {
-		return fmt.Errorf("mau must be non-negative")
+	if req.MonthlyCost != nil && *req.MonthlyCost < 0 {
+		return fmt.Errorf("monthly_cost must be non-negative")
 	}
-	if req.DAU != nil && *req.DAU < 0 {
-		return fmt.Errorf("dau must be non-negative")
+	if req.UserCount != nil && *req.UserCount < 0 {
+		return fmt.Errorf("user_count must be non-negative")
 	}
 
-	// Validate budget range
-	if req.BudgetMin != nil && req.BudgetMax != nil && *req.BudgetMin > *req.BudgetMax {
-		return fmt.Errorf("budget_min cannot be greater than budget_max")
+	// Validate transaction type required fields
+	if req.Type == models.PostTypeTransaction {
+		if req.Price == nil {
+			return fmt.Errorf("price is required for transaction type posts")
+		}
+		if req.AppCategories == nil || len(req.AppCategories) == 0 {
+			return fmt.Errorf("app_categories is required for transaction type posts")
+		}
+		if req.MonthlyRevenue == nil {
+			return fmt.Errorf("monthly_revenue is required for transaction type posts")
+		}
+		if req.MonthlyCost == nil {
+			return fmt.Errorf("monthly_cost is required for transaction type posts")
+		}
+		if req.AppealText == nil || len(*req.AppealText) < 50 {
+			return fmt.Errorf("appeal_text is required and must be at least 50 characters for transaction type posts")
+		}
+		if req.EyecatchURL == nil {
+			return fmt.Errorf("eyecatch_url is required for transaction type posts")
+		}
+		if req.DashboardURL == nil {
+			return fmt.Errorf("dashboard_url is required for transaction type posts")
+		}
+		if req.UserUIURL == nil {
+			return fmt.Errorf("user_ui_url is required for transaction type posts")
+		}
+		if req.PerformanceURL == nil {
+			return fmt.Errorf("performance_url is required for transaction type posts")
+		}
 	}
 
 	return nil
@@ -186,28 +206,22 @@ func validateUpdatePostRequest(req models.UpdatePostRequest) error {
 	}
 
 	// Validate numeric fields if provided
-	if req.BudgetMin != nil && *req.BudgetMin < 0 {
-		return fmt.Errorf("budget_min must be non-negative")
-	}
-	if req.BudgetMax != nil && *req.BudgetMax < 0 {
-		return fmt.Errorf("budget_max must be non-negative")
-	}
 	if req.Price != nil && *req.Price < 0 {
 		return fmt.Errorf("price must be non-negative")
 	}
 	if req.MonthlyRevenue != nil && *req.MonthlyRevenue < 0 {
 		return fmt.Errorf("monthly_revenue must be non-negative")
 	}
-	if req.MAU != nil && *req.MAU < 0 {
-		return fmt.Errorf("mau must be non-negative")
+	if req.MonthlyCost != nil && *req.MonthlyCost < 0 {
+		return fmt.Errorf("monthly_cost must be non-negative")
 	}
-	if req.DAU != nil && *req.DAU < 0 {
-		return fmt.Errorf("dau must be non-negative")
+	if req.UserCount != nil && *req.UserCount < 0 {
+		return fmt.Errorf("user_count must be non-negative")
 	}
 
-	// Validate budget range if both are provided
-	if req.BudgetMin != nil && req.BudgetMax != nil && *req.BudgetMin > *req.BudgetMax {
-		return fmt.Errorf("budget_min cannot be greater than budget_max")
+	// Validate appeal_text length if provided
+	if req.AppealText != nil && len(*req.AppealText) < 50 {
+		return fmt.Errorf("appeal_text must be at least 50 characters if provided")
 	}
 
 	return nil

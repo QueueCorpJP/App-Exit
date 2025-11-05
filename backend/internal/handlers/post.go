@@ -218,31 +218,8 @@ func (s *Server) GetPost(w http.ResponseWriter, r *http.Request, postID string) 
 		fmt.Printf("[GET /api/posts/%s] ⚠️ Warning: Author profile not found\n", postID)
 	}
 
-	// Get post details if it's a transaction or secret post
-	var details *models.PostDetail
-	if post.Type == models.PostTypeTransaction || post.Type == models.PostTypeSecret {
-		fmt.Printf("[GET /api/posts/%s] Querying post details...\n", postID)
-
-		var postDetails []models.PostDetail
-		_, err := client.From("post_details").
-			Select("*", "", false).
-			Eq("post_id", postID).
-			Limit(1, "").
-			ExecuteTo(&postDetails)
-
-		if err != nil {
-			fmt.Printf("[GET /api/posts/%s] ⚠️ Warning: Failed to query post details: %v\n", postID, err)
-		} else if len(postDetails) > 0 {
-			details = &postDetails[0]
-			fmt.Printf("[GET /api/posts/%s] ✓ Post details found\n", postID)
-		} else {
-			fmt.Printf("[GET /api/posts/%s] ⚠️ Warning: Post details not found\n", postID)
-		}
-	}
-
 	response := models.PostWithDetails{
 		Post:          post,
-		Details:       details,
 		AuthorProfile: authorProfilePtr,
 	}
 
@@ -333,17 +310,36 @@ func (s *Server) CreatePost(w http.ResponseWriter, r *http.Request) {
 
 	// Prepare post data
 	postData := map[string]interface{}{
-		"author_user_id": userID,
-		"author_org_id":  authorOrgID,
-		"type":           req.Type,
-		"title":          req.Title,
-		"body":           req.Body,
-		"cover_image_url": req.CoverImageURL,
-		"budget_min":     req.BudgetMin,
-		"budget_max":     req.BudgetMax,
-		"price":          req.Price,
-		"secret_visibility": req.SecretVisibility,
-		"is_active":      true,
+		"author_user_id":      userID,
+		"author_org_id":       authorOrgID,
+		"type":                req.Type,
+		"title":               req.Title,
+		"body":                req.Body,
+		"eyecatch_url":        req.EyecatchURL,
+		"dashboard_url":       req.DashboardURL,
+		"user_ui_url":         req.UserUIURL,
+		"performance_url":     req.PerformanceURL,
+		"app_categories":      req.AppCategories,
+		"service_urls":        req.ServiceURLs,
+		"revenue_models":      req.RevenueModels,
+		"monthly_revenue":     req.MonthlyRevenue,
+		"monthly_cost":        req.MonthlyCost,
+		"appeal_text":         req.AppealText,
+		"tech_stack":          req.TechStack,
+		"user_count":          req.UserCount,
+		"release_date":        req.ReleaseDate,
+		"operation_form":      req.OperationForm,
+		"operation_effort":    req.OperationEffort,
+		"transfer_items":      req.TransferItems,
+		"desired_transfer_timing": req.DesiredTransferTiming,
+		"growth_potential":    req.GrowthPotential,
+		"target_customers":    req.TargetCustomers,
+		"marketing_channels":  req.MarketingChannels,
+		"media_mentions":      req.MediaMentions,
+		"extra_image_urls":    req.ExtraImageURLs,
+		"price":               req.Price,
+		"secret_visibility":   req.SecretVisibility,
+		"is_active":           true,
 	}
 
 	// Insert post with impersonate JWT (RLS will automatically check permissions)
@@ -374,67 +370,8 @@ func (s *Server) CreatePost(w http.ResponseWriter, r *http.Request) {
 	postID := createdPosts[0].ID
 	fmt.Printf("[POST /api/posts] ✓ Post created successfully with ID: %s\n", postID)
 
-	// Insert post details if it's a transaction or secret post
-	if req.Type == models.PostTypeTransaction || req.Type == models.PostTypeSecret {
-		fmt.Printf("[POST /api/posts] Inserting post details for type: %s\n", req.Type)
-
-		detailsData := map[string]interface{}{
-			"post_id":         postID,
-			"app_name":        req.AppName,
-			"app_category":    req.AppCategory,
-			"monthly_revenue": req.MonthlyRevenue,
-			"monthly_profit":  req.MonthlyProfit,
-			"mau":             req.MAU,
-			"dau":             req.DAU,
-			"store_url":       req.StoreURL,
-			"tech_stack":      req.TechStack,
-			"notes":           req.Notes,
-		}
-
-		fmt.Printf("[POST /api/posts] Post details data: %+v\n", detailsData)
-
-		var createdDetails []models.PostDetail
-		_, err = impersonateClient.From("post_details").
-			Insert(detailsData, false, "", "", "").
-			ExecuteTo(&createdDetails)
-
-		if err != nil {
-			fmt.Printf("[POST /api/posts] ❌ ERROR: Failed to insert post details: %v\n", err)
-			fmt.Printf("[POST /api/posts] Rolling back: Deleting post ID: %s\n", postID)
-			// Try to delete the post
-			impersonateClient.From("posts").Delete("", "").Eq("id", postID).Execute()
-			fmt.Printf("========== CREATE POST END (FAILED) ==========\n\n")
-			http.Error(w, "Failed to create post details", http.StatusInternalServerError)
-			return
-		}
-		fmt.Printf("[POST /api/posts] ✓ Post details inserted successfully\n")
-	}
-
-	// Retrieve the created post with details
-	fmt.Printf("[POST /api/posts] Retrieving created post with ID: %s\n", postID)
-	
-	// Get post details if it's a transaction or secret post
-	var details *models.PostDetail
-	if req.Type == models.PostTypeTransaction || req.Type == models.PostTypeSecret {
-		fmt.Printf("[POST /api/posts] Querying post details...\n")
-		var postDetails []models.PostDetail
-		_, err := impersonateClient.From("post_details").
-			Select("*", "", false).
-			Eq("post_id", postID).
-			Limit(1, "").
-			ExecuteTo(&postDetails)
-
-		if err != nil {
-			fmt.Printf("[POST /api/posts] ⚠️ Warning: Failed to query post details: %v\n", err)
-		} else if len(postDetails) > 0 {
-			details = &postDetails[0]
-			fmt.Printf("[POST /api/posts] ✓ Post details found\n")
-		}
-	}
-
 	response := models.PostWithDetails{
-		Post:    createdPosts[0],
-		Details: details,
+		Post: createdPosts[0],
 	}
 
 	fmt.Printf("[POST /api/posts] ✅ CreatePost completed successfully\n")
@@ -474,14 +411,13 @@ func (s *Server) UpdatePost(w http.ResponseWriter, r *http.Request, postID strin
 	// Use impersonate client (RLS will check permissions automatically)
 	client := s.supabase.GetAuthenticatedClient(impersonateJWT)
 
-	// Check if post exists and get its type
+	// Check if post exists
 	type PostInfo struct {
-		AuthorUserID string           `json:"author_user_id"`
-		Type         models.PostType  `json:"type"`
+		AuthorUserID string `json:"author_user_id"`
 	}
 	var postsInfo []PostInfo
 	_, err := client.From("posts").
-		Select("author_user_id, type", "", false).
+		Select("author_user_id", "", false).
 		Eq("id", postID).
 		Limit(1, "").
 		ExecuteTo(&postsInfo)
@@ -499,8 +435,6 @@ func (s *Server) UpdatePost(w http.ResponseWriter, r *http.Request, postID strin
 		return
 	}
 
-	postType := postsInfo[0].Type
-
 	// Build update data for posts table
 	postUpdateData := map[string]interface{}{}
 	if req.Title != nil {
@@ -509,14 +443,71 @@ func (s *Server) UpdatePost(w http.ResponseWriter, r *http.Request, postID strin
 	if req.Body != nil {
 		postUpdateData["body"] = *req.Body
 	}
-	if req.CoverImageURL != nil {
-		postUpdateData["cover_image_url"] = *req.CoverImageURL
+	if req.EyecatchURL != nil {
+		postUpdateData["eyecatch_url"] = *req.EyecatchURL
 	}
-	if req.BudgetMin != nil {
-		postUpdateData["budget_min"] = *req.BudgetMin
+	if req.DashboardURL != nil {
+		postUpdateData["dashboard_url"] = *req.DashboardURL
 	}
-	if req.BudgetMax != nil {
-		postUpdateData["budget_max"] = *req.BudgetMax
+	if req.UserUIURL != nil {
+		postUpdateData["user_ui_url"] = *req.UserUIURL
+	}
+	if req.PerformanceURL != nil {
+		postUpdateData["performance_url"] = *req.PerformanceURL
+	}
+	if req.AppCategories != nil {
+		postUpdateData["app_categories"] = req.AppCategories
+	}
+	if req.ServiceURLs != nil {
+		postUpdateData["service_urls"] = req.ServiceURLs
+	}
+	if req.RevenueModels != nil {
+		postUpdateData["revenue_models"] = req.RevenueModels
+	}
+	if req.MonthlyRevenue != nil {
+		postUpdateData["monthly_revenue"] = *req.MonthlyRevenue
+	}
+	if req.MonthlyCost != nil {
+		postUpdateData["monthly_cost"] = *req.MonthlyCost
+	}
+	if req.AppealText != nil {
+		postUpdateData["appeal_text"] = *req.AppealText
+	}
+	if req.TechStack != nil {
+		postUpdateData["tech_stack"] = req.TechStack
+	}
+	if req.UserCount != nil {
+		postUpdateData["user_count"] = *req.UserCount
+	}
+	if req.ReleaseDate != nil {
+		postUpdateData["release_date"] = *req.ReleaseDate
+	}
+	if req.OperationForm != nil {
+		postUpdateData["operation_form"] = *req.OperationForm
+	}
+	if req.OperationEffort != nil {
+		postUpdateData["operation_effort"] = *req.OperationEffort
+	}
+	if req.TransferItems != nil {
+		postUpdateData["transfer_items"] = req.TransferItems
+	}
+	if req.DesiredTransferTiming != nil {
+		postUpdateData["desired_transfer_timing"] = *req.DesiredTransferTiming
+	}
+	if req.GrowthPotential != nil {
+		postUpdateData["growth_potential"] = *req.GrowthPotential
+	}
+	if req.TargetCustomers != nil {
+		postUpdateData["target_customers"] = *req.TargetCustomers
+	}
+	if req.MarketingChannels != nil {
+		postUpdateData["marketing_channels"] = req.MarketingChannels
+	}
+	if req.MediaMentions != nil {
+		postUpdateData["media_mentions"] = *req.MediaMentions
+	}
+	if req.ExtraImageURLs != nil {
+		postUpdateData["extra_image_urls"] = req.ExtraImageURLs
 	}
 	if req.Price != nil {
 		postUpdateData["price"] = *req.Price
@@ -538,50 +529,6 @@ func (s *Server) UpdatePost(w http.ResponseWriter, r *http.Request, postID strin
 		if err != nil {
 			http.Error(w, "Failed to update post", http.StatusInternalServerError)
 			return
-		}
-	}
-
-	// Update post details if it's a transaction or secret post
-	if postType == models.PostTypeTransaction || postType == models.PostTypeSecret {
-		detailUpdateData := map[string]interface{}{}
-		if req.AppName != nil {
-			detailUpdateData["app_name"] = *req.AppName
-		}
-		if req.AppCategory != nil {
-			detailUpdateData["app_category"] = *req.AppCategory
-		}
-		if req.MonthlyRevenue != nil {
-			detailUpdateData["monthly_revenue"] = *req.MonthlyRevenue
-		}
-		if req.MonthlyProfit != nil {
-			detailUpdateData["monthly_profit"] = *req.MonthlyProfit
-		}
-		if req.MAU != nil {
-			detailUpdateData["mau"] = *req.MAU
-		}
-		if req.DAU != nil {
-			detailUpdateData["dau"] = *req.DAU
-		}
-		if req.StoreURL != nil {
-			detailUpdateData["store_url"] = *req.StoreURL
-		}
-		if req.TechStack != nil {
-			detailUpdateData["tech_stack"] = *req.TechStack
-		}
-		if req.Notes != nil {
-			detailUpdateData["notes"] = *req.Notes
-		}
-
-		if len(detailUpdateData) > 0 {
-			_, _, err = client.From("post_details").
-				Update(detailUpdateData, "", "").
-				Eq("post_id", postID).
-				Execute()
-
-			if err != nil {
-				http.Error(w, "Failed to update post details", http.StatusInternalServerError)
-				return
-			}
 		}
 	}
 

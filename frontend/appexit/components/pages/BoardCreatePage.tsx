@@ -70,7 +70,7 @@ export default function BoardCreatePage() {
             : 'どんなプロダクトをお探しですか?'}
         </p>
 
-        <form onSubmit={handleSubmit} className="bg-white border-2 border-gray-900 p-8">
+        <form onSubmit={handleSubmit} className="bg-white border-2 border-gray-900 p-8 shadow-none">
           {/* 投稿内容 */}
           <div className="mb-6">
             <label className="block text-sm font-semibold text-gray-700 mb-2">

@@ -10,6 +10,7 @@ type Config struct {
 	ServerPort         string
 	Environment        string
 	BackendURL         string
+	FrontendURL        string
 	SupabaseURL        string
 	SupabaseAnonKey    string
 	SupabaseServiceKey string
@@ -22,6 +23,7 @@ func LoadConfig() *Config {
 		ServerPort:         getEnv("PORT", "8080"),
 		Environment:        getEnv("ENV", "development"),
 		BackendURL:         getEnv("BACKEND_URL", "http://localhost:8080"),
+		FrontendURL:        getEnv("FRONTEND_URL", "http://localhost:3000"),
 		SupabaseURL:        getEnv("SUPABASE_URL", ""),
 		SupabaseAnonKey:    getEnv("SUPABASE_ANON_KEY", ""),
 		SupabaseServiceKey: getEnv("SUPABASE_SERVICE_ROLE_KEY", ""),

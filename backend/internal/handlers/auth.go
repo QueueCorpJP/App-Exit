@@ -565,7 +565,9 @@ func (s *Server) HandleOAuthCallback(w http.ResponseWriter, r *http.Request) {
 		if errorDesc == "" {
 			errorDesc = "OAuth認証に失敗しました"
 		}
-		http.Redirect(w, r, "/login?error="+url.QueryEscape(errorDesc), http.StatusTemporaryRedirect)
+		redirectURL := fmt.Sprintf("%s/login?error=%s", s.config.FrontendURL, url.QueryEscape(errorDesc))
+		fmt.Printf("[ERROR] OAuth callback: No code found, redirecting to %s\n", redirectURL)
+		http.Redirect(w, r, redirectURL, http.StatusTemporaryRedirect)
 		return
 	}
 
@@ -580,7 +582,8 @@ func (s *Server) HandleOAuthCallback(w http.ResponseWriter, r *http.Request) {
 	tokenReq, err := http.NewRequest("POST", tokenURL, bytes.NewBuffer(reqBodyJSON))
 	if err != nil {
 		fmt.Printf("[ERROR] OAuth callback: Failed to create token request: %v\n", err)
-		http.Redirect(w, r, "/login?error=OAuth認証に失敗しました", http.StatusTemporaryRedirect)
+		redirectURL := fmt.Sprintf("%s/login?error=%s", s.config.FrontendURL, url.QueryEscape("OAuth認証に失敗しました"))
+		http.Redirect(w, r, redirectURL, http.StatusTemporaryRedirect)
 		return
 	}
 	tokenReq.Header.Set("Content-Type", "application/json")
@@ -590,7 +593,8 @@ func (s *Server) HandleOAuthCallback(w http.ResponseWriter, r *http.Request) {
 	tokenResp, err := client.Do(tokenReq)
 	if err != nil {
 		fmt.Printf("[ERROR] OAuth callback: Failed to exchange code: %v\n", err)
-		http.Redirect(w, r, "/login?error=OAuth認証に失敗しました", http.StatusTemporaryRedirect)
+		redirectURL := fmt.Sprintf("%s/login?error=%s", s.config.FrontendURL, url.QueryEscape("OAuth認証に失敗しました"))
+		http.Redirect(w, r, redirectURL, http.StatusTemporaryRedirect)
 		return
 	}
 	defer tokenResp.Body.Close()
@@ -598,7 +602,8 @@ func (s *Server) HandleOAuthCallback(w http.ResponseWriter, r *http.Request) {
 	if tokenResp.StatusCode != http.StatusOK {
 		bodyBytes, _ := io.ReadAll(tokenResp.Body)
 		fmt.Printf("[ERROR] OAuth callback: Token exchange failed with status %d: %s\n", tokenResp.StatusCode, string(bodyBytes))
-		http.Redirect(w, r, "/login?error=OAuth認証に失敗しました", http.StatusTemporaryRedirect)
+		redirectURL := fmt.Sprintf("%s/login?error=%s", s.config.FrontendURL, url.QueryEscape("OAuth認証に失敗しました"))
+		http.Redirect(w, r, redirectURL, http.StatusTemporaryRedirect)
 		return
 	}
 
@@ -611,7 +616,8 @@ func (s *Server) HandleOAuthCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := json.NewDecoder(tokenResp.Body).Decode(&tokenData); err != nil {
 		fmt.Printf("[ERROR] OAuth callback: Failed to decode token response: %v\n", err)
-		http.Redirect(w, r, "/login?error=OAuth認証に失敗しました", http.StatusTemporaryRedirect)
+		redirectURL := fmt.Sprintf("%s/login?error=%s", s.config.FrontendURL, url.QueryEscape("OAuth認証に失敗しました"))
+		http.Redirect(w, r, redirectURL, http.StatusTemporaryRedirect)
 		return
 	}
 
@@ -675,9 +681,13 @@ func (s *Server) HandleOAuthCallback(w http.ResponseWriter, r *http.Request) {
 
 	// プロフィールがあればダッシュボード、なければ登録フローへ
 	if profilePtr != nil {
-		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
+		redirectURL := fmt.Sprintf("%s/", s.config.FrontendURL)
+		fmt.Printf("[INFO] OAuth callback: Success, redirecting to %s\n", redirectURL)
+		http.Redirect(w, r, redirectURL, http.StatusTemporaryRedirect)
 	} else {
-		http.Redirect(w, r, "/register", http.StatusTemporaryRedirect)
+		redirectURL := fmt.Sprintf("%s/register", s.config.FrontendURL)
+		fmt.Printf("[INFO] OAuth callback: Success (no profile), redirecting to %s\n", redirectURL)
+		http.Redirect(w, r, redirectURL, http.StatusTemporaryRedirect)
 	}
 }
 

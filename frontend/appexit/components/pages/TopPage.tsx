@@ -10,9 +10,8 @@ interface Post {
   id: string;
   title: string;
   body: string | null;
-  cover_image_url: string | null;
+  eyecatch_url: string | null;
   price: number | null;
-  budget_max: number | null;
   updated_at: string;
   created_at: string;
 }
@@ -70,10 +69,10 @@ export default function TopPage({ initialPosts = [] }: TopPageProps) {
           title: post.title,
           category: post.body || 'プロジェクト',
           image: 'https://placehold.co/600x400/e2e8f0/64748b?text=No+Image',
-          imagePath: post.cover_image_url,
+          imagePath: post.eyecatch_url,
           supporters: 0,
           daysLeft: Math.max(30 - Math.floor((Date.now() - new Date(post.created_at).getTime()) / (1000 * 60 * 60 * 24)), 1),
-          amountRaised: post.price || post.budget_max || 0,
+          amountRaised: post.price || 0,
           tag: undefined,
           badge: undefined,
         }));
@@ -85,7 +84,7 @@ export default function TopPage({ initialPosts = [] }: TopPageProps) {
         }
 
         // 画像パスを収集
-        const imagePaths = data.map(post => post.cover_image_url).filter((path): path is string => !!path);
+        const imagePaths = data.map(post => post.eyecatch_url).filter((path): path is string => !!path);
         console.log('[TOP-PAGE] Total posts:', data.length);
         console.log('[TOP-PAGE] Image paths:', imagePaths);
         console.log('[TOP-PAGE] Number of valid image paths:', imagePaths.length);
@@ -127,8 +126,8 @@ export default function TopPage({ initialPosts = [] }: TopPageProps) {
         // 画像URLが取得できた場合は、プロジェクトデータを更新
         if (imageUrlMap.size > 0) {
           const projectsWithImages: ProjectWithImage[] = data.map(post => {
-            const imageUrl = post.cover_image_url 
-              ? (imageUrlMap.get(post.cover_image_url) || 'https://placehold.co/600x400/e2e8f0/64748b?text=No+Image')
+            const imageUrl = post.eyecatch_url
+              ? (imageUrlMap.get(post.eyecatch_url) || 'https://placehold.co/600x400/e2e8f0/64748b?text=No+Image')
               : 'https://placehold.co/600x400/e2e8f0/64748b?text=No+Image';
 
             return {
@@ -136,10 +135,10 @@ export default function TopPage({ initialPosts = [] }: TopPageProps) {
               title: post.title,
               category: post.body || 'プロジェクト',
               image: imageUrl,
-              imagePath: post.cover_image_url,
+              imagePath: post.eyecatch_url,
               supporters: 0,
               daysLeft: Math.max(30 - Math.floor((Date.now() - new Date(post.created_at).getTime()) / (1000 * 60 * 60 * 24)), 1),
-              amountRaised: post.price || post.budget_max || 0,
+              amountRaised: post.price || 0,
               tag: undefined,
               badge: undefined,
             };
@@ -280,12 +279,6 @@ export default function TopPage({ initialPosts = [] }: TopPageProps) {
         </div>
       </section>
 
-      {/* Side Banner */}
-      <div className="hidden lg:block fixed right-0 top-1/2 transform -translate-y-1/2 z-50">
-        <div className="bg-red-600 text-white writing-mode-vertical-rl px-3 py-6 text-sm font-medium rounded-l-lg">
-          クラウドファンディングで最初の一歩を踏み出そう
-        </div>
-      </div>
     </div>
   );
 }
