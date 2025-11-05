@@ -2,8 +2,9 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { supabase } from '@/lib/supabase'
 
-type Step = 'input' | 'confirm' | 'complete'
+type Step = 'input' | 'confirm' | 'complete' | 'error'
 
 export default function ContactPage() {
   const [step, setStep] = useState<Step>('input')
@@ -17,6 +18,7 @@ export default function ContactPage() {
   })
 
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [errorMessage, setErrorMessage] = useState('')
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target
@@ -36,17 +38,43 @@ export default function ContactPage() {
 
   const handleSubmit = async () => {
     setIsSubmitting(true)
+    setErrorMessage('')
     
-    // TODO: 実際のAPI呼び出しに置き換える
-    // const { data, error } = await supabase
-    //   .from('contacts')
-    //   .insert([formData])
-    
-    setTimeout(() => {
+    try {
+      // 現在のユーザー情報を取得
+      const { data: { user } } = await supabase.auth.getUser()
+      
+      // Supabaseにデータを送信
+      const { data, error } = await supabase
+        .from('contacts')
+        .insert([{
+          user_id: user?.id || null,
+          name: formData.name,
+          email: formData.email,
+          category: formData.category,
+          subject: formData.subject,
+          message: formData.message,
+          target_url: formData.targetUrl || null,
+          status: 'pending'
+        }])
+        .select()
+      
+      if (error) {
+        console.error('お問い合わせの送信エラー:', error)
+        setErrorMessage(error.message || 'お問い合わせの送信に失敗しました')
+        setStep('error')
+      } else {
+        console.log('お問い合わせが送信されました:', data)
+        setStep('complete')
+      }
+    } catch (err) {
+      console.error('予期しないエラー:', err)
+      setErrorMessage('予期しないエラーが発生しました')
+      setStep('error')
+    } finally {
       setIsSubmitting(false)
-      setStep('complete')
       window.scrollTo(0, 0)
-    }, 1000)
+    }
   }
 
   const getCategoryLabel = (value: string) => {
@@ -63,6 +91,59 @@ export default function ContactPage() {
       'その他': 'その他'
     }
     return categories[value] || value
+  }
+
+  // エラー画面
+  if (step === 'error') {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="max-w-4xl mx-auto px-4 py-8">
+          <div className="bg-white rounded-lg shadow-sm p-8">
+            <div className="text-center py-12">
+              <div className="mb-6">
+                <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto">
+                  <svg className="w-10 h-10 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </div>
+              </div>
+              
+              <h1 className="text-3xl font-bold text-gray-900 mb-4">送信に失敗しました</h1>
+              
+              <div className="max-w-2xl mx-auto space-y-4 text-gray-700">
+                <p className="text-red-600">
+                  {errorMessage}
+                </p>
+                <p>
+                  お手数ですが、時間をおいて再度お試しいただくか、<br />
+                  以下のメールアドレスまで直接お問い合わせください。
+                </p>
+                <p className="font-medium">
+                  <a href="mailto:support@appexit.co.jp" className="text-blue-600 hover:text-blue-800 underline">
+                    support@appexit.co.jp
+                  </a>
+                </p>
+              </div>
+
+              <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
+                <button
+                  onClick={() => setStep('confirm')}
+                  className="inline-block px-8 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors font-medium"
+                >
+                  確認画面に戻る
+                </button>
+                <Link
+                  href="/"
+                  className="inline-block px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                >
+                  トップページへ
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   // 完了画面
