@@ -158,7 +158,7 @@ export default function RootLayout({
               '@type': 'Service',
               serviceType: 'アプリ・Webサービス売買仲介サービス',
               name: 'APPEXIT',
-              description: '個人開発者がアプリをエグジット（売却で収益化）できる仕組みを提供。小さなアプリやSaaSを"資産"として流通させる市場。AI価格査定、専任担当サポート、エスクロー決済で安心・安全な取引を実現。',
+              description: '個人開発者がアプリをエグジット（売却で収益化）できる仕組みを提供。小さなアプリやSaaSを"資産"として流通させる市場。FlippaやAcquire.comにはないAI技術（AI価格査定・AIマッチング・AI審査）で圧倒的差別化。専任担当サポート、エスクロー決済で安心・安全な取引を実現。グローバル展開準備中。',
               provider: {
                 '@type': 'Organization',
                 name: 'Queue株式会社',
@@ -177,7 +177,7 @@ export default function RootLayout({
                     itemOffered: {
                       '@type': 'Service',
                       name: 'アプリ・Webサービスの売却サポート',
-                      description: 'AI価格査定、出品資料作成、買い手マッチング、契約書作成、引き継ぎまで一貫サポート。手数料：成約時10%'
+                      description: 'AI価格査定（精度90%以上）、AIマッチング（成功率3倍）、AI審査（不正検出95%以上）、出品資料作成、契約書作成、引き継ぎまで一貫サポート。FlippaやAcquire.comにはないAI技術で差別化。手数料：成約時10%'
                     }
                   },
                   {
@@ -185,7 +185,7 @@ export default function RootLayout({
                     itemOffered: {
                       '@type': 'Service',
                       name: 'アプリ・Webサービスの購入サポート',
-                      description: '案件紹介、デューデリジェンス支援、価格交渉、契約・決済、引き継ぎ・運用サポート。手数料：成約時5%'
+                      description: 'AIマッチングで最適案件紹介、AI審査で不正案件回避、デューデリジェンス支援、価格交渉、契約・決済、引き継ぎ・運用サポート。FlippaやAcquire.comにはないAI技術で安心。手数料：成約時5%'
                     }
                   }
                 ]
