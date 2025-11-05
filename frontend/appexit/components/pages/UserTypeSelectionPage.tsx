@@ -3,8 +3,6 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Button from '@/components/ui/Button'
-import { supabase } from '@/lib/supabase'
-import { getCookie } from '@/utils/auth'
 
 export default function UserTypeSelectionPage() {
   const [role, setRole] = useState<'buyer' | 'seller' | null>(null)
@@ -37,16 +35,7 @@ export default function UserTypeSelectionPage() {
       console.log('[PROFILE] Creating profile...')
       const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
 
-      // Supabaseセッションからトークンを取得
-      const { data: { session } } = await supabase.auth.getSession()
-      const token = session?.access_token
-
-      if (!token) {
-        setError('認証情報が見つかりません。再度ログインしてください。')
-        setIsPending(false)
-        return
-      }
-
+      // Cookie認証（トークンは不要、バックエンドがCookieを確認）
       const profileData: any = {
         role,
         party,
@@ -64,9 +53,8 @@ export default function UserTypeSelectionPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
         },
-        credentials: 'include',
+        credentials: 'include', // Cookie認証
         body: JSON.stringify(profileData),
       })
 
@@ -77,18 +65,6 @@ export default function UserTypeSelectionPage() {
         setError(result.error || 'プロフィール作成に失敗しました')
         setIsPending(false)
         return
-      }
-
-      // user_info Cookieを更新
-      const userInfoCookie = getCookie('user_info')
-      if (userInfoCookie) {
-        try {
-          const userInfo = JSON.parse(decodeURIComponent(userInfoCookie))
-          userInfo.profile = result.data
-          document.cookie = `user_info=${encodeURIComponent(JSON.stringify(userInfo))}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`
-        } catch (e) {
-          console.error('Failed to update user_info cookie:', e)
-        }
       }
 
       // ホームページにリダイレクト

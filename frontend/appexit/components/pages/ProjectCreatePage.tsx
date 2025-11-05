@@ -14,6 +14,7 @@ interface FormData {
   eyecatchPath: string; // URLではなくStorage内のパスを保存
   price: string;
   priceUnit: string;
+  secretVisibility: 'full' | 'price_only' | 'hidden';
 
   // Transaction required fields
   appCategories: string[];
@@ -62,6 +63,7 @@ export default function ProjectCreatePage() {
     eyecatchPath: '',
     price: '',
     priceUnit: '1',
+    secretVisibility: 'full',
     appCategories: [],
     monthlyRevenue: '',
     monthlyRevenueUnit: '1',
@@ -214,21 +216,27 @@ export default function ProjectCreatePage() {
         type: formData.type,
         title: formData.title,
         body: formData.body || null,
-        eyecatch_url: eyecatchPath, // Storage内のパスを保存
         price: formData.price ? parseInt(formData.price) * parseInt(formData.priceUnit) : null,
       };
 
-      // Add required fields for transaction posts
+      // Add secret_visibility for non-transaction posts
+      if (formData.type !== 'transaction') {
+        payload.secret_visibility = formData.secretVisibility;
+      }
+
+      // Add all image and data fields for transaction posts
       if (formData.type === 'transaction') {
+        // Required fields for transaction
+        payload.eyecatch_url = eyecatchPath;
+        payload.dashboard_url = dashboardPath;
+        payload.user_ui_url = userUiPath;
+        payload.performance_url = performancePath;
         payload.app_categories = formData.appCategories.length > 0 ? formData.appCategories : null;
         payload.monthly_revenue = formData.monthlyRevenue ? parseInt(formData.monthlyRevenue) * parseInt(formData.monthlyRevenueUnit) : null;
         payload.monthly_cost = formData.monthlyCost ? parseInt(formData.monthlyCost) * parseInt(formData.monthlyCostUnit) : null;
         payload.appeal_text = formData.appealText || null;
-        payload.dashboard_url = dashboardPath || null;
-        payload.user_ui_url = userUiPath || null;
-        payload.performance_url = performancePath || null;
 
-        // Optional fields
+        // Optional fields for transaction
         if (formData.serviceUrls) {
           payload.service_urls = formData.serviceUrls.split(',').map(s => s.trim()).filter(s => s);
         }
@@ -270,6 +278,11 @@ export default function ProjectCreatePage() {
         }
         if (extraImagePaths.length > 0) {
           payload.extra_image_urls = extraImagePaths;
+        }
+      } else {
+        // For non-transaction posts, only send eyecatch_url if available
+        if (eyecatchPath) {
+          payload.eyecatch_url = eyecatchPath;
         }
       }
 
@@ -1286,7 +1299,7 @@ export default function ProjectCreatePage() {
                   !formData.price ||
                   isSubmitting
                 }
-                className="px-6 py-3 text-white rounded-lg font-semibold transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+                className="px-10 py-3 text-white rounded-lg font-semibold transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-between gap-4"
                 style={{
                   backgroundColor: (
                     !formData.title ||
@@ -1300,20 +1313,35 @@ export default function ProjectCreatePage() {
                     !formData.monthlyCost ||
                     !formData.price ||
                     isSubmitting
-                  ) ? undefined : colors.primary
+                  ) ? undefined : '#E65D65'
                 }}
                 onMouseEnter={(e) => {
                   if (!e.currentTarget.disabled) {
-                    e.currentTarget.style.backgroundColor = colors.primaryHover;
+                    e.currentTarget.style.backgroundColor = '#D14C54';
                   }
                 }}
                 onMouseLeave={(e) => {
                   if (!e.currentTarget.disabled) {
-                    e.currentTarget.style.backgroundColor = colors.primary;
+                    e.currentTarget.style.backgroundColor = '#E65D65';
                   }
                 }}
               >
-                {uploadingImage ? '画像をアップロード中...' : isSubmitting ? '投稿中...' : 'プロダクトを投稿'}
+                {uploadingImage ? '画像をアップロード中...' : isSubmitting ? (
+                  <>
+                    <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    投稿中...
+                  </>
+                ) : (
+                  <>
+                    プロダクトを投稿
+                    <svg className="w-5 h-5 rotate-45" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                    </svg>
+                  </>
+                )}
               </button>
               </div>
             </div>

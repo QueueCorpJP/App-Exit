@@ -18,7 +18,6 @@ import {
   registerStep4,
   registerStep5,
 } from '@/lib/auth-api';
-import { supabase } from '@/lib/supabase';
 import { UserRound, Building, Camera, X } from 'lucide-react';
 import RoleSelector from '@/components/register/RoleSelector';
 import { uploadAvatarImage } from '@/lib/storage';
@@ -263,14 +262,34 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
     privacy: false,
   });
 
-  // OAuthで戻ってきて既にSupabaseセッションがある場合はステップ2へ進める
+  // OAuthで戻ってきてバックエンドCookieがある場合はステップ2へ進める
   useEffect(() => {
     const checkSessionAndAdvance = async () => {
       if (step !== 1) return;
-      const { data } = await supabase.auth.getSession();
-      if (data.session?.access_token) {
-        setAccessToken(data.session.access_token);
-        setStep(2);
+
+      // バックエンドのセッションをチェック
+      const apiUrl = typeof window !== 'undefined'
+        ? (process.env.NEXT_PUBLIC_API_URL || `${window.location.protocol}//${window.location.hostname}:8080`)
+        : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080');
+
+      try {
+        const response = await fetch(`${apiUrl}/api/auth/session`, {
+          method: 'GET',
+          credentials: 'include',
+          cache: 'no-store',
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          // セッションがあり、かつプロフィールが未作成の場合はステップ2へ
+          if (result.data && !result.data.profile) {
+            // OAuthの場合、トークンは不要（Cookie認証）
+            setSelectedMethod('google'); // または適切なメソッドを設定
+            setStep(2);
+          }
+        }
+      } catch (error) {
+        console.error('Session check error:', error);
       }
     };
     checkSessionAndAdvance();
@@ -280,12 +299,10 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
     if (accessToken) {
       return accessToken;
     }
-    const { data, error: sessionError } = await supabase.auth.getSession();
-    if (sessionError || !data.session?.access_token) {
-      throw new Error('認証情報が見つかりません。再度ログインしてください。');
-    }
-    setAccessToken(data.session.access_token);
-    return data.session.access_token;
+    // Cookie認証の場合、トークンは不要
+    // バックエンドがCookieを確認する
+    // ダミートークンを返す（実際はCookieが使われる）
+    return 'cookie-auth';
   };
 
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -317,10 +334,23 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
     setIsUploadingAvatar(true);
     setError(undefined);
     try {
-      // ユーザーIDを取得（認証済みの場合）
-      const { data: sessionData } = await supabase.auth.getSession();
-      const userId = sessionData?.session?.user?.id;
-      
+      // ユーザーIDを取得（バックエンドセッションから）
+      const apiUrl = typeof window !== 'undefined'
+        ? (process.env.NEXT_PUBLIC_API_URL || `${window.location.protocol}//${window.location.hostname}:8080`)
+        : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080');
+
+      const response = await fetch(`${apiUrl}/api/auth/session`, {
+        method: 'GET',
+        credentials: 'include',
+        cache: 'no-store',
+      });
+
+      let userId: string | undefined;
+      if (response.ok) {
+        const result = await response.json();
+        userId = result.data?.id;
+      }
+
       console.log('Uploading avatar, userId:', userId);
       const publicUrl = await uploadAvatarImage(file, userId);
       setBasicForm((prev) => ({ ...prev, iconUrl: publicUrl }));

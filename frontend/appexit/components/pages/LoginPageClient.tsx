@@ -47,7 +47,10 @@ export default function LoginPageClient({ error: serverError }: LoginPageClientP
       // バックエンドAPIでログイン（バックエンドがHTTPOnly Cookieを設定）
       await loginWithBackend({ email, password });
 
-      // バックエンドがCookieを設定済みなので、そのままリダイレクト
+      console.log('[LOGIN] Backend login successful, cookie set');
+
+      // バックエンドがauth_token Cookieを設定済み
+      // ページをリロードして認証コンテキストがCookieを読み取る
       window.location.href = '/';
     } catch (err) {
       console.error('Login error:', err);
