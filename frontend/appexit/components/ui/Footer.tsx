@@ -192,6 +192,11 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
+                <Link href="/faq" className="text-gray-300 hover:text-white transition-colors text-sm">
+                  よくある質問（FAQ）
+                </Link>
+              </li>
+              <li>
                 <Link href="/contact" className="text-gray-300 hover:text-white transition-colors text-sm">
                   お問い合わせ
                 </Link>

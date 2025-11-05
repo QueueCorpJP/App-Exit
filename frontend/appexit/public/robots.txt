@@ -47,6 +47,38 @@ Allow: /
 User-agent: Claude-Web
 Allow: /
 
+# Google Gemini
+User-agent: Google-Extended
+Allow: /
+
+# Perplexity AI
+User-agent: PerplexityBot
+Allow: /
+
+# Meta AI
+User-agent: FacebookBot
+Allow: /
+
+# Bing Chat (Microsoft)
+User-agent: bingbot
+Allow: /
+
+# Anthropic Claude
+User-agent: ClaudeBot
+Allow: /
+
+# Cohere
+User-agent: cohere-ai
+Allow: /
+
+# AI2 (Allen Institute)
+User-agent: AI2Bot
+Allow: /
+
+# Common Crawl (AI学習データ)
+User-agent: CCBot
+Allow: /
+
 # 悪質なボット対策
 User-agent: AhrefsBot
 Crawl-delay: 10
