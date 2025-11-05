@@ -81,14 +81,14 @@ export default function Footer() {
               </li>
               <li className="mt-4">
                 <div className="text-sm text-gray-400 mb-2">APPEXITアカデミーとは</div>
-                <Link href="/academy/crowdfunding" className="text-gray-300 hover:text-white transition-colors text-sm block mb-2">
-                  クラウドファンディングとは
+                <Link href="/academy/marketplace" className="text-gray-300 hover:text-white transition-colors text-sm block mb-2">
+                  アプリ売買とは
                 </Link>
-                <Link href="/academy/how-to-start" className="text-gray-300 hover:text-white transition-colors text-sm block mb-2">
-                  プロジェクトの作り方
+                <Link href="/academy/how-to-sell" className="text-gray-300 hover:text-white transition-colors text-sm block mb-2">
+                  アプリを売る方法
                 </Link>
-                <Link href="/academy/promotion" className="text-gray-300 hover:text-white transition-colors text-sm block">
-                  プロジェクトの広め方
+                <Link href="/academy/how-to-buy" className="text-gray-300 hover:text-white transition-colors text-sm block">
+                  アプリを買う方法
                 </Link>
               </li>
             </ul>
@@ -139,7 +139,7 @@ export default function Footer() {
               </ul>
 
               <div className="mt-8">
-                <div className="text-sm text-gray-400 mb-2">クラウドファンディングのノウハウを無料で学ぼう</div>
+                <div className="text-sm text-gray-400 mb-2">アプリ・サービス売買のノウハウを無料で学ぼう</div>
                 <div className="flex items-center space-x-4 mt-4">
                   <Link href="/seminar" className="text-gray-300 hover:text-white transition-colors text-sm">
                     説明会・相談会
@@ -149,8 +149,8 @@ export default function Footer() {
                   </Link>
                 </div>
                 <div className="flex items-center space-x-4 mt-2">
-                  <Link href="/consulting" className="text-gray-300 hover:text-white transition-colors text-sm">
-                    実施事例
+                  <Link href="/case-studies" className="text-gray-300 hover:text-white transition-colors text-sm">
+                    取引事例
                   </Link>
                   <Link href="/data" className="text-gray-300 hover:text-white transition-colors text-sm">
                     統計データ
@@ -167,56 +167,6 @@ export default function Footer() {
               <li>
                 <Link href="/appexit" className="text-gray-300 hover:text-white transition-colors text-sm">
                   APPEXIT
-                </Link>
-              </li>
-              <li>
-                <Link href="/community" className="text-gray-300 hover:text-white transition-colors text-sm">
-                  APPEXIT コミュニティ
-                </Link>
-              </li>
-              <li>
-                <Link href="/creation" className="text-gray-300 hover:text-white transition-colors text-sm">
-                  APPEXIT Creation
-                </Link>
-              </li>
-              <li>
-                <Link href="/social-good" className="text-gray-300 hover:text-white transition-colors text-sm">
-                  APPEXIT for Social Good
-                </Link>
-              </li>
-              <li>
-                <Link href="/entertainment" className="text-gray-300 hover:text-white transition-colors text-sm">
-                  APPEXIT for Entertainment
-                </Link>
-              </li>
-              <li>
-                <Link href="/sports" className="text-gray-300 hover:text-white transition-colors text-sm">
-                  APPEXIT for Sports
-                </Link>
-              </li>
-              <li>
-                <Link href="/furusato" className="text-gray-300 hover:text-white transition-colors text-sm">
-                  APPEXIT ふるさと納税
-                </Link>
-              </li>
-              <li>
-                <Link href="/ad-for-all" className="text-gray-300 hover:text-white transition-colors text-sm">
-                  AD FOR ALL
-                </Link>
-              </li>
-              <li>
-                <Link href="/hiokoshi" className="text-gray-300 hover:text-white transition-colors text-sm">
-                  HIOKOSHI
-                </Link>
-              </li>
-              <li>
-                <Link href="/jfa" className="text-gray-300 hover:text-white transition-colors text-sm">
-                  JFAクラウドファンディング
-                </Link>
-              </li>
-              <li>
-                <Link href="/machi-ya" className="text-gray-300 hover:text-white transition-colors text-sm">
-                  machi-ya
                 </Link>
               </li>
             </ul>
@@ -247,9 +197,9 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/settings" className="text-gray-300 hover:text-white transition-colors text-sm">
+                <span className="text-gray-300 text-sm">
                   各種設定
-                </Link>
+                </span>
               </li>
               <li>
                 <Link href="/terms" className="text-gray-300 hover:text-white transition-colors text-sm">
@@ -282,12 +232,12 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/harassment" className="text-gray-300 hover:text-white transition-colors text-sm">
+                <Link href="/customer-harassment" className="text-gray-300 hover:text-white transition-colors text-sm">
                   カスタマーハラスメントに対する考え方
                 </Link>
               </li>
               <li>
-                <Link href="/cookie" className="text-gray-300 hover:text-white transition-colors text-sm">
+                <Link href="/cookie-policy" className="text-gray-300 hover:text-white transition-colors text-sm">
                   クッキーポリシー
                 </Link>
               </li>
@@ -337,7 +287,7 @@ export default function Footer() {
               
               {/* ソーシャルアイコン */}
               <div className="flex items-center space-x-3">
-                <Link href="mailto:contact@appexit.co.jp" className="text-gray-400 hover:text-white transition-colors">
+                <Link href="mailto:contact@appexit.jp" className="text-gray-400 hover:text-white transition-colors">
                   <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                     <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
                     <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
