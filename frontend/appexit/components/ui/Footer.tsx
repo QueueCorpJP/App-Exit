@@ -169,56 +169,6 @@ export default function Footer() {
                   APPEXIT
                 </Link>
               </li>
-              <li>
-                <Link href="/community" className="text-gray-300 hover:text-white transition-colors text-sm">
-                  APPEXIT コミュニティ
-                </Link>
-              </li>
-              <li>
-                <Link href="/creation" className="text-gray-300 hover:text-white transition-colors text-sm">
-                  APPEXIT Creation
-                </Link>
-              </li>
-              <li>
-                <Link href="/social-good" className="text-gray-300 hover:text-white transition-colors text-sm">
-                  APPEXIT for Social Good
-                </Link>
-              </li>
-              <li>
-                <Link href="/entertainment" className="text-gray-300 hover:text-white transition-colors text-sm">
-                  APPEXIT for Entertainment
-                </Link>
-              </li>
-              <li>
-                <Link href="/sports" className="text-gray-300 hover:text-white transition-colors text-sm">
-                  APPEXIT for Sports
-                </Link>
-              </li>
-              <li>
-                <Link href="/furusato" className="text-gray-300 hover:text-white transition-colors text-sm">
-                  APPEXIT ふるさと納税
-                </Link>
-              </li>
-              <li>
-                <Link href="/ad-for-all" className="text-gray-300 hover:text-white transition-colors text-sm">
-                  AD FOR ALL
-                </Link>
-              </li>
-              <li>
-                <Link href="/hiokoshi" className="text-gray-300 hover:text-white transition-colors text-sm">
-                  HIOKOSHI
-                </Link>
-              </li>
-              <li>
-                <Link href="/marketplace" className="text-gray-300 hover:text-white transition-colors text-sm">
-                  APPEXITマーケットプレイス
-                </Link>
-              </li>
-              <li>
-                <Link href="/machi-ya" className="text-gray-300 hover:text-white transition-colors text-sm">
-                  machi-ya
-                </Link>
-              </li>
             </ul>
           </div>
 
