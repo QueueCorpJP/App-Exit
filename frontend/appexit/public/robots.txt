@@ -1,0 +1,56 @@
+# APPEXIT - App & Web Service Marketplace
+# https://appexit.jp
+
+User-agent: *
+Allow: /
+
+# 検索エンジンにインデックスさせないページ
+Disallow: /api/
+Disallow: /_next/
+Disallow: /report
+Disallow: /admin/
+Disallow: /dashboard/
+Disallow: /settings/
+
+# クロール頻度
+Crawl-delay: 1
+
+# サイトマップ
+Sitemap: https://appexit.jp/sitemap.xml
+
+# Google, Bing, Yahoo等の主要検索エンジン向け
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: Slurp
+Allow: /
+
+# ChatGPT, Claude等のLLMクローラー向け（LLMO対策）
+User-agent: GPTBot
+Allow: /
+Allow: /terms
+Allow: /privacy
+Allow: /about
+Allow: /help
+Allow: /seminar
+Allow: /support-service
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+User-agent: Claude-Web
+Allow: /
+
+# 悪質なボット対策
+User-agent: AhrefsBot
+Crawl-delay: 10
+
+User-agent: SemrushBot
+Crawl-delay: 10
+

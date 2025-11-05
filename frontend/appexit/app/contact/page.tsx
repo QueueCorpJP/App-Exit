@@ -119,8 +119,8 @@ export default function ContactPage() {
                   以下のメールアドレスまで直接お問い合わせください。
                 </p>
                 <p className="font-medium">
-                  <a href="mailto:support@appexit.co.jp" className="text-blue-600 hover:text-blue-800 underline">
-                    support@appexit.co.jp
+                  <a href="mailto:support@appexit.jp" className="text-blue-600 hover:text-blue-800 underline">
+                    support@appexit.jp
                   </a>
                 </p>
               </div>
@@ -406,7 +406,7 @@ export default function ContactPage() {
                 value={formData.targetUrl}
                 onChange={handleChange}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="https://appexit.co.jp/apps/..."
+                placeholder="https://appexit.jp/apps/..."
               />
               <p className="text-xs text-gray-500 mt-1">
                 特定のアプリ・サービスに関するお問い合わせの場合は、URLをご記入ください
@@ -465,8 +465,8 @@ export default function ContactPage() {
             <div className="space-y-2 text-sm text-gray-700">
               <p>
                 <span className="font-medium">メールアドレス：</span>
-                <a href="mailto:support@appexit.co.jp" className="text-blue-600 hover:text-blue-800 underline">
-                  support@appexit.co.jp
+                <a href="mailto:support@appexit.jp" className="text-blue-600 hover:text-blue-800 underline">
+                  support@appexit.jp
                 </a>
               </p>
               <p>

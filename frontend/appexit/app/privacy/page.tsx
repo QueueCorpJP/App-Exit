@@ -95,7 +95,7 @@ export default function PrivacyPolicyPage() {
             <div className="bg-gray-50 p-6 rounded-lg">
               <p className="text-gray-700 font-semibold">Queue株式会社</p>
               <p className="text-gray-700">個人情報保護管理責任者</p>
-              <p className="text-gray-700">メールアドレス：privacy@appexit.co.jp</p>
+              <p className="text-gray-700">メールアドレス：privacy@appexit.jp</p>
               <p className="text-gray-700">住所：〒104-0061 東京都中央区銀座８丁目17-5THE HUB 銀座 OCT</p>
             </div>
 

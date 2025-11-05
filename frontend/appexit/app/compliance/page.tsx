@@ -267,7 +267,7 @@ export default function CompliancePolicyPage() {
                     <p className="text-gray-700">
                       Queue株式会社 コンプライアンス部
                       <br />
-                      メールアドレス：compliance@appexit.co.jp
+                      メールアドレス：compliance@appexit.jp
                       <br />
                       電話番号：03-5324-2678（平日 10:00～18:00）
                     </p>

@@ -365,7 +365,7 @@ export default function SecurityPolicyPage() {
                 <div className="bg-gray-50 p-4 rounded">
                   <p className="text-gray-700 font-semibold">Queue株式会社</p>
                   <p className="text-gray-700">情報セキュリティ管理責任者</p>
-                  <p className="text-gray-700">メールアドレス：security@appexit.co.jp</p>
+                  <p className="text-gray-700">メールアドレス：security@appexit.jp</p>
                   <p className="text-gray-700">住所：〒104-0061 東京都中央区銀座８丁目17-5 THE HUB 銀座 OCT</p>
                 </div>
               </div>

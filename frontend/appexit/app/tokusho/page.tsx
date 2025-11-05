@@ -35,7 +35,7 @@ export default function TokushoPage() {
                     <span className="font-medium">電話番号：</span>03-5324-2678
                   </p>
                   <p className="text-gray-700">
-                    <span className="font-medium">メールアドレス：</span>support@appexit.co.jp
+                    <span className="font-medium">メールアドレス：</span>support@appexit.jp
                   </p>
                   <p className="text-gray-700">
                     <span className="font-medium">営業時間：</span>平日 10:00～18:00（土日祝日除く）
@@ -180,7 +180,7 @@ export default function TokushoPage() {
                     <p className="text-gray-700">
                       Queue株式会社 カスタマーサポート
                       <br />
-                      メールアドレス：support@appexit.co.jp
+                      メールアドレス：support@appexit.jp
                       <br />
                       電話番号：03-6455-7890
                       <br />

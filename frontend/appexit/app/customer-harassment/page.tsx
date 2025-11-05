@@ -243,7 +243,7 @@ export default function CustomerHarassmentPolicyPage() {
                     <p className="text-gray-700">
                       Queue株式会社 カスタマーサポート
                       <br />
-                      メールアドレス：support@appexit.co.jp
+                      メールアドレス：support@appexit.jp
                       <br />
                       電話番号：03-5324-2678
                       <br />
@@ -255,7 +255,7 @@ export default function CustomerHarassmentPolicyPage() {
                     <p className="text-gray-700">
                       人事部 ハラスメント相談窓口
                       <br />
-                      メールアドレス：harassment@appexit.co.jp
+                      メールアドレス：harassment@appexit.jp
                       <br />
                       ※従業員専用の窓口です
                     </p>

@@ -400,7 +400,7 @@ export default function ReportPage() {
                 onChange={handleChange}
                 required
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
-                placeholder="https://appexit.co.jp/..."
+                placeholder="https://appexit.jp/..."
               />
               <p className="text-xs text-gray-500 mt-1">
                 報告対象のページURLをコピーして貼り付けてください
