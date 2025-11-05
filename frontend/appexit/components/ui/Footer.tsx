@@ -197,9 +197,9 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/settings" className="text-gray-300 hover:text-white transition-colors text-sm">
+                <span className="text-gray-300 text-sm">
                   各種設定
-                </Link>
+                </span>
               </li>
               <li>
                 <Link href="/terms" className="text-gray-300 hover:text-white transition-colors text-sm">
