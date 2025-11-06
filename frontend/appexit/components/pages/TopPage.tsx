@@ -216,15 +216,46 @@ export default function TopPage({ initialPosts = [], useMockCarousel = true }: T
         <InfiniteCarousel items={carouselItems} />
       )}
 
+      {/* Project List Section */}
+      <section className="py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <p className="text-xl font-black mb-0.5 text-center" style={{ color: '#323232' }}>
+            <span style={{ color: '#b91c1c' }}>R</span>ecomend
+          </p>
+          <h2 className="text-2xl font-black mb-8 text-center" style={{ color: '#323232' }}>おすすめプロダクト</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {projects.map((project) => (
+              <ProjectCard
+                key={project.id}
+                id={project.id}
+                title={project.title}
+                category={project.category}
+                image={project.image}
+                imagePath={project.imagePath}
+                supporters={project.supporters}
+                daysLeft={project.daysLeft}
+                amountRaised={project.amountRaised}
+                tag={project.tag}
+                badge={project.badge}
+              />
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Featured Project Section */}
       {featuredProject && (
         <section className="bg-white py-12">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <p className="text-xl font-black mb-0.5 text-center" style={{ color: '#323232' }}>
+              <span style={{ color: '#b91c1c' }}>T</span>rending
+            </p>
+            <h2 className="text-2xl font-black mb-8 text-center" style={{ color: '#323232' }}>急上昇中</h2>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               {/* Main Featured Project */}
               <Link
                 href={`/projects/${featuredProject.id}`}
-                className="relative h-96 rounded-lg overflow-hidden block group cursor-pointer"
+                className="relative h-96 rounded-sm overflow-hidden block group cursor-pointer"
               >
                 <Image
                   src={featuredProject.image}
@@ -261,7 +292,7 @@ export default function TopPage({ initialPosts = [], useMockCarousel = true }: T
                     <Link
                       key={project.id}
                       href={`/projects/${project.id}`}
-                      className="relative h-44 rounded-lg overflow-hidden block group cursor-pointer"
+                      className="relative h-44 rounded-sm overflow-hidden block group cursor-pointer"
                     >
                       <Image
                         src={project.image}
@@ -291,29 +322,6 @@ export default function TopPage({ initialPosts = [], useMockCarousel = true }: T
           </div>
         </section>
       )}
-
-      {/* Project List Section */}
-      <section className="py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {projects.map((project) => (
-              <ProjectCard
-                key={project.id}
-                id={project.id}
-                title={project.title}
-                category={project.category}
-                image={project.image}
-                imagePath={project.imagePath}
-                supporters={project.supporters}
-                daysLeft={project.daysLeft}
-                amountRaised={project.amountRaised}
-                tag={project.tag}
-                badge={project.badge}
-              />
-            ))}
-          </div>
-        </div>
-      </section>
 
     </div>
   );
