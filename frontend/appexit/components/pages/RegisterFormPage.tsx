@@ -97,8 +97,7 @@ export default function RegisterFormPage() {
               name="displayName"
               value={formData.displayName}
               onChange={handleChange}
-              className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-opacity-50"
-              style={{ focusRingColor: '#E65D65' }}
+              className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#E65D65] focus:ring-opacity-50"
               placeholder="山田太郎"
               required
             />
@@ -114,8 +113,7 @@ export default function RegisterFormPage() {
               name="email"
               value={formData.email}
               onChange={handleChange}
-              className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-opacity-50"
-              style={{ focusRingColor: '#E65D65' }}
+              className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#E65D65] focus:ring-opacity-50"
               placeholder="example@example.com"
               required
             />
@@ -131,8 +129,7 @@ export default function RegisterFormPage() {
               name="password"
               value={formData.password}
               onChange={handleChange}
-              className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-opacity-50"
-              style={{ focusRingColor: '#E65D65' }}
+              className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#E65D65] focus:ring-opacity-50"
               placeholder="8文字以上"
               required
             />
@@ -148,8 +145,7 @@ export default function RegisterFormPage() {
               name="confirmPassword"
               value={formData.confirmPassword}
               onChange={handleChange}
-              className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-opacity-50"
-              style={{ focusRingColor: '#E65D65' }}
+              className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#E65D65] focus:ring-opacity-50"
               placeholder="もう一度入力してください"
               required
             />

@@ -27,9 +27,9 @@ export default function CommentSection({ postId }: CommentSectionProps) {
       // dataが配列であることを確認
       if (Array.isArray(data)) {
         setComments(data);
-      } else if (data && typeof data === 'object' && 'data' in data && Array.isArray(data.data)) {
+      } else if (data && typeof data === 'object' && 'data' in data && Array.isArray((data as any).data)) {
         // バックエンドが { data: [...] } という形式で返している場合
-        setComments(data.data);
+        setComments((data as any).data);
       } else {
         console.error('Invalid comments data format:', data);
         setComments([]);
