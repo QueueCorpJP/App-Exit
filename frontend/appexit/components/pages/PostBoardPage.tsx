@@ -261,7 +261,6 @@ export default function PostBoardPage({ initialPosts = [] }: PostBoardPageProps)
 
         {/* Post Creation Form - At the top */}
         <div className="mb-6 bg-white rounded-lg p-6" style={{ border: '1px solid #E9EEF2' }}>
-          <h2 className="text-lg font-bold text-gray-900 mb-4">新しいトピックを作成</h2>
           <form onSubmit={handleSubmit}>
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-full bg-gradient-to-br from-red-500 to-pink-500 flex items-center justify-center text-white font-bold">

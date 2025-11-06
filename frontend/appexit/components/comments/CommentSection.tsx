@@ -24,9 +24,19 @@ export default function CommentSection({ postId }: CommentSectionProps) {
     try {
       setLoading(true);
       const data = await commentApi.getPostComments(postId);
-      setComments(data);
+      // dataが配列であることを確認
+      if (Array.isArray(data)) {
+        setComments(data);
+      } else if (data && typeof data === 'object' && 'data' in data && Array.isArray(data.data)) {
+        // バックエンドが { data: [...] } という形式で返している場合
+        setComments(data.data);
+      } else {
+        console.error('Invalid comments data format:', data);
+        setComments([]);
+      }
     } catch (error) {
       console.error('Failed to fetch comments:', error);
+      setComments([]);
     } finally {
       setLoading(false);
     }

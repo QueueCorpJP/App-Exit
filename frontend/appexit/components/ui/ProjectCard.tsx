@@ -3,6 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useState } from 'react';
+import { Eye } from 'lucide-react';
 import StorageImage from './StorageImage';
 
 interface AuthorProfile {
@@ -54,6 +55,7 @@ export default function ProjectCard({
 }: ProjectCardProps) {
   const isLarge = size === 'large';
   const [imageError, setImageError] = useState(false);
+  const [isWatching, setIsWatching] = useState(false);
   const fallbackImage = 'https://placehold.co/600x400/e2e8f0/64748b?text=No+Image';
 
   // デバッグ: 最初の数個のカードだけログ出力
@@ -91,9 +93,17 @@ export default function ProjectCard({
     }
   };
 
+  // ウォッチボタンのクリック処理
+  const handleWatchClick = (e: React.MouseEvent) => {
+    e.preventDefault(); // Linkの遷移を防止
+    e.stopPropagation();
+    setIsWatching(!isWatching);
+    // TODO: ここでAPIを呼んでウォッチ状態を保存
+  };
+
   return (
     <Link href={`/projects/${id}?${queryParams.toString()}`} className="block">
-      <div className="bg-white overflow-hidden hover:bg-gray-50 transition-colors rounded-sm">
+      <div className="bg-white overflow-hidden hover:bg-gray-50 transition-colors rounded-sm relative">
         <div className={`relative ${isLarge ? 'h-80' : 'h-48'} bg-gray-200`}>
           <Image
             src={imageError ? fallbackImage : image}
@@ -195,6 +205,19 @@ export default function ProjectCard({
             </div>
           )}
         </div>
+
+        {/* ウォッチボタン（カード全体の右下） */}
+        <button
+          onClick={handleWatchClick}
+          className={`absolute bottom-3 right-3 p-2 rounded-full transition-all ${
+            isWatching
+              ? 'bg-red-500 text-white hover:bg-red-600'
+              : 'bg-white text-gray-700 hover:bg-gray-50'
+          }`}
+          aria-label={isWatching ? 'ウォッチ解除' : 'ウォッチ'}
+        >
+          <Eye className="w-5 h-5" />
+        </button>
       </div>
     </Link>
   );

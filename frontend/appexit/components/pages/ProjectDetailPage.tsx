@@ -3,7 +3,8 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { LayoutDashboard, Monitor, Activity } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import StorageImage from '@/components/ui/StorageImage';
 import ImageModal from '@/components/ui/ImageModal';
@@ -104,6 +105,14 @@ export default function ProjectDetailPage({
     setModalOpen(true);
   };
 
+  // 初期状態でメイン画像を選択
+  useEffect(() => {
+    if (!selectedImagePath && displayImagePath) {
+      setSelectedImagePath(displayImagePath);
+      setSelectedImageIndex(-1);
+    }
+  }, [displayImagePath, selectedImagePath]);
+
   return (
     <>
       <ImageModal
@@ -117,69 +126,115 @@ export default function ProjectDetailPage({
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* 左側: 画像と詳細情報 */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* メイン画像 */}
-            <div className="bg-white overflow-hidden rounded-sm">
-              <div className="relative h-96 md:h-[500px] bg-gray-100">
-                <StorageImage
-                  path={displayImagePath}
-                  alt={displayTitle}
-                  fill
-                  className="object-cover"
-                  priority
-                  sizes="(max-width: 1024px) 100vw, 66vw"
-                />
-              </div>
-            </div>
-
-            {/* 追加画像 */}
+          <div className="lg:col-span-2 relative">
+            {/* サムネイル一覧（カードの外、絶対配置） */}
             {postDetails?.extra_image_urls && postDetails.extra_image_urls.length > 0 && (
-              <div className="bg-white p-6 rounded-sm">
-                <h3 className="text-lg font-bold mb-4" style={{ color: '#323232' }}>追加画像</h3>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-                  {postDetails.extra_image_urls.map((url, index) => (
-                    <button
-                      key={index}
-                      onClick={() => handleImageClick(url, index)}
-                      className="relative bg-gray-100 rounded-sm overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
-                      style={{ width: '100%', paddingBottom: '100%' }}
-                    >
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <StorageImage
-                          path={url}
-                          alt={`追加画像 ${index + 1}`}
-                          width={150}
-                          height={150}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                      <div className="absolute bottom-1 right-1 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded">
-                        {index + 1}
-                      </div>
-                    </button>
-                  ))}
-                </div>
+              <div className="absolute left-0 top-0 flex flex-col gap-2 z-10" style={{ marginLeft: '-88px' }}>
+                {/* メイン画像のサムネイル */}
+                <button
+                  onClick={() => {
+                    setSelectedImagePath(displayImagePath || '');
+                    setSelectedImageIndex(-1);
+                  }}
+                  className={`relative bg-gray-100 rounded-sm overflow-hidden cursor-pointer hover:opacity-80 transition-opacity border-2 ${
+                    selectedImagePath === displayImagePath || selectedImageIndex === -1 ? 'border-dashed' : 'border-gray-300'
+                  }`}
+                  style={{
+                    width: '80px',
+                    height: '80px',
+                    borderColor: selectedImagePath === displayImagePath || selectedImageIndex === -1 ? '#323232' : undefined
+                  }}
+                >
+                  <StorageImage
+                    path={displayImagePath}
+                    alt={displayTitle}
+                    width={80}
+                    height={80}
+                    className="w-full h-full object-cover"
+                  />
+                </button>
+
+                {/* 追加画像のサムネイル */}
+                {postDetails.extra_image_urls.map((url, index) => (
+                  <button
+                    key={index}
+                    onClick={() => {
+                      setSelectedImagePath(url);
+                      setSelectedImageIndex(index);
+                    }}
+                    className={`relative bg-gray-100 rounded-sm overflow-hidden cursor-pointer hover:opacity-80 transition-opacity border-2 ${
+                      selectedImagePath === url && selectedImageIndex === index ? 'border-dashed' : 'border-gray-300'
+                    }`}
+                    style={{
+                      width: '80px',
+                      height: '80px',
+                      borderColor: selectedImagePath === url && selectedImageIndex === index ? '#323232' : undefined
+                    }}
+                  >
+                    <StorageImage
+                      path={url}
+                      alt={`追加画像 ${index + 1}`}
+                      width={80}
+                      height={80}
+                      className="w-full h-full object-cover"
+                    />
+                  </button>
+                ))}
               </div>
             )}
 
+            {/* メイン画像表示（カードと同じ幅） */}
+            <div className="relative bg-gray-100 rounded-sm overflow-hidden mb-6" style={{ aspectRatio: '16/9' }}>
+              <StorageImage
+                path={selectedImagePath || displayImagePath}
+                alt={displayTitle}
+                width={1600}
+                height={900}
+                className="w-full h-full object-cover"
+                priority
+              />
+              <button
+                onClick={() => setModalOpen(true)}
+                className="absolute top-4 right-4 bg-white bg-opacity-90 hover:bg-opacity-100 rounded-full p-2 transition-all"
+                aria-label="拡大表示"
+              >
+                <svg
+                  className="w-6 h-6 text-gray-700"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"
+                  />
+                </svg>
+              </button>
+            </div>
+
+            <div className="space-y-6">
+
             {/* スクリーンショット */}
             {(postDetails?.dashboard_url || postDetails?.user_ui_url || postDetails?.performance_url) && (
-              <div className="bg-white p-6 rounded-sm">
-                <h3 className="text-lg font-bold mb-4" style={{ color: '#323232' }}>スクリーンショット</h3>
+              <div>
                 <div className="overflow-x-auto">
-                  <div className="flex gap-3 pb-2">
+                  <div className="flex gap-3">
                     {postDetails.dashboard_url && (
                       <div className="flex-shrink-0">
-                        <p className="text-xs font-semibold mb-2" style={{ color: '#323232' }}>ダッシュボード</p>
+                        <div className="flex items-center justify-center mb-2">
+                          <LayoutDashboard size={20} style={{ color: '#9CA3AF' }} />
+                        </div>
                         <div
                           className="bg-gray-100 rounded-sm overflow-hidden flex items-center justify-center"
-                          style={{ height: '63px', minWidth: '63px' }}
+                          style={{ height: '95px', minWidth: '95px' }}
                         >
                           <StorageImage
                             path={postDetails.dashboard_url}
                             alt="ダッシュボード"
-                            width={250}
-                            height={63}
+                            width={300}
+                            height={95}
                             className="max-h-full w-auto object-contain"
                           />
                         </div>
@@ -187,16 +242,18 @@ export default function ProjectDetailPage({
                     )}
                     {postDetails.user_ui_url && (
                       <div className="flex-shrink-0">
-                        <p className="text-xs font-semibold mb-2" style={{ color: '#323232' }}>ユーザーUI</p>
+                        <div className="flex items-center justify-center mb-2">
+                          <Monitor size={20} style={{ color: '#9CA3AF' }} />
+                        </div>
                         <div
                           className="bg-gray-100 rounded-sm overflow-hidden flex items-center justify-center"
-                          style={{ height: '63px', minWidth: '63px' }}
+                          style={{ height: '95px', minWidth: '95px' }}
                         >
                           <StorageImage
                             path={postDetails.user_ui_url}
                             alt="ユーザーUI"
-                            width={250}
-                            height={63}
+                            width={300}
+                            height={95}
                             className="max-h-full w-auto object-contain"
                           />
                         </div>
@@ -204,16 +261,18 @@ export default function ProjectDetailPage({
                     )}
                     {postDetails.performance_url && (
                       <div className="flex-shrink-0">
-                        <p className="text-xs font-semibold mb-2" style={{ color: '#323232' }}>パフォーマンス</p>
+                        <div className="flex items-center justify-center mb-2">
+                          <Activity size={20} style={{ color: '#9CA3AF' }} />
+                        </div>
                         <div
                           className="bg-gray-100 rounded-sm overflow-hidden flex items-center justify-center"
-                          style={{ height: '63px', minWidth: '63px' }}
+                          style={{ height: '95px', minWidth: '95px' }}
                         >
                           <StorageImage
                             path={postDetails.performance_url}
                             alt="パフォーマンス"
-                            width={250}
-                            height={63}
+                            width={300}
+                            height={95}
                             className="max-h-full w-auto object-contain"
                           />
                         </div>
@@ -343,7 +402,7 @@ export default function ProjectDetailPage({
                         <h4 className="font-bold mb-2" style={{ color: '#323232' }}>収益モデル</h4>
                         <div className="flex flex-wrap gap-2">
                           {postDetails.revenue_models.map((model, index) => (
-                            <span key={index} className="px-3 py-1 bg-blue-50 text-blue-600 text-sm rounded-full">
+                            <span key={index} className="px-3 py-1 text-sm rounded-full border" style={{ backgroundColor: '#fff', color: '#323232', borderColor: '#323232' }}>
                               {model}
                             </span>
                           ))}
@@ -378,7 +437,7 @@ export default function ProjectDetailPage({
                         <h3 className="text-lg font-bold mb-4" style={{ color: '#323232' }}>技術スタック</h3>
                         <div className="flex flex-wrap gap-2">
                           {postDetails.tech_stack.map((tech, index) => (
-                            <span key={index} className="px-3 py-1 bg-purple-50 text-purple-600 text-sm rounded-full">
+                            <span key={index} className="px-3 py-1 text-sm rounded-full border" style={{ backgroundColor: '#fff', color: '#323232', borderColor: '#323232' }}>
                               {tech}
                             </span>
                           ))}
@@ -402,7 +461,9 @@ export default function ProjectDetailPage({
                           {postDetails.operation_form && (
                             <div>
                               <h4 className="font-semibold mb-1 text-sm" style={{ color: '#323232' }}>運営形態</h4>
-                              <p className="text-sm text-gray-600">{postDetails.operation_form}</p>
+                              <p className="text-sm text-gray-600">
+                                {postDetails.operation_form === 'individual' ? '個人' : postDetails.operation_form === 'corporate' ? '法人' : postDetails.operation_form}
+                              </p>
                             </div>
                           )}
                           {postDetails.operation_effort && (
@@ -454,7 +515,7 @@ export default function ProjectDetailPage({
                         <h3 className="text-lg font-bold mb-4" style={{ color: '#323232' }}>マーケティングチャンネル</h3>
                         <div className="flex flex-wrap gap-2">
                           {postDetails.marketing_channels.map((channel, index) => (
-                            <span key={index} className="px-3 py-1 bg-green-50 text-green-600 text-sm rounded-full">
+                            <span key={index} className="px-3 py-1 text-sm rounded-full border" style={{ backgroundColor: '#fff', color: '#323232', borderColor: '#323232' }}>
                               {channel}
                             </span>
                           ))}
@@ -476,6 +537,7 @@ export default function ProjectDetailPage({
                   <CommentSection postId={postDetails.id} />
                 )}
               </div>
+            </div>
             </div>
           </div>
 
