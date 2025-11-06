@@ -45,19 +45,34 @@ interface FormData {
   extraImageUrls: string[];
 }
 
-export default function ProjectCreatePage() {
+interface ProjectCreatePageProps {
+  postType: 'board' | 'transaction' | 'secret';
+  pageTitle: string;
+  pageSubtitle?: string;
+}
+
+export default function ProjectCreatePage({ postType, pageTitle, pageSubtitle }: ProjectCreatePageProps) {
   const router = useRouter();
 
-  // カラーテーマ定義
-  const colors = {
+  // カラーテーマ定義 - secretページは色を反転
+  const colors = postType === 'secret' ? {
+    primary: '#323232',
+    primaryHover: '#1a1a1a',
+    primaryLight: '#f5f5f5',
+    dark: '#5588bb',
+    background: '#323232',
+    text: '#ffffff'
+  } : {
     primary: '#5588bb',
     primaryHover: '#4477aa',
     primaryLight: '#e8f0f7',
-    dark: '#323232'
+    dark: '#323232',
+    background: '#F9F8F7',
+    text: '#323232'
   };
 
   const [formData, setFormData] = useState<FormData>({
-    type: 'transaction',
+    type: postType,
     title: '',
     body: '',
     eyecatchPath: '',
@@ -351,14 +366,26 @@ export default function ProjectCreatePage() {
   const totalSteps = 9;
   const progress = (currentStep / totalSteps) * 100;
 
+  // 共通スタイル定義
+  const cardBgColor = postType === 'secret' ? 'transparent' : 'white';
+  const labelColor = postType === 'secret' ? '#ffffff' : '#4B5563';
+  const textColor = postType === 'secret' ? '#d4d4d4' : '#6b7280';
+  const inputBgColor = postType === 'secret' ? '#525252' : 'white';
+  const inputBorderColor = postType === 'secret' ? '#6a6a6a' : '#d1d5db';
+  const inputTextColor = postType === 'secret' ? '#ffffff' : '#111827';
+  const stepBorderColor = postType === 'secret' ? '#8a8a8a' : '#4B5563';
+
   return (
-    <div className="min-h-screen" style={{ backgroundColor: '#F9F8F7' }}>
+    <div className="min-h-screen" style={{ backgroundColor: colors.background }}>
       <div className="py-8">
         {/* プログレスバー - 幅制限あり */}
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 mb-8">
-          <h1 className="text-xl font-extrabold text-center mb-4" style={{ color: '#323232' }}>プロダクト投稿を作成</h1>
+          <h1 className="text-xl font-extrabold text-center mb-4" style={{ color: colors.text }}>{pageTitle}</h1>
+          {pageSubtitle && (
+            <p className="text-sm text-center mb-4" style={{ color: postType === 'secret' ? '#d4d4d4' : '#6b7280' }}>{pageSubtitle}</p>
+          )}
           <div className="flex justify-end items-center mb-6">
-            <span className="text-sm font-medium" style={{ color: '#323232' }}>
+            <span className="text-sm font-medium" style={{ color: colors.text }}>
               ステップ {currentStep} / {totalSteps}
             </span>
           </div>
@@ -371,7 +398,7 @@ export default function ProjectCreatePage() {
                       className="absolute top-5 left-1/2 h-0.5 transition-all duration-300"
                       style={{
                         width: 'calc(100% - 40px)',
-                        backgroundColor: step < currentStep ? '#323232' : '#E5E7EB',
+                        backgroundColor: step < currentStep ? colors.text : (postType === 'secret' ? '#6a6a6a' : '#E5E7EB'),
                         left: 'calc(50% + 20px)'
                       }}
                     />
@@ -379,9 +406,9 @@ export default function ProjectCreatePage() {
                   <div
                     className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all duration-300 relative z-10"
                     style={{
-                      backgroundColor: step <= currentStep ? '#323232' : '#fff',
-                      color: step <= currentStep ? '#fff' : '#9CA3AF',
-                      border: step <= currentStep ? 'none' : '2px solid #E5E7EB'
+                      backgroundColor: step <= currentStep ? colors.text : (postType === 'secret' ? 'transparent' : '#fff'),
+                      color: step <= currentStep ? (postType === 'secret' ? '#323232' : '#fff') : (postType === 'secret' ? '#b3b3b3' : '#9CA3AF'),
+                      border: step <= currentStep ? 'none' : `2px solid ${postType === 'secret' ? '#6a6a6a' : '#E5E7EB'}`
                     }}
                   >
                     {step < currentStep ? (
@@ -402,17 +429,17 @@ export default function ProjectCreatePage() {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <form onSubmit={handleSubmit} className="space-y-2">
           {/* ステップ1: プロダクト名 */}
-          <div className="bg-white rounded-lg py-8 px-8">
+          <div className="rounded-lg py-8 px-8" style={{ backgroundColor: cardBgColor }}>
             <div className="max-w-4xl mx-auto">
               <div className="flex items-start gap-4">
-              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 border" style={{ borderColor: '#4B5563', backgroundColor: 'transparent' }}>
-                <span className="font-bold text-base" style={{ color: '#4B5563' }}>1</span>
+              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 border" style={{ borderColor: stepBorderColor, backgroundColor: 'transparent' }}>
+                <span className="font-bold text-base" style={{ color: labelColor }}>1</span>
               </div>
               <div className="flex-1">
-                <h2 className="text-lg font-bold mb-2" style={{ color: '#4B5563' }}>
+                <h2 className="text-lg font-bold mb-2" style={{ color: labelColor }}>
                   投稿タイトル
                 </h2>
-                <p className="text-sm text-gray-600 mb-4">
+                <p className="text-sm mb-4" style={{ color: textColor }}>
                   プロダクトの名前や簡潔なタイトルを入力してください
                 </p>
                 <input
@@ -423,8 +450,13 @@ export default function ProjectCreatePage() {
                     if (currentStep === 1 && e.target.value) setCurrentStep(2);
                   }}
                   placeholder="例: タスク管理プロダクト「TaskMaster」"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent"
-                  style={{ '--tw-ring-color': colors.primary } as React.CSSProperties}
+                  className="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent"
+                  style={{
+                    '--tw-ring-color': colors.primary,
+                    backgroundColor: inputBgColor,
+                    borderColor: inputBorderColor,
+                    color: inputTextColor
+                  } as React.CSSProperties}
                   required
                 />
               </div>
@@ -433,17 +465,17 @@ export default function ProjectCreatePage() {
           </div>
 
           {/* ステップ2: カテゴリ選択 */}
-          <div className="bg-white rounded-lg py-8 px-8">
+          <div className="rounded-lg py-8 px-8" style={{ backgroundColor: cardBgColor }}>
             <div className="max-w-4xl mx-auto">
               <div className="flex items-start gap-4">
-              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 border" style={{ borderColor: '#4B5563', backgroundColor: 'transparent' }}>
-                <span className="font-bold text-base" style={{ color: '#4B5563' }}>2</span>
+              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 border" style={{ borderColor: stepBorderColor, backgroundColor: 'transparent' }}>
+                <span className="font-bold text-base" style={{ color: labelColor }}>2</span>
               </div>
               <div className="flex-1">
-                <h2 className="text-lg font-bold mb-2" style={{ color: '#4B5563' }}>
+                <h2 className="text-lg font-bold mb-2" style={{ color: labelColor }}>
                   プロダクトカテゴリー <span className="text-red-500">*</span>
                 </h2>
-                <p className="text-sm text-gray-600 mb-4">
+                <p className="text-sm mb-4" style={{ color: textColor }}>
                   プロダクトのカテゴリーを1つ以上選択してください（複数選択可）
                 </p>
                 <div className="flex flex-wrap gap-2">
@@ -469,7 +501,8 @@ export default function ProjectCreatePage() {
                         backgroundColor: colors.primaryLight,
                         color: colors.primary
                       } : {
-                        borderColor: '#D1D5DB'
+                        borderColor: postType === 'secret' ? inputBorderColor : '#D1D5DB',
+                        color: postType === 'secret' ? textColor : '#374151'
                       }}
                     >
                       {category}
@@ -482,17 +515,17 @@ export default function ProjectCreatePage() {
           </div>
 
           {/* ステップ3: 画像アップロード */}
-          <div className="bg-white rounded-lg py-8 px-8">
+          <div className="rounded-lg py-8 px-8" style={{ backgroundColor: cardBgColor }}>
             <div className="max-w-4xl mx-auto">
               <div className="flex items-start gap-4">
-              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 border" style={{ borderColor: '#4B5563', backgroundColor: 'transparent' }}>
-                <span className="font-bold text-base" style={{ color: '#4B5563' }}>3</span>
+              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 border" style={{ borderColor: stepBorderColor, backgroundColor: 'transparent' }}>
+                <span className="font-bold text-base" style={{ color: labelColor }}>3</span>
               </div>
               <div className="flex-1">
-                <h2 className="text-lg font-bold mb-2" style={{ color: '#4B5563' }}>
+                <h2 className="text-lg font-bold mb-2" style={{ color: labelColor }}>
                   プロダクト画像
                 </h2>
-                <p className="text-sm text-gray-600 mb-4">
+                <p className="text-sm mb-4" style={{ color: textColor }}>
                   プロダクトの各種スクリーンショットをアップロードしてください（選択時は画像全体が表示されます）
                 </p>
                 <div className="space-y-2">
@@ -750,17 +783,17 @@ export default function ProjectCreatePage() {
           </div>
 
           {/* ステップ4: アピール文 */}
-          <div className="bg-white rounded-lg py-8 px-8">
+          <div className="rounded-lg py-8 px-8" style={{ backgroundColor: cardBgColor }}>
             <div className="max-w-4xl mx-auto">
               <div className="flex items-start gap-4">
-              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 border" style={{ borderColor: '#4B5563', backgroundColor: 'transparent' }}>
-                <span className="font-bold text-base" style={{ color: '#4B5563' }}>4</span>
+              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 border" style={{ borderColor: stepBorderColor, backgroundColor: 'transparent' }}>
+                <span className="font-bold text-base" style={{ color: labelColor }}>4</span>
               </div>
               <div className="flex-1">
-                <h2 className="text-lg font-bold mb-2" style={{ color: '#4B5563' }}>
+                <h2 className="text-lg font-bold mb-2" style={{ color: labelColor }}>
                   プロダクトのアピール文 <span className="text-red-500">*</span>
                 </h2>
-                <p className="text-sm text-gray-600 mb-4">
+                <p className="text-sm mb-4" style={{ color: textColor }}>
                   プロダクトの機能、特徴、強みなどを詳しく説明してください（50文字以上必須）
                 </p>
                 <textarea
@@ -771,12 +804,12 @@ export default function ProjectCreatePage() {
                   }}
                   placeholder="プロダクトの機能、特徴、ユーザーベース、売却理由などを50文字以上で記載してください..."
                   rows={6}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent resize-none"
-                  style={{ '--tw-ring-color': colors.primary } as React.CSSProperties}
+                  className="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent resize-none"
+                  style={{ '--tw-ring-color': colors.primary, backgroundColor: inputBgColor, borderColor: inputBorderColor, color: inputTextColor } as React.CSSProperties}
                   required
                   minLength={50}
                 />
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs mt-1" style={{ color: textColor }}>
                   {formData.appealText.length} / 50文字以上
                 </p>
               </div>
@@ -785,22 +818,22 @@ export default function ProjectCreatePage() {
           </div>
 
           {/* ステップ5: 財務情報 */}
-          <div className="bg-white rounded-lg py-8 px-8">
+          <div className="rounded-lg py-8 px-8" style={{ backgroundColor: cardBgColor }}>
             <div className="max-w-4xl mx-auto">
               <div className="flex items-start gap-4">
-              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 border" style={{ borderColor: '#4B5563', backgroundColor: 'transparent' }}>
-                <span className="font-bold text-base" style={{ color: '#4B5563' }}>5</span>
+              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 border" style={{ borderColor: stepBorderColor, backgroundColor: 'transparent' }}>
+                <span className="font-bold text-base" style={{ color: labelColor }}>5</span>
               </div>
               <div className="flex-1">
-                <h2 className="text-lg font-bold mb-2" style={{ color: '#4B5563' }}>
+                <h2 className="text-lg font-bold mb-2" style={{ color: labelColor }}>
                   財務情報・ユーザー数
                 </h2>
-                <p className="text-sm text-gray-600 mb-4">
+                <p className="text-sm mb-4" style={{ color: textColor }}>
                   プロダクトの財務情報とユーザー数を入力してください
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium mb-2" style={{ color: labelColor }}>
                       月間売上 <span className="text-red-500">*</span>
                     </label>
                     <div className="flex gap-2">
@@ -812,16 +845,16 @@ export default function ProjectCreatePage() {
                           if (currentStep === 5 && e.target.value && formData.monthlyCost) setCurrentStep(6);
                         }}
                         placeholder="100"
-                        className="w-1/3 md:flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent"
-                        style={{ '--tw-ring-color': colors.primary } as React.CSSProperties}
+                        className="w-1/3 md:flex-1 px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent"
+                        style={{ '--tw-ring-color': colors.primary, backgroundColor: inputBgColor, borderColor: inputBorderColor, color: inputTextColor } as React.CSSProperties}
                         required
                       />
                       <div className="relative">
                         <select
                           value={formData.monthlyRevenueUnit}
                           onChange={(e) => setFormData({ ...formData, monthlyRevenueUnit: e.target.value })}
-                          className="pl-3 pr-8 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent appearance-none font-bold"
-                          style={{ '--tw-ring-color': colors.primary, color: '#323232' } as React.CSSProperties}
+                          className="pl-3 pr-8 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent appearance-none font-bold"
+                          style={{ '--tw-ring-color': colors.primary, color: inputTextColor, backgroundColor: inputBgColor, borderColor: inputBorderColor } as React.CSSProperties}
                         >
                           <option value="1">円</option>
                           <option value="100">百円</option>
@@ -845,7 +878,7 @@ export default function ProjectCreatePage() {
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium mb-2" style={{ color: labelColor }}>
                       月間コスト <span className="text-red-500">*</span>
                     </label>
                     <div className="flex gap-2">
@@ -857,16 +890,16 @@ export default function ProjectCreatePage() {
                           if (currentStep === 5 && e.target.value && formData.monthlyRevenue) setCurrentStep(6);
                         }}
                         placeholder="50"
-                        className="w-1/3 md:flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent"
-                        style={{ '--tw-ring-color': colors.primary } as React.CSSProperties}
+                        className="w-1/3 md:flex-1 px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent"
+                        style={{ '--tw-ring-color': colors.primary, backgroundColor: inputBgColor, borderColor: inputBorderColor, color: inputTextColor } as React.CSSProperties}
                         required
                       />
                       <div className="relative">
                         <select
                           value={formData.monthlyCostUnit}
                           onChange={(e) => setFormData({ ...formData, monthlyCostUnit: e.target.value })}
-                          className="pl-3 pr-8 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent appearance-none font-bold"
-                          style={{ '--tw-ring-color': colors.primary, color: '#323232' } as React.CSSProperties}
+                          className="pl-3 pr-8 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent appearance-none font-bold"
+                          style={{ '--tw-ring-color': colors.primary, color: inputTextColor, backgroundColor: inputBgColor, borderColor: inputBorderColor } as React.CSSProperties}
                         >
                           <option value="1">円</option>
                           <option value="100">百円</option>
@@ -890,7 +923,7 @@ export default function ProjectCreatePage() {
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium mb-2" style={{ color: labelColor }}>
                       ユーザー数（任意）
                     </label>
                     <div className="flex gap-2">
@@ -899,15 +932,15 @@ export default function ProjectCreatePage() {
                         value={formData.userCount}
                         onChange={(e) => setFormData({ ...formData, userCount: e.target.value })}
                         placeholder="100"
-                        className="w-1/3 md:flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent"
-                        style={{ '--tw-ring-color': colors.primary } as React.CSSProperties}
+                        className="w-1/3 md:flex-1 px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent"
+                        style={{ '--tw-ring-color': colors.primary, backgroundColor: inputBgColor, borderColor: inputBorderColor, color: inputTextColor } as React.CSSProperties}
                       />
                       <div className="relative">
                         <select
                           value={formData.userCountUnit}
                           onChange={(e) => setFormData({ ...formData, userCountUnit: e.target.value })}
-                          className="pl-3 pr-8 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent appearance-none font-bold"
-                          style={{ '--tw-ring-color': colors.primary, color: '#323232' } as React.CSSProperties}
+                          className="pl-3 pr-8 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent appearance-none font-bold"
+                          style={{ '--tw-ring-color': colors.primary, color: inputTextColor, backgroundColor: inputBgColor, borderColor: inputBorderColor } as React.CSSProperties}
                         >
                           <option value="1">人</option>
                           <option value="100">百人</option>
@@ -930,15 +963,15 @@ export default function ProjectCreatePage() {
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium mb-2" style={{ color: labelColor }}>
                       リリース日（任意）
                     </label>
                     <input
                       type="date"
                       value={formData.releaseDate}
                       onChange={(e) => setFormData({ ...formData, releaseDate: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent"
-                      style={{ '--tw-ring-color': colors.primary } as React.CSSProperties}
+                      className="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent"
+                      style={{ '--tw-ring-color': colors.primary, backgroundColor: inputBgColor, borderColor: inputBorderColor, color: inputTextColor } as React.CSSProperties}
                     />
                   </div>
                 </div>
@@ -948,23 +981,23 @@ export default function ProjectCreatePage() {
           </div>
 
           {/* ステップ6: 運営情報 */}
-          <div className="bg-white rounded-lg py-8 px-8">
+          <div className="rounded-lg py-8 px-8" style={{ backgroundColor: cardBgColor }}>
             <div className="max-w-4xl mx-auto">
               <div className="flex items-start gap-4">
-              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 border" style={{ borderColor: '#4B5563', backgroundColor: 'transparent' }}>
-                <span className="font-bold text-base" style={{ color: '#4B5563' }}>6</span>
+              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 border" style={{ borderColor: stepBorderColor, backgroundColor: 'transparent' }}>
+                <span className="font-bold text-base" style={{ color: labelColor }}>6</span>
               </div>
               <div className="flex-1">
-                <h2 className="text-lg font-bold mb-2" style={{ color: '#4B5563' }}>
+                <h2 className="text-lg font-bold mb-2" style={{ color: labelColor }}>
                   運営情報
                 </h2>
-                <p className="text-sm text-gray-600 mb-4">
+                <p className="text-sm mb-4" style={{ color: textColor }}>
                   プロダクトの運営形態と収益モデルを入力してください
                 </p>
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium mb-2" style={{ color: labelColor }}>
                         運営形態（任意）
                       </label>
                       <div className="relative">
@@ -974,8 +1007,8 @@ export default function ProjectCreatePage() {
                             setFormData({ ...formData, operationForm: e.target.value });
                             if (currentStep === 6) setCurrentStep(7);
                           }}
-                          className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent appearance-none"
-                          style={{ '--tw-ring-color': colors.primary } as React.CSSProperties}
+                          className="w-full px-4 py-3 pr-12 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent appearance-none"
+                          style={{ '--tw-ring-color': colors.primary, backgroundColor: inputBgColor, borderColor: inputBorderColor, color: inputTextColor } as React.CSSProperties}
                         >
                           <option value="">選択してください</option>
                           <option value="individual">個人</option>
@@ -995,7 +1028,7 @@ export default function ProjectCreatePage() {
                       </div>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium mb-2" style={{ color: labelColor }}>
                         運営工数（任意）
                       </label>
                       <input
@@ -1003,13 +1036,13 @@ export default function ProjectCreatePage() {
                         value={formData.operationEffort}
                         onChange={(e) => setFormData({ ...formData, operationEffort: e.target.value })}
                         placeholder="例: 週10時間"
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent"
-                        style={{ '--tw-ring-color': colors.primary } as React.CSSProperties}
+                        className="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent"
+                        style={{ '--tw-ring-color': colors.primary, backgroundColor: inputBgColor, borderColor: inputBorderColor, color: inputTextColor } as React.CSSProperties}
                       />
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium mb-2" style={{ color: labelColor }}>
                       収益モデル（任意・複数選択可）
                     </label>
                     <div className="flex flex-wrap gap-2">
@@ -1034,7 +1067,8 @@ export default function ProjectCreatePage() {
                             backgroundColor: colors.primaryLight,
                             color: colors.primary
                           } : {
-                            borderColor: '#D1D5DB'
+                            borderColor: postType === 'secret' ? inputBorderColor : '#D1D5DB',
+                            color: postType === 'secret' ? textColor : '#374151'
                           }}
                         >
                           {model}
@@ -1049,22 +1083,22 @@ export default function ProjectCreatePage() {
           </div>
 
           {/* ステップ7: 譲渡情報 */}
-          <div className="bg-white rounded-lg py-8 px-8">
+          <div className="rounded-lg py-8 px-8" style={{ backgroundColor: cardBgColor }}>
             <div className="max-w-4xl mx-auto">
               <div className="flex items-start gap-4">
-              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 border" style={{ borderColor: '#4B5563', backgroundColor: 'transparent' }}>
-                <span className="font-bold text-base" style={{ color: '#4B5563' }}>7</span>
+              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 border" style={{ borderColor: stepBorderColor, backgroundColor: 'transparent' }}>
+                <span className="font-bold text-base" style={{ color: labelColor }}>7</span>
               </div>
               <div className="flex-1">
-                <h2 className="text-lg font-bold mb-2" style={{ color: '#4B5563' }}>
+                <h2 className="text-lg font-bold mb-2" style={{ color: labelColor }}>
                   譲渡情報
                 </h2>
-                <p className="text-sm text-gray-600 mb-4">
+                <p className="text-sm mb-4" style={{ color: textColor }}>
                   譲渡に関する詳細情報を入力してください
                 </p>
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium mb-2" style={{ color: labelColor }}>
                       譲渡物（任意・複数選択可）
                     </label>
                     <div className="flex flex-wrap gap-2">
@@ -1090,7 +1124,8 @@ export default function ProjectCreatePage() {
                             backgroundColor: colors.primaryLight,
                             color: colors.primary
                           } : {
-                            borderColor: '#D1D5DB'
+                            borderColor: postType === 'secret' ? inputBorderColor : '#D1D5DB',
+                            color: postType === 'secret' ? textColor : '#374151'
                           }}
                         >
                           {item}
@@ -1099,7 +1134,7 @@ export default function ProjectCreatePage() {
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium mb-2" style={{ color: labelColor }}>
                       希望譲渡時期（任意）
                     </label>
                     <input
@@ -1107,12 +1142,12 @@ export default function ProjectCreatePage() {
                       value={formData.desiredTransferTiming}
                       onChange={(e) => setFormData({ ...formData, desiredTransferTiming: e.target.value })}
                       placeholder="例: 3ヶ月以内、できるだけ早く"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent"
-                      style={{ '--tw-ring-color': colors.primary } as React.CSSProperties}
+                      className="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent"
+                      style={{ '--tw-ring-color': colors.primary, backgroundColor: inputBgColor, borderColor: inputBorderColor, color: inputTextColor } as React.CSSProperties}
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium mb-2" style={{ color: labelColor }}>
                       成長可能性（任意）
                     </label>
                     <textarea
@@ -1120,8 +1155,8 @@ export default function ProjectCreatePage() {
                       onChange={(e) => setFormData({ ...formData, growthPotential: e.target.value })}
                       placeholder="今後の成長可能性や拡張アイデアを記載してください..."
                       rows={4}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent resize-none"
-                      style={{ '--tw-ring-color': colors.primary } as React.CSSProperties}
+                      className="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent resize-none"
+                      style={{ '--tw-ring-color': colors.primary, backgroundColor: inputBgColor, borderColor: inputBorderColor, color: inputTextColor } as React.CSSProperties}
                     />
                   </div>
                 </div>
@@ -1131,22 +1166,22 @@ export default function ProjectCreatePage() {
           </div>
 
           {/* ステップ8: マーケティング情報 */}
-          <div className="bg-white rounded-lg py-8 px-8">
+          <div className="rounded-lg py-8 px-8" style={{ backgroundColor: cardBgColor }}>
             <div className="max-w-4xl mx-auto">
               <div className="flex items-start gap-4">
-              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 border" style={{ borderColor: '#4B5563', backgroundColor: 'transparent' }}>
-                <span className="font-bold text-base" style={{ color: '#4B5563' }}>8</span>
+              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 border" style={{ borderColor: stepBorderColor, backgroundColor: 'transparent' }}>
+                <span className="font-bold text-base" style={{ color: labelColor }}>8</span>
               </div>
               <div className="flex-1">
-                <h2 className="text-lg font-bold mb-2" style={{ color: '#4B5563' }}>
+                <h2 className="text-lg font-bold mb-2" style={{ color: labelColor }}>
                   マーケティング情報
                 </h2>
-                <p className="text-sm text-gray-600 mb-4">
+                <p className="text-sm mb-4" style={{ color: textColor }}>
                   ターゲット顧客とマーケティングチャネルを入力してください
                 </p>
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium mb-2" style={{ color: labelColor }}>
                       ターゲット顧客層（任意）
                     </label>
                     <input
@@ -1157,12 +1192,12 @@ export default function ProjectCreatePage() {
                         if (currentStep === 8) setCurrentStep(9);
                       }}
                       placeholder="例: 20-30代のビジネスパーソン"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent"
-                      style={{ '--tw-ring-color': colors.primary } as React.CSSProperties}
+                      className="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent"
+                      style={{ '--tw-ring-color': colors.primary, backgroundColor: inputBgColor, borderColor: inputBorderColor, color: inputTextColor } as React.CSSProperties}
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium mb-2" style={{ color: labelColor }}>
                       マーケティングチャネル（任意・複数選択可）
                     </label>
                     <div className="flex flex-wrap gap-2">
@@ -1187,7 +1222,8 @@ export default function ProjectCreatePage() {
                             backgroundColor: colors.primaryLight,
                             color: colors.primary
                           } : {
-                            borderColor: '#D1D5DB'
+                            borderColor: postType === 'secret' ? inputBorderColor : '#D1D5DB',
+                            color: postType === 'secret' ? textColor : '#374151'
                           }}
                         >
                           {channel}
@@ -1196,7 +1232,7 @@ export default function ProjectCreatePage() {
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium mb-2" style={{ color: labelColor }}>
                       メディア掲載実績（任意）
                     </label>
                     <textarea
@@ -1204,8 +1240,8 @@ export default function ProjectCreatePage() {
                       onChange={(e) => setFormData({ ...formData, mediaMentions: e.target.value })}
                       placeholder="メディアでの掲載実績があれば記載してください..."
                       rows={3}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent resize-none"
-                      style={{ '--tw-ring-color': colors.primary } as React.CSSProperties}
+                      className="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent resize-none"
+                      style={{ '--tw-ring-color': colors.primary, backgroundColor: inputBgColor, borderColor: inputBorderColor, color: inputTextColor } as React.CSSProperties}
                     />
                   </div>
                 </div>
@@ -1215,22 +1251,22 @@ export default function ProjectCreatePage() {
           </div>
 
           {/* ステップ9: 価格と追加情報 */}
-          <div className="bg-white rounded-lg py-8 px-8">
+          <div className="rounded-lg py-8 px-8" style={{ backgroundColor: cardBgColor }}>
             <div className="max-w-4xl mx-auto">
               <div className="flex items-start gap-4">
-              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 border" style={{ borderColor: '#4B5563', backgroundColor: 'transparent' }}>
-                <span className="font-bold text-base" style={{ color: '#4B5563' }}>9</span>
+              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 border" style={{ borderColor: stepBorderColor, backgroundColor: 'transparent' }}>
+                <span className="font-bold text-base" style={{ color: labelColor }}>9</span>
               </div>
               <div className="flex-1">
-                <h2 className="text-lg font-bold mb-2" style={{ color: '#4B5563' }}>
+                <h2 className="text-lg font-bold mb-2" style={{ color: labelColor }}>
                   希望売却価格と追加情報
                 </h2>
-                <p className="text-sm text-gray-600 mb-4">
+                <p className="text-sm mb-4" style={{ color: textColor }}>
                   プロダクトの売却希望価格と技術情報を入力してください
                 </p>
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium mb-2" style={{ color: labelColor }}>
                       希望売却価格 <span className="text-red-500">*</span>
                     </label>
                     <div className="flex gap-2">
@@ -1239,16 +1275,16 @@ export default function ProjectCreatePage() {
                         value={formData.price}
                         onChange={(e) => setFormData({ ...formData, price: e.target.value })}
                         placeholder="1000"
-                        className="w-1/2 md:flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent"
-                        style={{ '--tw-ring-color': colors.primary } as React.CSSProperties}
+                        className="w-1/2 md:flex-1 px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent"
+                        style={{ '--tw-ring-color': colors.primary, backgroundColor: inputBgColor, borderColor: inputBorderColor, color: inputTextColor } as React.CSSProperties}
                         required
                       />
                       <div className="relative">
                         <select
                           value={formData.priceUnit}
                           onChange={(e) => setFormData({ ...formData, priceUnit: e.target.value })}
-                          className="pl-3 pr-8 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent appearance-none font-bold"
-                          style={{ '--tw-ring-color': colors.primary, color: '#323232' } as React.CSSProperties}
+                          className="pl-3 pr-8 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent appearance-none font-bold"
+                          style={{ '--tw-ring-color': colors.primary, color: inputTextColor, backgroundColor: inputBgColor, borderColor: inputBorderColor } as React.CSSProperties}
                         >
                           <option value="1">円</option>
                           <option value="100">百円</option>
@@ -1258,7 +1294,8 @@ export default function ProjectCreatePage() {
                           <option value="1000000000000">兆円</option>
                         </select>
                         <svg
-                          className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500"
+                          className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none"
+                          style={{ color: inputTextColor }}
                           width="20"
                           height="20"
                           viewBox="0 0 24 24"
@@ -1271,7 +1308,7 @@ export default function ProjectCreatePage() {
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium mb-2" style={{ color: labelColor }}>
                       技術スタック（カンマ区切り、任意）
                     </label>
                     <input
@@ -1279,12 +1316,12 @@ export default function ProjectCreatePage() {
                       value={formData.techStack}
                       onChange={(e) => setFormData({ ...formData, techStack: e.target.value })}
                       placeholder="React, Node.js, PostgreSQL"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent"
-                      style={{ '--tw-ring-color': colors.primary } as React.CSSProperties}
+                      className="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent"
+                      style={{ '--tw-ring-color': colors.primary, backgroundColor: inputBgColor, borderColor: inputBorderColor, color: inputTextColor } as React.CSSProperties}
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium mb-2" style={{ color: labelColor }}>
                       サービスURL（カンマ区切り、任意）
                     </label>
                     <input
@@ -1292,12 +1329,12 @@ export default function ProjectCreatePage() {
                       value={formData.serviceUrls}
                       onChange={(e) => setFormData({ ...formData, serviceUrls: e.target.value })}
                       placeholder="https://example.com, https://app.example.com"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent"
-                      style={{ '--tw-ring-color': colors.primary } as React.CSSProperties}
+                      className="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent"
+                      style={{ '--tw-ring-color': colors.primary, backgroundColor: inputBgColor, borderColor: inputBorderColor, color: inputTextColor } as React.CSSProperties}
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium mb-2" style={{ color: labelColor }}>
                       補足説明（任意）
                     </label>
                     <textarea
@@ -1305,8 +1342,8 @@ export default function ProjectCreatePage() {
                       onChange={(e) => setFormData({ ...formData, body: e.target.value })}
                       placeholder="その他の補足情報があれば記載してください..."
                       rows={4}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent resize-none"
-                      style={{ '--tw-ring-color': colors.primary } as React.CSSProperties}
+                      className="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent resize-none"
+                      style={{ '--tw-ring-color': colors.primary, backgroundColor: inputBgColor, borderColor: inputBorderColor, color: inputTextColor } as React.CSSProperties}
                     />
                   </div>
                 </div>
@@ -1321,9 +1358,15 @@ export default function ProjectCreatePage() {
               <button
                 type="button"
                 onClick={() => router.push('/')}
-                className="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 font-semibold transition-colors"
+                className="px-6 py-3 border rounded-lg font-semibold transition-colors"
+                style={{
+                  borderColor: postType === 'secret' ? inputBorderColor : '#d1d5db',
+                  color: postType === 'secret' ? textColor : '#374151'
+                }}
                 disabled={isSubmitting}
-                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = colors.primaryLight}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = postType === 'secret' ? inputBgColor : colors.primaryLight;
+                }}
                 onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
               >
                 キャンセル
@@ -1343,7 +1386,7 @@ export default function ProjectCreatePage() {
                   !formData.price ||
                   isSubmitting
                 }
-                className="px-10 py-3 text-white rounded-lg font-semibold transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-between gap-4"
+                className="px-10 py-3 rounded-lg font-semibold transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-between gap-4"
                 style={{
                   backgroundColor: (
                     !formData.title ||
@@ -1357,16 +1400,18 @@ export default function ProjectCreatePage() {
                     !formData.monthlyCost ||
                     !formData.price ||
                     isSubmitting
-                  ) ? undefined : '#E65D65'
+                  ) ? undefined : (postType === 'secret' ? '#ffffff' : '#E65D65'),
+                  color: postType === 'secret' ? '#323232' : '#ffffff',
+                  border: postType === 'secret' ? '2px solid #ffffff' : 'none'
                 }}
                 onMouseEnter={(e) => {
                   if (!e.currentTarget.disabled) {
-                    e.currentTarget.style.backgroundColor = '#D14C54';
+                    e.currentTarget.style.backgroundColor = postType === 'secret' ? '#e8e8e8' : '#D14C54';
                   }
                 }}
                 onMouseLeave={(e) => {
                   if (!e.currentTarget.disabled) {
-                    e.currentTarget.style.backgroundColor = '#E65D65';
+                    e.currentTarget.style.backgroundColor = postType === 'secret' ? '#ffffff' : '#E65D65';
                   }
                 }}
               >

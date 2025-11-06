@@ -180,6 +180,7 @@ export interface Post {
   price?: number;
   secret_visibility?: 'full' | 'price_only' | 'hidden';
   is_active: boolean;
+  subscribe?: boolean;
   created_at: string;
   updated_at: string;
   eyecatch_url?: string;

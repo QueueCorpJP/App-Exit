@@ -1,10 +1,13 @@
 'use client';
 
 import Image from 'next/image';
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import ProjectCard from '../ui/ProjectCard';
+import InfiniteCarousel from '../ui/InfiniteCarousel';
 import { getImageUrls } from '@/lib/storage';
 import { postApi, Post } from '@/lib/api-client';
+import { mockCarouselData } from '@/data/mock-carousel';
 
 interface ProjectWithImage {
   id: string;
@@ -21,12 +24,28 @@ interface ProjectWithImage {
 
 interface TopPageProps {
   initialPosts?: Post[];
+  useMockCarousel?: boolean; // モックデータを使用するかどうか
 }
 
-export default function TopPage({ initialPosts = [] }: TopPageProps) {
+export default function TopPage({ initialPosts = [], useMockCarousel = true }: TopPageProps) {
   const [posts, setPosts] = useState<Post[]>(initialPosts);
   const [projects, setProjects] = useState<ProjectWithImage[]>([]);
+  const [subscribedProjects, setSubscribedProjects] = useState<ProjectWithImage[]>([]);
   const [loading, setLoading] = useState(initialPosts.length === 0);
+
+  // モックデータをカルーセル用にフォーマット
+  const mockCarouselProjects: ProjectWithImage[] = useMockCarousel
+    ? mockCarouselData.map((item) => ({
+        id: item.id,
+        title: item.title,
+        category: item.category,
+        image: item.image,
+        imagePath: null,
+        supporters: 0,
+        daysLeft: 30,
+        amountRaised: item.price,
+      }))
+    : [];
 
   useEffect(() => {
     let isMounted = true;
@@ -137,8 +156,15 @@ export default function TopPage({ initialPosts = [] }: TopPageProps) {
             };
           });
 
+          // subscribe が true の投稿をフィルタリング
+          const subscribed = projectsWithImages.filter((project) => {
+            const post = data.find(p => p.id === project.id);
+            return post && post.subscribe === true;
+          });
+
           if (isMounted) {
             setProjects(projectsWithImages);
+            setSubscribedProjects(subscribed);
           }
         }
       } catch (error) {
@@ -178,20 +204,33 @@ export default function TopPage({ initialPosts = [] }: TopPageProps) {
     );
   }
 
+  // カルーセルに表示するプロジェクトを決定
+  const carouselItems = useMockCarousel && mockCarouselProjects.length > 0
+    ? mockCarouselProjects
+    : subscribedProjects;
+
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#F9F8F7' }}>
+      {/* Infinite Carousel for Subscribed Projects */}
+      {carouselItems.length > 0 && (
+        <InfiniteCarousel items={carouselItems} />
+      )}
+
       {/* Featured Project Section */}
       {featuredProject && (
         <section className="bg-white py-12">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               {/* Main Featured Project */}
-              <div className="relative h-96 rounded-lg overflow-hidden">
+              <Link
+                href={`/projects/${featuredProject.id}`}
+                className="relative h-96 rounded-lg overflow-hidden block group cursor-pointer"
+              >
                 <Image
                   src={featuredProject.image}
                   alt={featuredProject.title}
                   fill
-                  className="object-cover"
+                  className="object-cover transition-transform duration-300 group-hover:scale-105"
                   priority
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
@@ -213,34 +252,38 @@ export default function TopPage({ initialPosts = [] }: TopPageProps) {
                     </div>
                   </div>
                 </div>
-              </div>
+              </Link>
 
               {/* Side Projects Grid */}
               {sideProjects.length > 0 && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {sideProjects.map((project) => (
-                <div key={project.id} className="relative h-44 rounded-lg overflow-hidden">
-                  <Image
-                    src={project.image}
-                    alt={project.title}
-                    fill
-                    className="object-cover"
-                  />
-                  {project.badge && (
-                    <div className="absolute top-2 left-2 bg-white px-2 py-1 rounded text-xs font-medium">
-                      {project.badge}
-                    </div>
-                  )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                  <div className="absolute bottom-0 left-0 right-0 p-3 text-white">
-                    <p className="text-xs mb-1 line-clamp-2">{project.title}</p>
-                    <div className="flex items-center gap-2 text-xs">
-                      <span>{project.supporters}人</span>
-                      <span>残り{project.daysLeft}日</span>
-                      <span className="font-semibold">{project.amountRaised.toLocaleString()}円</span>
-                    </div>
-                  </div>
-                </div>
+                    <Link
+                      key={project.id}
+                      href={`/projects/${project.id}`}
+                      className="relative h-44 rounded-lg overflow-hidden block group cursor-pointer"
+                    >
+                      <Image
+                        src={project.image}
+                        alt={project.title}
+                        fill
+                        className="object-cover transition-transform duration-300 group-hover:scale-105"
+                      />
+                      {project.badge && (
+                        <div className="absolute top-2 left-2 bg-white px-2 py-1 rounded text-xs font-medium">
+                          {project.badge}
+                        </div>
+                      )}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                      <div className="absolute bottom-0 left-0 right-0 p-3 text-white">
+                        <p className="text-xs mb-1 line-clamp-2">{project.title}</p>
+                        <div className="flex items-center gap-2 text-xs">
+                          <span>{project.supporters}人</span>
+                          <span>残り{project.daysLeft}日</span>
+                          <span className="font-semibold">{project.amountRaised.toLocaleString()}円</span>
+                        </div>
+                      </div>
+                    </Link>
                   ))}
                 </div>
               )}

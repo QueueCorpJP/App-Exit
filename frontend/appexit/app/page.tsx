@@ -28,5 +28,5 @@ export default async function Home() {
   // Server Componentで初期データを取得
   const initialPosts = await getPosts();
 
-  return <TopPage initialPosts={initialPosts} />;
+  return <TopPage initialPosts={initialPosts} useMockCarousel={true} />;
 }

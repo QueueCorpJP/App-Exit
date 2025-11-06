@@ -223,7 +223,7 @@ func (s *Server) GetPost(w http.ResponseWriter, r *http.Request, postID string) 
 		AuthorProfile: authorProfilePtr,
 	}
 
-	fmt.Printf("[GET /api/posts/%s] ✅ Returning post with details and author profile\n", postID)
+	fmt.Printf("[GET /api/posts/%s] ✅ Returning post with author profile\n", postID)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(response)
@@ -277,6 +277,77 @@ func (s *Server) CreatePost(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Validation error: %v", err), http.StatusBadRequest)
 		return
 	}
+	
+	// Additional validation for transaction type
+	if req.Type == models.PostTypeTransaction {
+		fmt.Printf("[POST /api/posts] Validating transaction-specific fields...\n")
+		
+		if req.Price == nil || *req.Price <= 0 {
+			fmt.Printf("[POST /api/posts] ❌ ERROR: Price is required for transaction posts\n")
+			fmt.Printf("========== CREATE POST END (FAILED) ==========\n\n")
+			http.Error(w, "Price is required for transaction posts", http.StatusBadRequest)
+			return
+		}
+		
+		if len(req.AppCategories) == 0 {
+			fmt.Printf("[POST /api/posts] ❌ ERROR: At least one app category is required for transaction posts\n")
+			fmt.Printf("========== CREATE POST END (FAILED) ==========\n\n")
+			http.Error(w, "At least one app category is required for transaction posts", http.StatusBadRequest)
+			return
+		}
+		
+		if req.MonthlyRevenue == nil || *req.MonthlyRevenue < 0 {
+			fmt.Printf("[POST /api/posts] ❌ ERROR: Monthly revenue is required for transaction posts\n")
+			fmt.Printf("========== CREATE POST END (FAILED) ==========\n\n")
+			http.Error(w, "Monthly revenue is required for transaction posts", http.StatusBadRequest)
+			return
+		}
+		
+		if req.MonthlyCost == nil || *req.MonthlyCost < 0 {
+			fmt.Printf("[POST /api/posts] ❌ ERROR: Monthly cost is required for transaction posts\n")
+			fmt.Printf("========== CREATE POST END (FAILED) ==========\n\n")
+			http.Error(w, "Monthly cost is required for transaction posts", http.StatusBadRequest)
+			return
+		}
+		
+		if req.AppealText == nil || len(*req.AppealText) < 50 {
+			fmt.Printf("[POST /api/posts] ❌ ERROR: Appeal text must be at least 50 characters for transaction posts\n")
+			fmt.Printf("========== CREATE POST END (FAILED) ==========\n\n")
+			http.Error(w, "Appeal text must be at least 50 characters for transaction posts", http.StatusBadRequest)
+			return
+		}
+		
+		if req.EyecatchURL == nil || *req.EyecatchURL == "" {
+			fmt.Printf("[POST /api/posts] ❌ ERROR: Eyecatch URL is required for transaction posts\n")
+			fmt.Printf("========== CREATE POST END (FAILED) ==========\n\n")
+			http.Error(w, "Eyecatch URL is required for transaction posts", http.StatusBadRequest)
+			return
+		}
+		
+		if req.DashboardURL == nil || *req.DashboardURL == "" {
+			fmt.Printf("[POST /api/posts] ❌ ERROR: Dashboard URL is required for transaction posts\n")
+			fmt.Printf("========== CREATE POST END (FAILED) ==========\n\n")
+			http.Error(w, "Dashboard URL is required for transaction posts", http.StatusBadRequest)
+			return
+		}
+		
+		if req.UserUIURL == nil || *req.UserUIURL == "" {
+			fmt.Printf("[POST /api/posts] ❌ ERROR: User UI URL is required for transaction posts\n")
+			fmt.Printf("========== CREATE POST END (FAILED) ==========\n\n")
+			http.Error(w, "User UI URL is required for transaction posts", http.StatusBadRequest)
+			return
+		}
+		
+		if req.PerformanceURL == nil || *req.PerformanceURL == "" {
+			fmt.Printf("[POST /api/posts] ❌ ERROR: Performance URL is required for transaction posts\n")
+			fmt.Printf("========== CREATE POST END (FAILED) ==========\n\n")
+			http.Error(w, "Performance URL is required for transaction posts", http.StatusBadRequest)
+			return
+		}
+		
+		fmt.Printf("[POST /api/posts] ✓ Transaction validation passed\n")
+	}
+	
 	fmt.Printf("[POST /api/posts] ✓ Validation passed\n")
 
 	// Create a new Supabase client with impersonate JWT (for RLS)
@@ -310,36 +381,36 @@ func (s *Server) CreatePost(w http.ResponseWriter, r *http.Request) {
 
 	// Prepare post data
 	postData := map[string]interface{}{
-		"author_user_id":      userID,
-		"author_org_id":       authorOrgID,
-		"type":                req.Type,
-		"title":               req.Title,
-		"body":                req.Body,
-		"eyecatch_url":        req.EyecatchURL,
-		"dashboard_url":       req.DashboardURL,
-		"user_ui_url":         req.UserUIURL,
-		"performance_url":     req.PerformanceURL,
-		"app_categories":      req.AppCategories,
-		"service_urls":        req.ServiceURLs,
-		"revenue_models":      req.RevenueModels,
-		"monthly_revenue":     req.MonthlyRevenue,
-		"monthly_cost":        req.MonthlyCost,
-		"appeal_text":         req.AppealText,
-		"tech_stack":          req.TechStack,
-		"user_count":          req.UserCount,
-		"release_date":        req.ReleaseDate,
-		"operation_form":      req.OperationForm,
-		"operation_effort":    req.OperationEffort,
-		"transfer_items":      req.TransferItems,
-		"desired_transfer_timing": req.DesiredTransferTiming,
-		"growth_potential":    req.GrowthPotential,
-		"target_customers":    req.TargetCustomers,
-		"marketing_channels":  req.MarketingChannels,
-		"media_mentions":      req.MediaMentions,
-		"extra_image_urls":    req.ExtraImageURLs,
-		"price":               req.Price,
-		"secret_visibility":   req.SecretVisibility,
-		"is_active":           true,
+		"author_user_id":           userID,
+		"author_org_id":            authorOrgID,
+		"type":                     req.Type,
+		"title":                    req.Title,
+		"body":                     req.Body,
+		"price":                    req.Price,
+		"secret_visibility":        req.SecretVisibility,
+		"is_active":                true,
+		"eyecatch_url":             req.EyecatchURL,
+		"dashboard_url":            req.DashboardURL,
+		"user_ui_url":              req.UserUIURL,
+		"performance_url":          req.PerformanceURL,
+		"app_categories":           req.AppCategories,
+		"service_urls":             req.ServiceURLs,
+		"revenue_models":           req.RevenueModels,
+		"monthly_revenue":          req.MonthlyRevenue,
+		"monthly_cost":             req.MonthlyCost,
+		"appeal_text":              req.AppealText,
+		"tech_stack":               req.TechStack,
+		"user_count":               req.UserCount,
+		"release_date":             req.ReleaseDate,
+		"operation_form":           req.OperationForm,
+		"operation_effort":         req.OperationEffort,
+		"transfer_items":           req.TransferItems,
+		"desired_transfer_timing":  req.DesiredTransferTiming,
+		"growth_potential":         req.GrowthPotential,
+		"target_customers":         req.TargetCustomers,
+		"marketing_channels":       req.MarketingChannels,
+		"media_mentions":           req.MediaMentions,
+		"extra_image_urls":         req.ExtraImageURLs,
 	}
 
 	// Insert post with impersonate JWT (RLS will automatically check permissions)
@@ -411,13 +482,14 @@ func (s *Server) UpdatePost(w http.ResponseWriter, r *http.Request, postID strin
 	// Use impersonate client (RLS will check permissions automatically)
 	client := s.supabase.GetAuthenticatedClient(impersonateJWT)
 
-	// Check if post exists
+	// Check if post exists and get its type
 	type PostInfo struct {
-		AuthorUserID string `json:"author_user_id"`
+		AuthorUserID string           `json:"author_user_id"`
+		Type         models.PostType  `json:"type"`
 	}
 	var postsInfo []PostInfo
 	_, err := client.From("posts").
-		Select("author_user_id", "", false).
+		Select("author_user_id, type", "", false).
 		Eq("id", postID).
 		Limit(1, "").
 		ExecuteTo(&postsInfo)
@@ -442,6 +514,15 @@ func (s *Server) UpdatePost(w http.ResponseWriter, r *http.Request, postID strin
 	}
 	if req.Body != nil {
 		postUpdateData["body"] = *req.Body
+	}
+	if req.Price != nil {
+		postUpdateData["price"] = *req.Price
+	}
+	if req.SecretVisibility != nil {
+		postUpdateData["secret_visibility"] = *req.SecretVisibility
+	}
+	if req.IsActive != nil {
+		postUpdateData["is_active"] = *req.IsActive
 	}
 	if req.EyecatchURL != nil {
 		postUpdateData["eyecatch_url"] = *req.EyecatchURL
@@ -508,15 +589,6 @@ func (s *Server) UpdatePost(w http.ResponseWriter, r *http.Request, postID strin
 	}
 	if req.ExtraImageURLs != nil {
 		postUpdateData["extra_image_urls"] = req.ExtraImageURLs
-	}
-	if req.Price != nil {
-		postUpdateData["price"] = *req.Price
-	}
-	if req.SecretVisibility != nil {
-		postUpdateData["secret_visibility"] = *req.SecretVisibility
-	}
-	if req.IsActive != nil {
-		postUpdateData["is_active"] = *req.IsActive
 	}
 
 	// Update post if there are changes

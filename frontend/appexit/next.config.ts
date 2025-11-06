@@ -19,6 +19,10 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: 'via.placeholder.com', // Placeholder images
       },
+      {
+        protocol: 'https',
+        hostname: 'images.unsplash.com', // Unsplash images for mock data
+      },
     ],
     // 画像読み込みエラー時の動作を設定
     dangerouslyAllowSVG: true,

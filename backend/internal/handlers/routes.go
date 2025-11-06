@@ -76,12 +76,6 @@ func SetupRoutes(cfg *config.Config) http.Handler {
 	})
 	fmt.Println("[ROUTES] Registered: /api/user-links")
 
-	// Product routes (conditional auth)
-	mux.HandleFunc("/api/products", server.HandleProductsRoute)
-	mux.HandleFunc("/api/products/", server.HandleProductByIDRoute)
-	fmt.Println("[ROUTES] Registered: /api/products")
-	fmt.Println("[ROUTES] Registered: /api/products/")
-
 	// Message routes (protected)
 	fmt.Println("[ROUTES] Registering message routes with auth middleware...")
 	mux.HandleFunc("/api/threads", func(w http.ResponseWriter, r *http.Request) {
@@ -210,30 +204,6 @@ func (s *Server) HandleCommentRoute(w http.ResponseWriter, r *http.Request) {
 		} else {
 			auth(s.HandleCommentByID)(w, r)
 		}
-	}
-}
-
-// HandleProductsRoute handles products with conditional auth
-func (s *Server) HandleProductsRoute(w http.ResponseWriter, r *http.Request) {
-	if r.Method == http.MethodPost {
-		// POST requires authentication
-		auth := middleware.AuthWithSupabase(s.config.SupabaseJWTSecret, s.supabase)
-		auth(s.HandleProducts)(w, r)
-	} else {
-		// GET is public
-		s.HandleProducts(w, r)
-	}
-}
-
-// HandleProductByIDRoute handles product by ID with conditional auth
-func (s *Server) HandleProductByIDRoute(w http.ResponseWriter, r *http.Request) {
-	if r.Method == http.MethodGet {
-		// GET is public
-		s.HandleProductByID(w, r)
-	} else {
-		// PUT, DELETE require authentication
-		auth := middleware.AuthWithSupabase(s.config.SupabaseJWTSecret, s.supabase)
-		auth(s.HandleProductByID)(w, r)
 	}
 }
 
