@@ -52,7 +52,7 @@ export default function ProjectDetailPage({
   const displayImagePath = postDetails?.eyecatch_url || initialData?.imagePath || null;
   const displayCategory = postDetails?.app_categories?.[0] || initialData?.category || 'カテゴリ不明';
   const displayPrice = postDetails?.price || initialData?.price;
-  const displayStatus = (postDetails?.is_active ? '募集中' : '成約済み') || initialData?.status || '募集中';
+  const displayStatus = postDetails ? (postDetails.is_active ? '募集中' : '成約済み') : (initialData?.status || '募集中');
   const displayAppealText = postDetails?.appeal_text || postDetails?.body || 'プロジェクトの詳細情報を読み込んでいます...';
 
   // 投稿者のプロフィール情報
@@ -115,7 +115,7 @@ export default function ProjectDetailPage({
       />
       <div className="min-h-screen" style={{ backgroundColor: '#F9F8F7' }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* 左側: 画像と詳細情報 */}
           <div className="lg:col-span-2 space-y-6">
             {/* メイン画像 */}
@@ -617,6 +617,7 @@ export default function ProjectDetailPage({
                 )}
               </div>
             </div>
+          </div>
           </div>
         </div>
       </div>

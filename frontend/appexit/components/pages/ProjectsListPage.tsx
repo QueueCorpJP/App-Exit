@@ -11,9 +11,14 @@ interface ProjectWithImage {
   category: string;
   image: string;
   imagePath: string | null;
-  supporters: number;
-  daysLeft: number;
-  amountRaised: number;
+  price: number;
+  monthlyRevenue?: number;
+  monthlyCost?: number;
+  profitMargin?: number;
+  status?: string;
+  watchCount?: number;
+  commentCount?: number;
+  updatedAt?: string;
   tag?: string;
   badge?: string;
   authorProfile?: AuthorProfile | null;
@@ -49,7 +54,7 @@ export default function ProjectsListPage() {
       setPosts(data);
 
       // 画像パスを収集
-      const imagePaths = data.map(post => post.cover_image_url).filter((path): path is string => !!path);
+      const imagePaths = data.map(post => post.eyecatch_url).filter((path): path is string => !!path);
       console.log('[PROJECTS-LIST] Image paths:', imagePaths);
 
       // 署名付きURLを一括取得
@@ -58,8 +63,8 @@ export default function ProjectsListPage() {
 
       // プロジェクトデータに画像URLを追加
       const projectsWithImages: ProjectWithImage[] = data.map(post => {
-        const imageUrl = post.cover_image_url ?
-          (imageUrlMap.get(post.cover_image_url) || 'https://placehold.co/600x400/e2e8f0/64748b?text=No+Image') :
+        const imageUrl = post.eyecatch_url ?
+          (imageUrlMap.get(post.eyecatch_url) || 'https://placehold.co/600x400/e2e8f0/64748b?text=No+Image') :
           'https://placehold.co/600x400/e2e8f0/64748b?text=No+Image';
 
         // タイプに応じたバッジを設定
@@ -68,15 +73,33 @@ export default function ProjectsListPage() {
         else if (post.type === 'secret') badge = 'シークレット';
         else if (post.type === 'transaction') badge = '取引';
 
+        // カテゴリの取得
+        const category = post.app_categories && post.app_categories.length > 0
+          ? post.app_categories[0]
+          : (post.body || 'カテゴリ不明');
+
+        // 利益率の計算
+        const profitMargin = post.monthly_revenue && post.monthly_cost !== undefined && post.monthly_revenue > 0
+          ? ((post.monthly_revenue - post.monthly_cost) / post.monthly_revenue) * 100
+          : undefined;
+
+        // 成約状況
+        const status = post.is_active ? '募集中' : '成約済み';
+
         return {
           id: post.id,
           title: post.title,
-          category: post.body || '',
+          category,
           image: imageUrl,
-          imagePath: post.cover_image_url,
-          supporters: 0,
-          daysLeft: Math.max(30 - Math.floor((Date.now() - new Date(post.created_at).getTime()) / (1000 * 60 * 60 * 24)), 1),
-          amountRaised: post.price || post.budget_max || post.budget_min || 0,
+          imagePath: post.eyecatch_url || null,
+          price: post.price || 0,
+          monthlyRevenue: post.monthly_revenue,
+          monthlyCost: post.monthly_cost,
+          profitMargin,
+          status,
+          watchCount: undefined,
+          commentCount: undefined,
+          updatedAt: post.updated_at,
           badge,
           authorProfile: post.author_profile,
         };
@@ -169,9 +192,14 @@ export default function ProjectsListPage() {
                 category={project.category}
                 image={project.image}
                 imagePath={project.imagePath}
-                supporters={project.supporters}
-                daysLeft={project.daysLeft}
-                amountRaised={project.amountRaised}
+                price={project.price}
+                monthlyRevenue={project.monthlyRevenue}
+                monthlyCost={project.monthlyCost}
+                profitMargin={project.profitMargin}
+                status={project.status}
+                watchCount={project.watchCount}
+                commentCount={project.commentCount}
+                updatedAt={project.updatedAt}
                 tag={project.tag}
                 badge={project.badge}
                 authorProfile={project.authorProfile}
