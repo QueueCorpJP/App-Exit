@@ -411,6 +411,7 @@ func (s *Server) CreatePost(w http.ResponseWriter, r *http.Request) {
 		"marketing_channels":       req.MarketingChannels,
 		"media_mentions":           req.MediaMentions,
 		"extra_image_urls":         req.ExtraImageURLs,
+		"subscribe":                req.Subscribe,
 	}
 
 	// Insert post with impersonate JWT (RLS will automatically check permissions)
@@ -589,6 +590,9 @@ func (s *Server) UpdatePost(w http.ResponseWriter, r *http.Request, postID strin
 	}
 	if req.ExtraImageURLs != nil {
 		postUpdateData["extra_image_urls"] = req.ExtraImageURLs
+	}
+	if req.Subscribe != nil {
+		postUpdateData["subscribe"] = *req.Subscribe
 	}
 
 	// Update post if there are changes

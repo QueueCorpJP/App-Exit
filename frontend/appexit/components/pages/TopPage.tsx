@@ -15,9 +15,14 @@ interface ProjectWithImage {
   category: string;
   image: string;
   imagePath: string | null; // Storage内のパス
-  supporters: number;
-  daysLeft: number;
-  amountRaised: number;
+  price: number; // 希望価格
+  monthlyRevenue?: number; // 月商
+  monthlyCost?: number; // 月間コスト
+  profitMargin?: number; // 利益率
+  status?: string; // 成約状況
+  watchCount?: number; // ウォッチ数
+  commentCount?: number; // コメント数
+  updatedAt?: string; // 更新日
   tag?: string;
   badge?: string;
 }
@@ -41,9 +46,14 @@ export default function TopPage({ initialPosts = [], useMockCarousel = true }: T
         category: item.category,
         image: item.image,
         imagePath: null,
-        supporters: 0,
-        daysLeft: 30,
-        amountRaised: item.price,
+        price: item.price,
+        monthlyRevenue: undefined,
+        monthlyCost: undefined,
+        profitMargin: undefined,
+        status: '募集中',
+        watchCount: undefined,
+        commentCount: undefined,
+        updatedAt: undefined,
       }))
     : [];
 
@@ -76,18 +86,38 @@ export default function TopPage({ initialPosts = [], useMockCarousel = true }: T
         }
 
         // まず、画像なしでプロジェクトデータを作成して即座に表示
-        const projectsWithoutImages: ProjectWithImage[] = data.map(post => ({
-          id: post.id,
-          title: post.title,
-          category: post.body || 'プロジェクト',
-          image: 'https://placehold.co/600x400/e2e8f0/64748b?text=No+Image',
-          imagePath: post.eyecatch_url || null,
-          supporters: 0,
-          daysLeft: Math.max(30 - Math.floor((Date.now() - new Date(post.created_at).getTime()) / (1000 * 60 * 60 * 24)), 1),
-          amountRaised: post.price || 0,
-          tag: undefined,
-          badge: undefined,
-        }));
+        const projectsWithoutImages: ProjectWithImage[] = data.map(post => {
+          // カテゴリの取得（app_categoriesの最初の項目、なければbody）
+          const category = post.app_categories && post.app_categories.length > 0
+            ? post.app_categories[0]
+            : (post.body || 'プロジェクト');
+
+          // 利益率の計算
+          const profitMargin = post.monthly_revenue && post.monthly_cost !== undefined && post.monthly_revenue > 0
+            ? ((post.monthly_revenue - post.monthly_cost) / post.monthly_revenue) * 100
+            : undefined;
+
+          // 成約状況
+          const status = post.is_active ? '募集中' : '成約済み';
+
+          return {
+            id: post.id,
+            title: post.title,
+            category,
+            image: 'https://placehold.co/600x400/e2e8f0/64748b?text=No+Image',
+            imagePath: post.eyecatch_url || null,
+            price: post.price || 0,
+            monthlyRevenue: post.monthly_revenue,
+            monthlyCost: post.monthly_cost,
+            profitMargin,
+            status,
+            watchCount: undefined, // 今後実装予定
+            commentCount: undefined, // 今後実装予定
+            updatedAt: post.updated_at,
+            tag: undefined,
+            badge: undefined,
+          };
+        });
 
         // データを即座に表示して読み込みを解除
         if (isMounted) {
@@ -142,15 +172,33 @@ export default function TopPage({ initialPosts = [], useMockCarousel = true }: T
               ? (imageUrlMap.get(post.eyecatch_url) || 'https://placehold.co/600x400/e2e8f0/64748b?text=No+Image')
               : 'https://placehold.co/600x400/e2e8f0/64748b?text=No+Image';
 
+            // カテゴリの取得（app_categoriesの最初の項目、なければbody）
+            const category = post.app_categories && post.app_categories.length > 0
+              ? post.app_categories[0]
+              : (post.body || 'プロジェクト');
+
+            // 利益率の計算
+            const profitMargin = post.monthly_revenue && post.monthly_cost !== undefined && post.monthly_revenue > 0
+              ? ((post.monthly_revenue - post.monthly_cost) / post.monthly_revenue) * 100
+              : undefined;
+
+            // 成約状況
+            const status = post.is_active ? '募集中' : '成約済み';
+
             return {
               id: post.id,
               title: post.title,
-              category: post.body || 'プロジェクト',
+              category,
               image: imageUrl,
               imagePath: post.eyecatch_url || null,
-              supporters: 0,
-              daysLeft: Math.max(30 - Math.floor((Date.now() - new Date(post.created_at).getTime()) / (1000 * 60 * 60 * 24)), 1),
-              amountRaised: post.price || 0,
+              price: post.price || 0,
+              monthlyRevenue: post.monthly_revenue,
+              monthlyCost: post.monthly_cost,
+              profitMargin,
+              status,
+              watchCount: undefined, // 今後実装予定
+              commentCount: undefined, // 今後実装予定
+              updatedAt: post.updated_at,
               tag: undefined,
               badge: undefined,
             };
@@ -232,9 +280,14 @@ export default function TopPage({ initialPosts = [], useMockCarousel = true }: T
                 category={project.category}
                 image={project.image}
                 imagePath={project.imagePath}
-                supporters={project.supporters}
-                daysLeft={project.daysLeft}
-                amountRaised={project.amountRaised}
+                price={project.price}
+                monthlyRevenue={project.monthlyRevenue}
+                monthlyCost={project.monthlyCost}
+                profitMargin={project.profitMargin}
+                status={project.status}
+                watchCount={project.watchCount}
+                commentCount={project.commentCount}
+                updatedAt={project.updatedAt}
                 tag={project.tag}
                 badge={project.badge}
               />
@@ -270,17 +323,20 @@ export default function TopPage({ initialPosts = [], useMockCarousel = true }: T
                   <h2 className="text-2xl font-bold mb-4">{featuredProject.title}</h2>
                   <div className="flex items-center gap-6 text-sm">
                     <div>
-                      <span className="font-bold text-2xl">{featuredProject.amountRaised.toLocaleString()}</span>
-                      <span className="ml-1">円</span>
+                      <span className="font-bold text-2xl">{featuredProject.price.toLocaleString()}円</span>
                     </div>
-                    <div>
-                      <span className="opacity-80">支援</span>
-                      <span className="font-semibold ml-1">{featuredProject.supporters}人</span>
-                    </div>
-                    <div>
-                      <span className="opacity-80">残り</span>
-                      <span className="font-semibold ml-1">{featuredProject.daysLeft}日</span>
-                    </div>
+                    {featuredProject.monthlyRevenue && (
+                      <div>
+                        <span className="opacity-80">月商</span>
+                        <span className="font-semibold ml-1">{featuredProject.monthlyRevenue.toLocaleString()}円</span>
+                      </div>
+                    )}
+                    {featuredProject.profitMargin !== undefined && featuredProject.profitMargin > 0 && (
+                      <div>
+                        <span className="opacity-80">利益率</span>
+                        <span className="font-semibold ml-1">{featuredProject.profitMargin.toFixed(0)}%</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </Link>
@@ -309,9 +365,10 @@ export default function TopPage({ initialPosts = [], useMockCarousel = true }: T
                       <div className="absolute bottom-0 left-0 right-0 p-3 text-white">
                         <p className="text-xs mb-1 line-clamp-2">{project.title}</p>
                         <div className="flex items-center gap-2 text-xs">
-                          <span>{project.supporters}人</span>
-                          <span>残り{project.daysLeft}日</span>
-                          <span className="font-semibold">{project.amountRaised.toLocaleString()}円</span>
+                          <span className="font-semibold">{project.price.toLocaleString()}円</span>
+                          {project.monthlyRevenue && (
+                            <span>月商{project.monthlyRevenue.toLocaleString()}円</span>
+                          )}
                         </div>
                       </div>
                     </Link>

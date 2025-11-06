@@ -184,6 +184,28 @@ export interface Post {
   created_at: string;
   updated_at: string;
   eyecatch_url?: string;
+  dashboard_url?: string;
+  user_ui_url?: string;
+  performance_url?: string;
+  app_categories?: string[];
+  service_urls?: string[];
+  revenue_models?: string[];
+  monthly_revenue?: number;
+  monthly_cost?: number;
+  monthly_profit?: number;
+  appeal_text?: string;
+  tech_stack?: string[];
+  user_count?: number;
+  release_date?: string;
+  operation_form?: string;
+  operation_effort?: string;
+  transfer_items?: string[];
+  desired_transfer_timing?: string;
+  growth_potential?: string;
+  target_customers?: string;
+  marketing_channels?: string[];
+  media_mentions?: string;
+  extra_image_urls?: string[];
   author_profile?: AuthorProfile;
   // その他のフィールド
   [key: string]: any;

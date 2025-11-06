@@ -56,6 +56,7 @@ type Post struct {
 	MediaMentions           *string           `json:"media_mentions,omitempty"`
 	ExtraImageURLs          []string          `json:"extra_image_urls,omitempty"`
 	MonthlyProfit           *int64            `json:"monthly_profit,omitempty"`
+	Subscribe               *bool             `json:"subscribe,omitempty"`
 }
 
 // AuthorProfile represents the profile of the post author
@@ -103,6 +104,7 @@ type CreatePostRequest struct {
 	MarketingChannels     []string          `json:"marketing_channels,omitempty"`
 	MediaMentions         *string           `json:"media_mentions,omitempty"`
 	ExtraImageURLs        []string          `json:"extra_image_urls,omitempty"`
+	Subscribe             *bool             `json:"subscribe,omitempty"`
 }
 
 // UpdatePostRequest represents a request to update an existing post
@@ -134,6 +136,7 @@ type UpdatePostRequest struct {
 	MarketingChannels     []string          `json:"marketing_channels,omitempty"`
 	MediaMentions         *string           `json:"media_mentions,omitempty"`
 	ExtraImageURLs        []string          `json:"extra_image_urls,omitempty"`
+	Subscribe             *bool             `json:"subscribe,omitempty"`
 }
 
 // PostQueryParams represents query parameters for listing posts

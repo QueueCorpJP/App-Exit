@@ -8,12 +8,14 @@ interface PageProps {
     title?: string;
     category?: string;
     imagePath?: string;
+    price?: string;
+    status?: string;
   }>;
 }
 
 export default async function ProjectDetail({ params, searchParams }: PageProps) {
   const { id } = await params;
-  const { title, category, imagePath } = await searchParams;
+  const { title, category, imagePath, price, status } = await searchParams;
 
   // idが"new"の場合は404を返す（静的ルート/projects/newが優先されるべき）
   if (id === 'new') {
@@ -45,6 +47,8 @@ export default async function ProjectDetail({ params, searchParams }: PageProps)
           title,
           category,
           imagePath,
+          price: price ? parseInt(price) : undefined,
+          status,
         }}
         postDetails={postDetails}
       />

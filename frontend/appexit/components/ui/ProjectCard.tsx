@@ -19,9 +19,14 @@ interface ProjectCardProps {
   category: string;
   image: string; // 署名付きURL（表示用）
   imagePath?: string | null; // Storageのパス（詳細ページに渡す用）
-  supporters: number;
-  daysLeft: number;
-  amountRaised: number;
+  price: number; // 希望価格
+  monthlyRevenue?: number; // 月商
+  monthlyCost?: number; // 月間コスト
+  profitMargin?: number; // 利益率（%）
+  status?: string; // 成約状況
+  watchCount?: number; // ウォッチ数
+  commentCount?: number; // コメント数
+  updatedAt?: string; // 更新日
   tag?: string;
   badge?: string;
   size?: 'small' | 'large';
@@ -34,9 +39,14 @@ export default function ProjectCard({
   category,
   image,
   imagePath,
-  supporters,
-  daysLeft,
-  amountRaised,
+  price,
+  monthlyRevenue,
+  monthlyCost,
+  profitMargin,
+  status = '募集中',
+  watchCount,
+  commentCount,
+  updatedAt,
   tag,
   badge,
   size = 'small',
@@ -51,17 +61,39 @@ export default function ProjectCard({
     console.log(`[PROJECT-CARD] id=${id}, imagePath="${imagePath}", image="${image?.substring(0, 80)}..."`);
   }
 
-  // カード情報をクエリパラメータとして渡す
-  // imagePathがあればそれを、なければimageを渡す
+  // カード情報をクエリパラメータとして渡す（初期表示用の最小限の情報）
   const queryParams = new URLSearchParams({
     title,
     category,
     imagePath: imagePath || '',
+    price: price.toString(),
+    status: status || '',
   });
+
+  // 更新日をフォーマット
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}`;
+  };
+
+  // 成約状況のバッジ色を決定
+  const getStatusBadgeColor = (status: string) => {
+    switch (status) {
+      case '募集中':
+        return 'bg-green-100 text-green-800';
+      case '交渉中':
+        return 'bg-yellow-100 text-yellow-800';
+      case '成約済み':
+        return 'bg-gray-100 text-gray-800';
+      default:
+        return 'bg-green-100 text-green-800';
+    }
+  };
 
   return (
     <Link href={`/projects/${id}?${queryParams.toString()}`} className="block">
-      <div className="bg-white overflow-hidden hover:bg-gray-50 transition-colors">
+      <div className="bg-white overflow-hidden hover:bg-gray-50 transition-colors rounded-sm">
         <div className={`relative ${isLarge ? 'h-80' : 'h-48'} bg-gray-200`}>
           <Image
             src={imageError ? fallbackImage : image}
@@ -77,25 +109,69 @@ export default function ProjectCard({
             </div>
           )}
         </div>
-        <div className="py-4 px-4 sm:px-8">
-          {tag && (
-            <span className="inline-block bg-red-50 text-red-600 text-xs px-2 py-1 rounded mb-2">
-              {tag}
+        <div className="py-4 px-4">
+          {/* カテゴリとステータスを横並び */}
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-xs font-semibold" style={{ color: '#E65D65' }}>
+              #{category}
             </span>
-          )}
-          <p className="text-xs text-gray-500 mb-1">{category}</p>
-          <h3 className={`font-bold text-gray-900 mb-3 line-clamp-2 ${isLarge ? 'text-lg' : 'text-sm'}`}>
+            {tag && (
+              <span className="text-xs font-semibold" style={{ color: '#E65D65' }}>
+                {tag}
+              </span>
+            )}
+            <span className={`px-2 py-1 rounded font-semibold text-xs ${getStatusBadgeColor(status)}`}>
+              {status}
+            </span>
+          </div>
+
+          {/* タイトル */}
+          <h3 className={`font-bold mb-3 line-clamp-2 ${isLarge ? 'text-lg' : 'text-base'}`} style={{ color: '#323232' }}>
             {title}
           </h3>
-          <div className="flex items-center gap-4 text-xs text-gray-500">
-            <div className="flex items-center gap-1 font-semibold text-gray-900">
-              <span>{amountRaised.toLocaleString()}円</span>
+
+          {/* 価格・月商・利益率 */}
+          <div className="mb-3 space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-500">希望価格:</span>
+              <span className="font-bold text-lg" style={{ color: '#323232' }}>{price.toLocaleString()}円</span>
             </div>
+            {monthlyRevenue !== undefined && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500">月商:</span>
+                <span className="font-semibold text-sm" style={{ color: '#323232' }}>{monthlyRevenue.toLocaleString()}円</span>
+              </div>
+            )}
+            {profitMargin !== undefined && profitMargin > 0 && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500">利益率:</span>
+                <span className="font-semibold text-sm" style={{ color: '#323232' }}>{profitMargin.toFixed(0)}%</span>
+              </div>
+            )}
           </div>
+
+          {/* ウォッチ・コメント */}
+          {(watchCount !== undefined || commentCount !== undefined) && (
+            <div className="flex items-center gap-3 mb-3 text-xs">
+              {watchCount !== undefined && (
+                <span style={{ color: '#323232' }}>👥 {watchCount}</span>
+              )}
+              {commentCount !== undefined && (
+                <span style={{ color: '#323232' }}>💬 {commentCount}</span>
+              )}
+            </div>
+          )}
+
+          {/* 更新日 */}
+          {updatedAt && (
+            <div className="text-xs text-gray-400 mb-3">
+              更新日: {formatDate(updatedAt)}
+            </div>
+          )}
 
           {/* 投稿者情報 */}
           {authorProfile && (
-            <div className="mt-3 pt-3 border-t border-gray-100">
+            <div className="pt-3 border-t border-gray-100">
               <div className="flex items-center gap-2">
                 {authorProfile.icon_url ? (
                   <div className="w-6 h-6 rounded-full overflow-hidden flex-shrink-0">
@@ -109,12 +185,12 @@ export default function ProjectCard({
                   </div>
                 ) : (
                   <div className="w-6 h-6 bg-gray-300 rounded-full flex items-center justify-center flex-shrink-0">
-                    <span className="text-xs font-bold text-gray-600">
+                    <span className="text-xs font-bold" style={{ color: '#323232' }}>
                       {authorProfile.display_name.charAt(0).toUpperCase()}
                     </span>
                   </div>
                 )}
-                <span className="text-xs text-gray-600 truncate">{authorProfile.display_name}</span>
+                <span className="text-xs truncate" style={{ color: '#323232' }}>{authorProfile.display_name}</span>
               </div>
             </div>
           )}
