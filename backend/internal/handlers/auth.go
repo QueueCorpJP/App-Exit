@@ -445,13 +445,19 @@ func (s *Server) GetProfile(w http.ResponseWriter, r *http.Request) {
 
 // setAuthCookies sets authentication cookies for the client
 func setAuthCookies(w http.ResponseWriter, accessToken, refreshToken string, user *models.User, profile *models.Profile) {
+	// Domainを明示的に設定（本番環境でクロスオリジン対応）
+	// 本番環境のIPアドレスに合わせてドメインを設定
+	cookieDomain := ""
+	// 同じドメインの異なるポート間での共有を許可するため、Domainは設定しない
+
 	// 1. auth_token (HttpOnly) - セッション管理用アクセストークン（1時間有効）
 	http.SetCookie(w, &http.Cookie{
 		Name:     "auth_token",
 		Value:    accessToken,
 		Path:     "/",
+		Domain:   cookieDomain,
 		HttpOnly: true,
-		Secure:   false, // productionではtrueにする
+		Secure:   false, // HTTPの場合はfalse
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   60 * 60, // 1時間
 	})
@@ -461,6 +467,7 @@ func setAuthCookies(w http.ResponseWriter, accessToken, refreshToken string, use
 		Name:     "access_token",
 		Value:    accessToken,
 		Path:     "/",
+		Domain:   cookieDomain,
 		HttpOnly: false, // JavaScriptからアクセス可能
 		Secure:   false,
 		SameSite: http.SameSiteLaxMode,
@@ -472,8 +479,9 @@ func setAuthCookies(w http.ResponseWriter, accessToken, refreshToken string, use
 		Name:     "refresh_token",
 		Value:    refreshToken,
 		Path:     "/",
+		Domain:   cookieDomain,
 		HttpOnly: true,
-		Secure:   false, // productionではtrueにする
+		Secure:   false, // HTTPの場合はfalse
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   60 * 60 * 24 * 7, // 7日間
 	})

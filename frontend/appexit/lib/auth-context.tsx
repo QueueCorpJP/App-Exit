@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { User, Profile } from './auth-api';
+import { supabase } from './supabase';
 
 interface AuthContextType {
   user: User | null;
@@ -34,6 +35,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const sessionCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const tokenRefreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   /**
    * バックエンドのCookieセッションをチェック
@@ -124,9 +126,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     checkBackendSession().then((hasSession) => {
       setLoading(false);
 
-      // セッションがある場合、定期的なチェックを開始（30秒ごと）
-      // ポーリング間隔を短くしてレスポンシブに
       if (hasSession) {
+        // セッションチェックを30秒ごとに実行
         sessionCheckIntervalRef.current = setInterval(async () => {
           const stillValid = await checkBackendSession();
           if (!stillValid) {
@@ -135,15 +136,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               clearInterval(sessionCheckIntervalRef.current);
               sessionCheckIntervalRef.current = null;
             }
+            if (tokenRefreshIntervalRef.current) {
+              clearInterval(tokenRefreshIntervalRef.current);
+              tokenRefreshIntervalRef.current = null;
+            }
           }
         }, 30 * 1000); // 30秒ごと
+
+        // トークンを積極的にリフレッシュ（30分ごと = トークン有効期限の半分）
+        tokenRefreshIntervalRef.current = setInterval(async () => {
+          console.log('[AUTH-CONTEXT] Proactively refreshing Supabase token...');
+          try {
+            const { data, error } = await supabase.auth.refreshSession();
+            if (error) {
+              console.error('[AUTH-CONTEXT] Token refresh failed:', error);
+            } else if (data.session) {
+              console.log('[AUTH-CONTEXT] ✓ Token refreshed proactively');
+              // Cookieは supabase.ts の onAuthStateChange で自動更新される
+            }
+          } catch (err) {
+            console.error('[AUTH-CONTEXT] Error refreshing token:', err);
+          }
+        }, 30 * 60 * 1000); // 30分ごと（トークン有効期限1時間の半分）
       }
     });
 
-    // ページがフォーカスされたときにセッションをチェック
-    const handleFocus = () => {
-      console.log('[AUTH-CONTEXT] Page focused, checking session...');
-      checkBackendSession();
+    // ページがフォーカスされたときにセッションをチェック&トークンリフレッシュ
+    const handleFocus = async () => {
+      console.log('[AUTH-CONTEXT] Page focused, checking session and refreshing token...');
+      await checkBackendSession();
+
+      // フォーカス時にもトークンをリフレッシュ（長時間放置後の復帰対策）
+      try {
+        const { data, error } = await supabase.auth.refreshSession();
+        if (!error && data.session) {
+          console.log('[AUTH-CONTEXT] ✓ Token refreshed on focus');
+        }
+      } catch (err) {
+        console.error('[AUTH-CONTEXT] Error refreshing token on focus:', err);
+      }
     };
     window.addEventListener('focus', handleFocus);
 
@@ -153,6 +184,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       window.removeEventListener('focus', handleFocus);
       if (sessionCheckIntervalRef.current) {
         clearInterval(sessionCheckIntervalRef.current);
+      }
+      if (tokenRefreshIntervalRef.current) {
+        clearInterval(tokenRefreshIntervalRef.current);
       }
     };
   }, []);

@@ -2,9 +2,10 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Eye } from 'lucide-react';
 import StorageImage from './StorageImage';
+import { activeViewApi } from '@/lib/api-client';
 
 interface AuthorProfile {
   id: string;
@@ -32,6 +33,7 @@ interface ProjectCardProps {
   badge?: string;
   size?: 'small' | 'large';
   authorProfile?: AuthorProfile | null;
+  activeViewCount?: number; // アクティブビュー数
 }
 
 export default function ProjectCard({
@@ -51,17 +53,36 @@ export default function ProjectCard({
   tag,
   badge,
   size = 'small',
-  authorProfile
+  authorProfile,
+  activeViewCount = 0
 }: ProjectCardProps) {
   const isLarge = size === 'large';
   const [imageError, setImageError] = useState(false);
   const [isWatching, setIsWatching] = useState(false);
+  const [localActiveViewCount, setLocalActiveViewCount] = useState(activeViewCount);
   const fallbackImage = 'https://placehold.co/600x400/e2e8f0/64748b?text=No+Image';
 
   // デバッグ: 最初の数個のカードだけログ出力
   if (typeof id === 'string' && id.length > 0) {
     console.log(`[PROJECT-CARD] id=${id}, imagePath="${imagePath}", image="${image?.substring(0, 80)}..."`);
   }
+
+  // アクティブビューの初期状態を取得
+  useEffect(() => {
+    const fetchActiveViewStatus = async () => {
+      try {
+        const response = await activeViewApi.getActiveViewStatus(String(id));
+        if (response.success && response.data) {
+          setIsWatching(response.data.is_active);
+        }
+      } catch (error) {
+        console.error('[PROJECT-CARD] Failed to fetch active view status:', error);
+        // エラーが発生した場合は、ログイン状態でない可能性があるため、無視
+      }
+    };
+
+    fetchActiveViewStatus();
+  }, [id]);
 
   // カード情報をクエリパラメータとして渡す（初期表示用の最小限の情報）
   const queryParams = new URLSearchParams({
@@ -94,11 +115,48 @@ export default function ProjectCard({
   };
 
   // ウォッチボタンのクリック処理
-  const handleWatchClick = (e: React.MouseEvent) => {
+  const handleWatchClick = async (e: React.MouseEvent) => {
     e.preventDefault(); // Linkの遷移を防止
     e.stopPropagation();
-    setIsWatching(!isWatching);
-    // TODO: ここでAPIを呼んでウォッチ状態を保存
+    
+    try {
+      if (isWatching) {
+        // アクティブビューを削除
+        const response = await activeViewApi.deleteActiveView(String(id));
+        setIsWatching(false);
+        // バックエンドから返された最新のカウント数を使用
+        if (response.active_view_count !== undefined) {
+          setLocalActiveViewCount(response.active_view_count);
+        } else {
+          setLocalActiveViewCount(prev => Math.max(0, prev - 1));
+        }
+        console.log('[PROJECT-CARD] Active view removed, new count:', response.active_view_count);
+      } else {
+        // アクティブビューを追加
+        const response = await activeViewApi.createActiveView(String(id));
+        setIsWatching(true);
+        // バックエンドから返された最新のカウント数を使用
+        if (response.active_view_count !== undefined) {
+          setLocalActiveViewCount(response.active_view_count);
+        } else {
+          setLocalActiveViewCount(prev => prev + 1);
+        }
+        console.log('[PROJECT-CARD] Active view added, new count:', response.active_view_count);
+      }
+    } catch (error: any) {
+      console.error('[PROJECT-CARD] Failed to toggle active view:', error);
+      
+      // エラーメッセージを表示
+      if (error?.status === 401) {
+        alert('ログインが必要です');
+      } else if (error?.data?.error) {
+        alert(error.data.error);
+      } else {
+        alert('アクティブビューの更新に失敗しました');
+      }
+      
+      // エラーが発生した場合は状態を元に戻さない（すでに変更していないため）
+    }
   };
 
   return (
@@ -207,17 +265,23 @@ export default function ProjectCard({
         </div>
 
         {/* ウォッチボタン（カード全体の右下） */}
-        <button
-          onClick={handleWatchClick}
-          className={`absolute bottom-3 right-3 p-2 rounded-full transition-all ${
-            isWatching
-              ? 'bg-red-500 text-white hover:bg-red-600'
-              : 'bg-white text-gray-700 hover:bg-gray-50'
-          }`}
-          aria-label={isWatching ? 'ウォッチ解除' : 'ウォッチ'}
-        >
-          <Eye className="w-5 h-5" />
-        </button>
+        <div className="absolute bottom-3 right-3 flex flex-col items-center gap-1">
+          <button
+            onClick={handleWatchClick}
+            className={`p-2 rounded-full transition-all ${
+              isWatching
+                ? 'bg-red-500 text-white hover:bg-red-600'
+                : 'bg-white text-gray-700 hover:bg-gray-50'
+            }`}
+            aria-label={isWatching ? 'ウォッチ解除' : 'ウォッチ'}
+          >
+            <Eye className="w-5 h-5" />
+          </button>
+          {/* アクティブビュー数 */}
+          <span className="text-xs font-semibold text-gray-700 bg-white rounded-full px-2 py-0.5">
+            {localActiveViewCount}
+          </span>
+        </div>
       </div>
     </Link>
   );

@@ -30,7 +30,7 @@ CREATE POLICY "post_comments_insert"
 ON public.post_comments
 FOR INSERT
 WITH CHECK (
-  user_id = auth.uid()
+  user_id = (select auth.uid())
 );
 
 -- UPDATE: Users can update their own comments
@@ -38,7 +38,7 @@ CREATE POLICY "post_comments_update"
 ON public.post_comments
 FOR UPDATE
 USING (
-  user_id = auth.uid()
+  user_id = (select auth.uid())
 );
 
 -- DELETE: Users can delete their own comments
@@ -46,7 +46,7 @@ CREATE POLICY "post_comments_delete"
 ON public.post_comments
 FOR DELETE
 USING (
-  user_id = auth.uid()
+  user_id = (select auth.uid())
 );
 
 -- Step 3: Create policies for comment_replies
@@ -62,7 +62,7 @@ CREATE POLICY "comment_replies_insert"
 ON public.comment_replies
 FOR INSERT
 WITH CHECK (
-  user_id = auth.uid()
+  user_id = (select auth.uid())
 );
 
 -- UPDATE: Users can update their own replies
@@ -70,7 +70,7 @@ CREATE POLICY "comment_replies_update"
 ON public.comment_replies
 FOR UPDATE
 USING (
-  user_id = auth.uid()
+  user_id = (select auth.uid())
 );
 
 -- DELETE: Users can delete their own replies
@@ -78,7 +78,7 @@ CREATE POLICY "comment_replies_delete"
 ON public.comment_replies
 FOR DELETE
 USING (
-  user_id = auth.uid()
+  user_id = (select auth.uid())
 );
 
 -- Step 4: Create policies for comment_likes
@@ -94,7 +94,7 @@ CREATE POLICY "comment_likes_insert"
 ON public.comment_likes
 FOR INSERT
 WITH CHECK (
-  user_id = auth.uid()
+  user_id = (select auth.uid())
 );
 
 -- DELETE: Users can unlike their own likes
@@ -102,7 +102,7 @@ CREATE POLICY "comment_likes_delete"
 ON public.comment_likes
 FOR DELETE
 USING (
-  user_id = auth.uid()
+  user_id = (select auth.uid())
 );
 
 -- Step 5: Ensure RLS is enabled

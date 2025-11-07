@@ -4,20 +4,23 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Button from '@/components/ui/Button'
 import { profileApi, type Profile } from '@/lib/api-client'
+import { uploadAvatarImage } from '@/lib/storage'
+import { Camera } from 'lucide-react'
 
 export default function ProfileSettingsPage() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string>('')
+  const [isHovered, setIsHovered] = useState(false)
 
   const [profile, setProfile] = useState<Profile | null>(null)
   const [displayName, setDisplayName] = useState('')
   const [age, setAge] = useState<number | undefined>(undefined)
-  const [iconUrl, setIconUrl] = useState('')
 
   const [avatarFile, setAvatarFile] = useState<File | null>(null)
   const [avatarPreview, setAvatarPreview] = useState<string>('')
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
 
   useEffect(() => {
     loadProfile()
@@ -34,7 +37,6 @@ export default function ProfileSettingsPage() {
         setProfile(response.data)
         setDisplayName(response.data.display_name)
         setAge(response.data.age || undefined)
-        setIconUrl(response.data.icon_url || '')
         setAvatarPreview(response.data.icon_url || '')
       }
     } catch (err) {
@@ -45,15 +47,50 @@ export default function ProfileSettingsPage() {
     }
   }
 
-  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (file) {
-      setAvatarFile(file)
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        setAvatarPreview(reader.result as string)
+    if (!file) return
+
+    // ファイルサイズチェック (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setError('画像サイズは5MB以下にしてください')
+      return
+    }
+
+    // ファイルタイプチェック
+    if (!file.type.startsWith('image/')) {
+      setError('画像ファイルを選択してください')
+      return
+    }
+
+    setAvatarFile(file)
+    setIsUploadingAvatar(true)
+    setError('')
+
+    // プレビュー表示
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      setAvatarPreview(reader.result as string)
+    }
+    reader.readAsDataURL(file)
+
+    try {
+      // 画像アップロード
+      const publicUrl = await uploadAvatarImage(file, profile?.id)
+      console.log('Avatar uploaded successfully:', publicUrl)
+
+      // プロフィールを即座に更新
+      const response = await profileApi.updateProfile({ icon_url: publicUrl })
+      if (response.success) {
+        setProfile(prev => prev ? { ...prev, icon_url: publicUrl } : null)
       }
-      reader.readAsDataURL(file)
+    } catch (err) {
+      console.error('Avatar upload error:', err)
+      setError(err instanceof Error ? err.message : 'アバター画像のアップロードに失敗しました')
+      setAvatarFile(null)
+      setAvatarPreview(profile?.icon_url || '')
+    } finally {
+      setIsUploadingAvatar(false)
     }
   }
 
@@ -74,7 +111,6 @@ export default function ProfileSettingsPage() {
       const updateData: {
         display_name?: string
         age?: number
-        icon_url?: string
       } = {}
 
       if (displayName !== profile?.display_name) {
@@ -82,14 +118,6 @@ export default function ProfileSettingsPage() {
       }
       if (age !== profile?.age) {
         updateData.age = age
-      }
-      if (iconUrl !== profile?.icon_url) {
-        updateData.icon_url = iconUrl || undefined
-      }
-
-      // TODO: 画像アップロード機能（将来的に実装）
-      if (avatarFile) {
-        console.log('アバター画像アップロードは今後実装予定:', avatarFile)
       }
 
       // 更新がある場合のみAPIを呼ぶ
@@ -137,79 +165,64 @@ export default function ProfileSettingsPage() {
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#F9F8F7' }}>
       <div className="max-w-3xl mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">
+        <h1 className="text-lg text-center mb-8" style={{ color: '#323232', fontWeight: 900 }}>
           プロフィール設定
         </h1>
-        <p className="text-gray-600 mb-8">
-          あなたの基本情報を更新できます
-        </p>
 
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-sm mb-6">
             {error}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="bg-white p-8 rounded-lg shadow">
+        <form onSubmit={handleSubmit} className="bg-white p-8 rounded-sm">
           {/* アバター画像 */}
           <div className="mb-8">
             <label className="block text-sm font-semibold text-gray-700 mb-4">
-              プロフィール画像
+              アイコン画像
             </label>
-            <div className="flex items-center space-x-6">
-              <div className="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
+            <div className="flex items-center space-x-4">
+              {/* プレビュー画像 - クリック可能 */}
+              <input
+                id="avatarInput"
+                type="file"
+                accept="image/*"
+                onChange={handleAvatarChange}
+                className="hidden"
+                disabled={isUploadingAvatar}
+              />
+              <label
+                htmlFor="avatarInput"
+                className={`relative w-20 h-20 rounded-full overflow-hidden cursor-pointer group ${
+                  isUploadingAvatar ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
+              >
+                {/* 背景画像 */}
                 {avatarPreview ? (
                   <img
                     src={avatarPreview}
-                    alt="プロフィール"
+                    alt="アイコンプレビュー"
                     className="w-full h-full object-cover"
                   />
                 ) : (
-                  <span className="text-4xl">👤</span>
+                  <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+                    <span className="text-4xl text-gray-400">👤</span>
+                  </div>
                 )}
-              </div>
-              <div>
-                <input
-                  type="text"
-                  value={iconUrl}
-                  onChange={(e) => {
-                    setIconUrl(e.target.value)
-                    setAvatarPreview(e.target.value)
-                  }}
-                  placeholder="画像URL（例: https://example.com/avatar.jpg）"
-                  className="w-full px-4 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-                <p className="text-xs text-gray-500 mt-2">
-                  画像のURLを入力してください
-                </p>
-              </div>
+                {/* 薄暗いオーバーレイとカメラアイコン */}
+                <div className="absolute inset-0 bg-black/30 flex items-center justify-center group-hover:bg-black/40 transition-all">
+                  <Camera className="w-8 h-8 text-white" strokeWidth={1.5} />
+                </div>
+              </label>
+              {isUploadingAvatar && (
+                <span className="text-sm text-gray-600">アップロード中...</span>
+              )}
+              {!isUploadingAvatar && (
+                <div className="text-sm text-gray-500">
+                  クリックして画像を選択
+                </div>
+              )}
             </div>
-          </div>
-
-          {/* ユーザータイプ表示 */}
-          <div className="mb-6">
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              アカウントタイプ
-            </label>
-            <div className="flex items-center space-x-4">
-              <span className={`px-4 py-2 rounded font-medium ${
-                profile.role === 'seller'
-                  ? 'bg-green-100 text-green-700'
-                  : 'bg-blue-100 text-blue-700'
-              }`}>
-                {profile.role === 'seller' ? '売り手' : '買い手'}
-              </span>
-              <span className={`px-4 py-2 rounded font-medium ${
-                profile.party === 'organization'
-                  ? 'bg-purple-100 text-purple-700'
-                  : 'bg-orange-100 text-orange-700'
-              }`}>
-                {profile.party === 'organization' ? '法人' : '個人'}
-              </span>
-            </div>
-            <p className="text-xs text-gray-500 mt-2">
-              アカウントタイプは変更できません
-            </p>
           </div>
 
           {/* 名前 */}
@@ -223,34 +236,63 @@ export default function ProfileSettingsPage() {
               onChange={(e) => setDisplayName(e.target.value)}
               placeholder="山田太郎"
               required
-              className="w-full px-4 py-3 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-4 py-3 border border-gray-300 rounded-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
             <p className="text-xs text-gray-500 mt-1">
               本名またはハンドルネーム
             </p>
           </div>
 
-          {/* 年齢 */}
-          <div className="mb-6">
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              年齢
-            </label>
-            <input
-              type="number"
-              value={age || ''}
-              onChange={(e) => setAge(e.target.value ? parseInt(e.target.value) : undefined)}
-              placeholder="30"
-              min="13"
-              max="120"
-              className="w-full px-4 py-3 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
+          {/* アカウントタイプと年齢 - 横並び */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            {/* ユーザータイプ表示 */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                アカウントタイプ
+              </label>
+              <div className="flex items-center space-x-4">
+                <span className={`px-4 py-2 rounded-sm font-medium ${
+                  profile.role === 'seller'
+                    ? 'bg-green-100 text-green-700'
+                    : 'bg-blue-100 text-blue-700'
+                }`}>
+                  {profile.role === 'seller' ? '売り手' : '買い手'}
+                </span>
+                <span className={`px-4 py-2 rounded-sm font-medium ${
+                  profile.party === 'organization'
+                    ? 'bg-purple-100 text-purple-700'
+                    : 'bg-orange-100 text-orange-700'
+                }`}>
+                  {profile.party === 'organization' ? '法人' : '個人'}
+                </span>
+              </div>
+              <p className="text-xs text-gray-500 mt-2">
+                アカウントタイプは変更できません
+              </p>
+            </div>
+
+            {/* 年齢 */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                年齢
+              </label>
+              <input
+                type="number"
+                value={age || ''}
+                onChange={(e) => setAge(e.target.value ? parseInt(e.target.value) : undefined)}
+                placeholder="30"
+                min="13"
+                max="120"
+                className="w-full px-4 py-3 border border-gray-300 rounded-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
           </div>
 
           {/* 保存ボタン */}
           <div className="flex space-x-4 pt-6">
             <Button
               type="button"
-              variant="secondary"
+              variant="outline"
               className="flex-1"
               onClick={() => router.back()}
             >
@@ -262,6 +304,11 @@ export default function ProfileSettingsPage() {
               className="flex-1"
               isLoading={isSaving}
               loadingText="保存中..."
+              style={{
+                backgroundColor: isHovered ? '#D14C54' : '#E65D65',
+              }}
+              onMouseEnter={() => setIsHovered(true)}
+              onMouseLeave={() => setIsHovered(false)}
             >
               保存する
             </Button>

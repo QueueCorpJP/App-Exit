@@ -71,7 +71,8 @@ type AuthorProfile struct {
 // PostWithDetails combines Post with author profile
 type PostWithDetails struct {
 	Post
-	AuthorProfile *AuthorProfile `json:"author_profile,omitempty"`
+	AuthorProfile   *AuthorProfile `json:"author_profile,omitempty"`
+	ActiveViewCount int            `json:"active_view_count"`
 }
 
 
@@ -147,4 +148,16 @@ type PostQueryParams struct {
 	IsActive     *bool     `json:"is_active,omitempty"`
 	Limit        int       `json:"limit,omitempty"`
 	Offset       int       `json:"offset,omitempty"`
+	// Search parameters
+	SearchKeyword     *string  `json:"search_keyword,omitempty"`      // キーワード検索（タイトル、カテゴリ）
+	Categories        []string `json:"categories,omitempty"`          // カテゴリフィルター
+	PostTypes         []string `json:"post_types,omitempty"`          // 投稿タイプフィルター
+	Statuses          []string `json:"statuses,omitempty"`            // ステータスフィルター
+	PriceMin          *int64   `json:"price_min,omitempty"`           // 最小価格
+	PriceMax          *int64   `json:"price_max,omitempty"`           // 最大価格
+	RevenueMin        *int64   `json:"revenue_min,omitempty"`         // 最小月間収益
+	RevenueMax        *int64   `json:"revenue_max,omitempty"`         // 最大月間収益
+	ProfitMarginMin   *float64 `json:"profit_margin_min,omitempty"`   // 最小利益率
+	TechStacks        []string `json:"tech_stacks,omitempty"`         // 技術スタックフィルター
+	SortBy            *string  `json:"sort_by,omitempty"`             // ソート順
 }

@@ -18,10 +18,10 @@ CREATE POLICY "thread_participants_select"
 ON public.thread_participants
 FOR SELECT
 USING (
-  user_id = auth.uid()
+  user_id = (select auth.uid())
   OR
   thread_id IN (
-    SELECT id FROM public.threads WHERE created_by = auth.uid()
+    SELECT id FROM public.threads WHERE created_by = (select auth.uid())
   )
 );
 
@@ -36,10 +36,10 @@ WITH CHECK (
   OR
   -- Regular users can only add themselves to threads they created
   (
-    user_id = auth.uid()
+    user_id = (select auth.uid())
     AND
     thread_id IN (
-      SELECT id FROM public.threads WHERE created_by = auth.uid()
+      SELECT id FROM public.threads WHERE created_by = (select auth.uid())
     )
   )
 );
@@ -50,10 +50,10 @@ CREATE POLICY "thread_participants_delete"
 ON public.thread_participants
 FOR DELETE
 USING (
-  user_id = auth.uid()
+  user_id = (select auth.uid())
   OR
   thread_id IN (
-    SELECT id FROM public.threads WHERE created_by = auth.uid()
+    SELECT id FROM public.threads WHERE created_by = (select auth.uid())
   )
 );
 

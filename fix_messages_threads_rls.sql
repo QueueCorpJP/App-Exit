@@ -17,7 +17,7 @@ USING (
   thread_id IN (
     SELECT thread_id 
     FROM public.thread_participants 
-    WHERE user_id = auth.uid()
+    WHERE user_id = (select auth.uid())
   )
 );
 
@@ -26,12 +26,12 @@ CREATE POLICY "messages_insert"
 ON public.messages
 FOR INSERT
 WITH CHECK (
-  sender_user_id = auth.uid()
+  sender_user_id = (select auth.uid())
   AND
   thread_id IN (
     SELECT thread_id 
     FROM public.thread_participants 
-    WHERE user_id = auth.uid()
+    WHERE user_id = (select auth.uid())
   )
 );
 
@@ -40,7 +40,7 @@ CREATE POLICY "messages_delete"
 ON public.messages
 FOR DELETE
 USING (
-  sender_user_id = auth.uid()
+  sender_user_id = (select auth.uid())
 );
 
 -- Step 3: Fix threads policies
@@ -54,12 +54,12 @@ CREATE POLICY "threads_select"
 ON public.threads
 FOR SELECT
 USING (
-  created_by = auth.uid()
+  created_by = (select auth.uid())
   OR
   id IN (
     SELECT thread_id 
     FROM public.thread_participants 
-    WHERE user_id = auth.uid()
+    WHERE user_id = (select auth.uid())
   )
 );
 
@@ -68,7 +68,7 @@ CREATE POLICY "threads_insert"
 ON public.threads
 FOR INSERT
 WITH CHECK (
-  created_by = auth.uid()
+  created_by = (select auth.uid())
 );
 
 -- DELETE policy: Only thread creator can delete
@@ -76,7 +76,7 @@ CREATE POLICY "threads_delete"
 ON public.threads
 FOR DELETE
 USING (
-  created_by = auth.uid()
+  created_by = (select auth.uid())
 );
 
 -- Step 4: Ensure RLS is enabled

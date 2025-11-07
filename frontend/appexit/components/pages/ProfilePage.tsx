@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { CreditCard } from 'lucide-react';
 import { profileApi, Profile } from '@/lib/api-client';
 import { useAuth } from '@/lib/auth-context';
 import { postApi, Post } from '@/lib/api-client';
@@ -143,7 +144,7 @@ export default function ProfilePage() {
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#F9F8F7' }}>
       {/* ヘッダー */}
-      <div className="sticky top-0 bg-white z-10 border-b border-gray-200">
+      <div className="sticky top-16 bg-white z-10 border-b border-gray-200">
         <div className="max-w-[600px] mx-auto px-4">
           <div className="flex items-center h-14">
             <button
@@ -193,12 +194,22 @@ export default function ProfilePage() {
               </div>
             )}
           </div>
-          <Link
-            href="/settings/profile"
-            className="px-4 py-2 border border-gray-300 rounded-full font-semibold text-gray-900 hover:bg-gray-50 transition-colors mb-4"
-          >
-            プロフィールを編集
-          </Link>
+          <div className="flex gap-2 mb-4">
+            <Link
+              href="/settings/profile"
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-full font-semibold text-gray-900 hover:bg-gray-50 transition-colors text-center"
+            >
+              プロフィールを編集
+            </Link>
+            <Link
+              href="/settings/payment"
+              className="flex items-center justify-center gap-2 px-4 py-2 border-2 rounded-full font-semibold hover:bg-gray-50 transition-colors"
+              style={{ borderColor: '#E65D65', color: '#E65D65' }}
+            >
+              <CreditCard size={18} />
+              決済設定
+            </Link>
+          </div>
         </div>
 
         {/* プロフィール詳細 */}

@@ -102,6 +102,12 @@ func SetupRoutes(cfg *config.Config) http.Handler {
 	fmt.Println("[ROUTES] Registered: /api/posts")
 	fmt.Println("[ROUTES] Registered: /api/posts/")
 
+	// Active views routes (protected)
+	mux.HandleFunc("/api/posts/active-views", func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "Invalid path", http.StatusBadRequest)
+	})
+	fmt.Println("[ROUTES] Registered: /api/posts/*/active-views (handled by /api/posts/)")
+
 	// Comment routes
 	mux.HandleFunc("/api/comments/", server.HandleCommentRoute)
 	mux.HandleFunc("/api/replies/", auth(server.HandleReplyByID))
@@ -151,6 +157,21 @@ func (s *Server) HandlePostsRoute(w http.ResponseWriter, r *http.Request) {
 func (s *Server) HandlePostByIDRoute(w http.ResponseWriter, r *http.Request) {
 	// Check if path matches /api/posts/:id/comments
 	parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
+	
+	// Check for /api/posts/:id/active-views
+	if len(parts) >= 4 && parts[3] == "active-views" {
+		auth := middleware.AuthWithSupabase(s.config.SupabaseJWTSecret, s.supabase)
+		
+		// Check for /api/posts/:id/active-views/status
+		if len(parts) >= 5 && parts[4] == "status" {
+			auth(s.HandleActiveViewStatus)(w, r)
+		} else {
+			// POST or DELETE /api/posts/:id/active-views
+			auth(s.HandleActiveViews)(w, r)
+		}
+		return
+	}
+	
 	if len(parts) >= 4 && parts[3] == "comments" {
 		// This is a comment route
 		auth := middleware.AuthWithSupabase(s.config.SupabaseJWTSecret, s.supabase)

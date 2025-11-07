@@ -68,17 +68,34 @@ export async function uploadAvatarImage(file: File, userId?: string): Promise<st
 /**
  * バックエンドAPI経由で画像の署名付きURLを取得する
  * @param path 画像のパス
- * @param bucket バケット名（デフォルト: post-images）
+ * @param bucket バケット名（デフォルト: 自動判定）
  * @param expiresIn URL の有効期限（秒）デフォルトは1時間
  * @returns 署名付きURL
  */
 export async function getImageUrl(
   path: string | null | undefined,
-  bucket: string = 'post-images',
+  bucket?: string,
   expiresIn: number = 3600
 ): Promise<string> {
   if (!path) {
     return 'https://placehold.co/600x400/e2e8f0/64748b?text=No+Image';
+  }
+
+  // パスからバケット名を自動判定
+  let actualPath = path;
+  let actualBucket = bucket;
+
+  if (!actualBucket) {
+    if (path.startsWith('avatars/')) {
+      actualBucket = 'avatars';
+      actualPath = path.substring('avatars/'.length); // バケット名を除去
+    } else if (path.startsWith('message-images/')) {
+      actualBucket = 'message-images';
+      actualPath = path.substring('message-images/'.length);
+    } else {
+      actualBucket = 'post-images';
+      // post-imagesの場合はパスをそのまま使用
+    }
   }
 
   try {
@@ -88,11 +105,11 @@ export async function getImageUrl(
         'Content-Type': 'application/json',
       },
       credentials: 'include',
-      body: JSON.stringify({ bucket, path, expiresIn }),
+      body: JSON.stringify({ bucket: actualBucket, path: actualPath, expiresIn }),
     });
 
     if (!response.ok) {
-      console.error('[STORAGE] Failed to get signed URL:', response.status);
+      console.error('[STORAGE] Failed to get signed URL:', response.status, 'bucket:', actualBucket, 'path:', actualPath);
       return 'https://placehold.co/600x400/e2e8f0/64748b?text=Error';
     }
 
@@ -107,13 +124,13 @@ export async function getImageUrl(
 /**
  * 複数の画像の署名付きURLを一括取得する
  * @param paths 画像のパスの配列
- * @param bucket バケット名（デフォルト: post-images）
+ * @param bucket バケット名（デフォルト: 自動判定）
  * @param expiresIn URL の有効期限（秒）デフォルトは1時間
  * @returns パスをキーとした署名付きURLのマップ
  */
 export async function getImageUrls(
   paths: string[],
-  bucket: string = 'post-images',
+  bucket?: string,
   expiresIn: number = 3600
 ): Promise<Map<string, string>> {
   const urlMap = new Map<string, string>();
@@ -122,32 +139,60 @@ export async function getImageUrls(
     return urlMap;
   }
 
-  try {
-    const response = await fetch(`${API_URL}/api/storage/signed-urls`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      credentials: 'include',
-      body: JSON.stringify({ bucket, paths, expiresIn }),
-    });
+  // パスを分析してバケットごとにグループ化
+  const bucketGroups = new Map<string, string[]>();
 
-    if (!response.ok) {
-      console.error('[STORAGE] Failed to get signed URLs:', response.status);
-      return urlMap;
+  paths.forEach(path => {
+    let actualBucket = bucket;
+    let actualPath = path;
+
+    if (!actualBucket) {
+      if (path.startsWith('avatars/')) {
+        actualBucket = 'avatars';
+        actualPath = path.substring('avatars/'.length);
+      } else if (path.startsWith('message-images/')) {
+        actualBucket = 'message-images';
+        actualPath = path.substring('message-images/'.length);
+      } else {
+        actualBucket = 'post-images';
+      }
     }
 
-    const result = await response.json();
-    const urls = result.data.urls;
-
-    // マップに変換
-    for (const [path, url] of Object.entries(urls)) {
-      urlMap.set(path, url as string);
+    if (!bucketGroups.has(actualBucket)) {
+      bucketGroups.set(actualBucket, []);
     }
+    bucketGroups.get(actualBucket)!.push(actualPath);
+  });
 
-    return urlMap;
-  } catch (error) {
-    console.error('[STORAGE] Error getting signed URLs:', error);
-    return urlMap;
+  // 各バケットごとにまとめてリクエスト
+  for (const [bucketName, bucketPaths] of bucketGroups) {
+    try {
+      const response = await fetch(`${API_URL}/api/storage/signed-urls`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ bucket: bucketName, paths: bucketPaths, expiresIn }),
+      });
+
+      if (!response.ok) {
+        console.error('[STORAGE] Failed to get signed URLs for bucket:', bucketName, response.status);
+        continue;
+      }
+
+      const result = await response.json();
+      const urls = result.data.urls;
+
+      // 元のパス（バケット名を含む）をキーとしてマップに追加
+      for (const [actualPath, url] of Object.entries(urls)) {
+        const originalPath = bucketName === 'post-images' ? actualPath : `${bucketName}/${actualPath}`;
+        urlMap.set(originalPath, url as string);
+      }
+    } catch (error) {
+      console.error('[STORAGE] Error getting signed URLs for bucket:', bucketName, error);
+    }
   }
+
+  return urlMap;
 }

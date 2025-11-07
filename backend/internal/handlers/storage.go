@@ -157,6 +157,15 @@ func (s *Server) GetSignedURL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// 外部URLの場合はそのまま返す
+	if strings.HasPrefix(req.Path, "http://") || strings.HasPrefix(req.Path, "https://") {
+		fmt.Printf("[STORAGE] Path is external URL, returning as-is: %s\n", req.Path)
+		response.Success(w, http.StatusOK, GetSignedURLResponse{
+			SignedURL: req.Path,
+		})
+		return
+	}
+
 	if req.ExpiresIn == 0 {
 		req.ExpiresIn = 3600 // 1時間
 	}
@@ -209,6 +218,12 @@ func (s *Server) GetSignedURLs(w http.ResponseWriter, r *http.Request) {
 	for _, path := range req.Paths {
 		// 空のパスはスキップ
 		if strings.TrimSpace(path) == "" {
+			continue
+		}
+
+		// 外部URLの場合はそのまま使用
+		if strings.HasPrefix(path, "http://") || strings.HasPrefix(path, "https://") {
+			urls[path] = path
 			continue
 		}
 

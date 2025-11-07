@@ -1,9 +1,11 @@
 import { getAuthHeader, getAuthToken } from './cookie-utils';
+import { supabase } from './supabase';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 
 interface RequestOptions extends RequestInit {
   params?: Record<string, string | number | boolean>;
+  _isRetry?: boolean; // 内部フラグ：リトライ中かどうか
 }
 
 /**
@@ -12,6 +14,8 @@ interface RequestOptions extends RequestInit {
  */
 class ApiClient {
   private baseUrl: string;
+  private isRefreshing: boolean = false;
+  private refreshPromise: Promise<boolean> | null = null;
 
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl;
@@ -30,13 +34,48 @@ class ApiClient {
   }
 
   /**
+   * Supabaseトークンをリフレッシュ
+   */
+  private async refreshToken(): Promise<boolean> {
+    // 既にリフレッシュ中の場合は、同じPromiseを返す（複数リクエストが同時に来た場合の対策）
+    if (this.isRefreshing && this.refreshPromise) {
+      console.log('[API-CLIENT] Already refreshing token, waiting...');
+      return this.refreshPromise;
+    }
+
+    this.isRefreshing = true;
+    this.refreshPromise = (async () => {
+      try {
+        console.log('[API-CLIENT] Refreshing Supabase session...');
+        const { data, error } = await supabase.auth.refreshSession();
+
+        if (error || !data.session) {
+          console.error('[API-CLIENT] Failed to refresh token:', error);
+          return false;
+        }
+
+        console.log('[API-CLIENT] ✓ Token refreshed successfully');
+        return true;
+      } catch (error) {
+        console.error('[API-CLIENT] Error during token refresh:', error);
+        return false;
+      } finally {
+        this.isRefreshing = false;
+        this.refreshPromise = null;
+      }
+    })();
+
+    return this.refreshPromise;
+  }
+
+  /**
    * HTTP リクエストを送信
    */
   private async request<T>(
     endpoint: string,
     options: RequestOptions = {}
   ): Promise<T> {
-    const { params, ...fetchOptions } = options;
+    const { params, _isRetry, ...fetchOptions } = options;
 
     // URLを構築
     let url = `${this.baseUrl}${endpoint}`;
@@ -63,6 +102,25 @@ class ApiClient {
         credentials: 'include', // HTTPOnly Cookieを送信
         cache: 'no-store',
       });
+
+      // 401エラーの場合、トークンをリフレッシュして再試行
+      if (response.status === 401 && !_isRetry) {
+        console.log('[API-CLIENT] 401 Unauthorized, attempting token refresh...');
+
+        const refreshed = await this.refreshToken();
+
+        if (refreshed) {
+          console.log('[API-CLIENT] Retrying request with refreshed token...');
+          // リトライフラグを立てて再度リクエスト
+          return this.request<T>(endpoint, { ...options, _isRetry: true });
+        } else {
+          console.error('[API-CLIENT] Token refresh failed, redirecting to login...');
+          // トークンリフレッシュ失敗 → ログインページへリダイレクト
+          if (typeof window !== 'undefined') {
+            window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname);
+          }
+        }
+      }
 
       // エラーレスポンスの処理
       if (!response.ok) {
@@ -154,9 +212,9 @@ export interface Profile {
  * Profile API
  */
 export const profileApi = {
-  getProfile: () => apiClient.get<Profile>('/api/profiles'),
+  getProfile: () => apiClient.get<Profile>('/api/auth/profile'),
   getProfileById: (userId: string) => apiClient.get<{ success: boolean; data: Profile }>(`/api/users/${userId}`),
-  updateProfile: (data: Partial<Profile>) => apiClient.put<Profile>('/api/profiles', data),
+  updateProfile: (data: Partial<Profile>) => apiClient.put<Profile>('/api/auth/profile', data),
 };
 
 /**
@@ -207,6 +265,7 @@ export interface Post {
   media_mentions?: string;
   extra_image_urls?: string[];
   author_profile?: AuthorProfile;
+  active_view_count?: number; // アクティブビュー数
   // その他のフィールド
   [key: string]: any;
 }
@@ -215,8 +274,40 @@ export interface Post {
  * Post API
  */
 export const postApi = {
-  getPosts: (params?: { type?: string; author_user_id?: string; limit?: number; offset?: number }) =>
-    apiClient.get<{ data: Post[] }>('/api/posts', { params }),
+  getPosts: (params?: { 
+    type?: string; 
+    author_user_id?: string; 
+    limit?: number; 
+    offset?: number;
+    search_keyword?: string;
+    categories?: string[];
+    post_types?: string[];
+    statuses?: string[];
+    price_min?: number;
+    price_max?: number;
+    revenue_min?: number;
+    revenue_max?: number;
+    profit_margin_min?: number;
+    tech_stacks?: string[];
+    sort_by?: string;
+  }) => {
+    // Convert arrays to comma-separated strings
+    const queryParams: Record<string, string | number> = {};
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          if (Array.isArray(value)) {
+            if (value.length > 0) {
+              queryParams[key] = value.join(',');
+            }
+          } else {
+            queryParams[key] = value;
+          }
+        }
+      });
+    }
+    return apiClient.get<{ data: Post[] }>('/api/posts', { params: queryParams });
+  },
   createPost: (data: Partial<Post>) => apiClient.post<Post>('/api/posts', data),
   getPost: (id: string) => apiClient.get<Post>(`/api/posts/${id}`),
   updatePost: (id: string, data: Partial<Post>) => apiClient.put<Post>(`/api/posts/${id}`, data),
@@ -359,4 +450,36 @@ export const messageApi = {
 
     return response.json();
   },
+};
+
+/**
+ * Active View types
+ */
+export interface ActiveViewResponse {
+  success: boolean;
+  message?: string;
+  data?: any;
+  active_view_count?: number; // 最新のカウント数
+}
+
+export interface ActiveViewStatusResponse {
+  success: boolean;
+  data: {
+    is_active: boolean;
+  };
+}
+
+/**
+ * Active View API
+ */
+export const activeViewApi = {
+  // アクティブビューを追加
+  createActiveView: (postId: string) =>
+    apiClient.post<ActiveViewResponse>(`/api/posts/${postId}/active-views`, {}),
+  // アクティブビューを削除
+  deleteActiveView: (postId: string) =>
+    apiClient.delete<ActiveViewResponse>(`/api/posts/${postId}/active-views`),
+  // アクティブビューの状態を取得
+  getActiveViewStatus: (postId: string) =>
+    apiClient.get<ActiveViewStatusResponse>(`/api/posts/${postId}/active-views/status`),
 };

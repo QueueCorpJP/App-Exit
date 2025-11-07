@@ -25,6 +25,7 @@ interface ProjectWithImage {
   updatedAt?: string; // 更新日
   tag?: string;
   badge?: string;
+  activeViewCount?: number; // アクティブビュー数
 }
 
 interface TopPageProps {
@@ -116,6 +117,7 @@ export default function TopPage({ initialPosts = [], useMockCarousel = true }: T
             updatedAt: post.updated_at,
             tag: undefined,
             badge: undefined,
+            activeViewCount: post.active_view_count || 0, // バックエンドから取得したアクティブビュー数
           };
         });
 
@@ -201,6 +203,7 @@ export default function TopPage({ initialPosts = [], useMockCarousel = true }: T
               updatedAt: post.updated_at,
               tag: undefined,
               badge: undefined,
+              activeViewCount: post.active_view_count || 0, // バックエンドから取得したアクティブビュー数
             };
           });
 
@@ -290,6 +293,7 @@ export default function TopPage({ initialPosts = [], useMockCarousel = true }: T
                 updatedAt={project.updatedAt}
                 tag={project.tag}
                 badge={project.badge}
+                activeViewCount={project.activeViewCount}
               />
             ))}
           </div>
