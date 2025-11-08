@@ -1,12 +1,12 @@
 #!/bin/bash
 
-# Nginx + SSL (Let's Encrypt) Setup Script for appexit.jp
+# Nginx + SSL (Let's Encrypt) Setup Script for appexit.jp - Amazon Linux Version
 # This script should be run on the EC2 instance as root or with sudo
 
 set -e  # Exit on error
 
 echo "========================================="
-echo "appexit.jp Nginx + SSL Setup"
+echo "appexit.jp Nginx + SSL Setup (Amazon Linux)"
 echo "========================================="
 echo ""
 
@@ -24,7 +24,7 @@ fi
 
 # Configuration
 DOMAIN="appexit.jp"
-EMAIL="your-email@example.com"  # Change this to your email
+EMAIL="your-email@example.com"
 BACKEND_PORT=8080
 FRONTEND_PORT=3000
 
@@ -52,11 +52,14 @@ fi
 # Step 1: Update system and install Nginx
 echo -e "${GREEN}Step 1: Installing Nginx...${NC}"
 yum update -y
-amazon-linux-extras install nginx1 -y 2>/dev/null || yum install nginx -y
+amazon-linux-extras install nginx1 -y || yum install nginx -y
 
 # Step 2: Install Certbot for Let's Encrypt
 echo -e "${GREEN}Step 2: Installing Certbot...${NC}"
-yum install -y certbot python3-certbot-nginx 2>/dev/null || yum install -y certbot
+yum install -y certbot python3-certbot-nginx || {
+    # If python3-certbot-nginx is not available, install certbot alone
+    yum install -y certbot
+}
 
 # Step 3: Create certbot webroot directory
 echo -e "${GREEN}Step 3: Creating certbot directories...${NC}"
@@ -64,7 +67,7 @@ mkdir -p /var/www/certbot
 
 # Step 4: Create temporary Nginx config for initial certificate
 echo -e "${GREEN}Step 4: Creating temporary Nginx configuration...${NC}"
-cat > /etc/nginx/sites-available/appexit.conf << 'EOF'
+cat > /etc/nginx/conf.d/appexit.conf << 'EOF'
 server {
     listen 80;
     listen [::]:80;
@@ -81,13 +84,13 @@ server {
 }
 EOF
 
-# Enable the site
-ln -sf /etc/nginx/sites-available/appexit.conf /etc/nginx/sites-enabled/
-rm -f /etc/nginx/sites-enabled/default
+# Remove default config if exists
+rm -f /etc/nginx/conf.d/default.conf
 
 # Test and reload Nginx
 nginx -t
-systemctl reload nginx
+systemctl start nginx
+systemctl enable nginx
 
 echo -e "${GREEN}Step 5: Obtaining SSL certificate from Let's Encrypt...${NC}"
 echo -e "${YELLOW}This may take a minute...${NC}"
@@ -104,7 +107,7 @@ certbot certonly --webroot \
 if [ $? -ne 0 ]; then
     echo -e "${RED}Failed to obtain SSL certificate${NC}"
     echo -e "${YELLOW}Please check:${NC}"
-    echo "  1. DNS is properly configured (appexit.jp -> EC2 IP)"
+    echo "  1. DNS is properly configured (appexit.jp -> 54.64.68.131)"
     echo "  2. Port 80 is open in security group"
     echo "  3. Domain ownership is verified"
     exit 1
@@ -117,12 +120,12 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 NGINX_CONF="$SCRIPT_DIR/nginx/appexit.conf"
 
 if [ -f "$NGINX_CONF" ]; then
-    cp "$NGINX_CONF" /etc/nginx/sites-available/appexit.conf
+    cp "$NGINX_CONF" /etc/nginx/conf.d/appexit.conf
 else
     echo -e "${RED}Warning: nginx/appexit.conf not found in $SCRIPT_DIR${NC}"
     echo "Using embedded configuration..."
 
-    cat > /etc/nginx/sites-available/appexit.conf << 'EOFNGINX'
+    cat > /etc/nginx/conf.d/appexit.conf << 'EOFNGINX'
 server {
     listen 80;
     listen [::]:80;
