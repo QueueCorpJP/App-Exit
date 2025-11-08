@@ -36,6 +36,7 @@ export default function PaymentSettingsPage() {
   const [isProcessing, setIsProcessing] = useState(false)
   const [error, setError] = useState<string>('')
   const [isHovered, setIsHovered] = useState<{ buyer?: boolean; seller?: boolean }>({})
+  const [isOnboardingHovered, setIsOnboardingHovered] = useState(false)
 
   // Stripeアカウント情報
   const [accountStatus, setAccountStatus] = useState<StripeAccountStatus | null>(null)
@@ -397,10 +398,10 @@ export default function PaymentSettingsPage() {
                 isLoading={isProcessing}
                 loadingText="準備中..."
                 style={{
-                  backgroundColor: isHovered ? '#3367D6' : '#4285FF',
+                  backgroundColor: isOnboardingHovered ? '#3367D6' : '#4285FF',
                 }}
-                onMouseEnter={() => setIsHovered(true)}
-                onMouseLeave={() => setIsHovered(false)}
+                onMouseEnter={() => setIsOnboardingHovered(true)}
+                onMouseLeave={() => setIsOnboardingHovered(false)}
               >
                 本人確認を完了する
                 <ExternalLink className="w-4 h-4 ml-2" />
