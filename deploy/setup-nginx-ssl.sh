@@ -64,7 +64,7 @@ mkdir -p /var/www/certbot
 
 # Step 4: Create temporary Nginx config for initial certificate
 echo -e "${GREEN}Step 4: Creating temporary Nginx configuration...${NC}"
-cat > /etc/nginx/sites-available/appexit.conf << 'EOF'
+cat > /etc/nginx/conf.d/appexit.conf << 'EOF'
 server {
     listen 80;
     listen [::]:80;
@@ -81,9 +81,8 @@ server {
 }
 EOF
 
-# Enable the site
-ln -sf /etc/nginx/sites-available/appexit.conf /etc/nginx/sites-enabled/
-rm -f /etc/nginx/sites-enabled/default
+# Remove default config
+rm -f /etc/nginx/conf.d/default.conf
 
 # Test and reload Nginx
 nginx -t
@@ -117,12 +116,12 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 NGINX_CONF="$SCRIPT_DIR/nginx/appexit.conf"
 
 if [ -f "$NGINX_CONF" ]; then
-    cp "$NGINX_CONF" /etc/nginx/sites-available/appexit.conf
+    cp "$NGINX_CONF" /etc/nginx/conf.d/appexit.conf
 else
     echo -e "${RED}Warning: nginx/appexit.conf not found in $SCRIPT_DIR${NC}"
     echo "Using embedded configuration..."
 
-    cat > /etc/nginx/sites-available/appexit.conf << 'EOFNGINX'
+    cat > /etc/nginx/conf.d/appexit.conf << 'EOFNGINX'
 server {
     listen 80;
     listen [::]:80;
