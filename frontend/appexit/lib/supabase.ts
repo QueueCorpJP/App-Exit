@@ -21,25 +21,59 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 // トークンリフレッシュのイベントをリッスン
 if (typeof window !== 'undefined') {
   supabase.auth.onAuthStateChange((event, session) => {
-    console.log('[SUPABASE] Auth state changed:', event);
+    const now = new Date().toISOString();
+    console.log(`[SUPABASE ${now}] Auth state changed:`, event);
+
+    // セッション情報をデバッグ出力
+    if (session) {
+      const expiresAt = session.expires_at ? new Date(session.expires_at * 1000).toISOString() : 'unknown';
+      const expiresIn = session.expires_in || 'unknown';
+      console.log(`[SUPABASE ${now}] Session info:`, {
+        hasAccessToken: !!session.access_token,
+        hasRefreshToken: !!session.refresh_token,
+        expiresIn: `${expiresIn} seconds`,
+        expiresAt,
+        tokenLength: session.access_token?.length || 0
+      });
+    } else {
+      console.log(`[SUPABASE ${now}] ⚠️ No session available`);
+    }
 
     if (event === 'TOKEN_REFRESHED') {
-      console.log('[SUPABASE] ✓ Token refreshed successfully');
+      console.log(`[SUPABASE ${now}] ✓ Token refreshed successfully`);
       // リフレッシュされたトークンをCookieに保存
       if (session?.access_token) {
         document.cookie = `access_token=${session.access_token}; path=/; max-age=3600; SameSite=Lax`;
-        console.log('[SUPABASE] ✓ Updated access_token cookie');
+        console.log(`[SUPABASE ${now}] ✓ Updated access_token cookie (length: ${session.access_token.length})`);
       }
     }
 
     if (event === 'SIGNED_IN' && session?.access_token) {
-      console.log('[SUPABASE] ✓ User signed in, saving access_token to cookie');
+      console.log(`[SUPABASE ${now}] ✓ User signed in, saving access_token to cookie`);
       document.cookie = `access_token=${session.access_token}; path=/; max-age=3600; SameSite=Lax`;
     }
 
     if (event === 'SIGNED_OUT') {
-      console.log('[SUPABASE] User signed out, clearing cookies');
+      console.log(`[SUPABASE ${now}] User signed out, clearing cookies`);
       document.cookie = 'access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
     }
   });
+
+  // 5分ごとにセッション状態をチェック（デバッグ用）
+  setInterval(async () => {
+    const { data: { session }, error } = await supabase.auth.getSession();
+    const now = new Date().toISOString();
+    if (session) {
+      const expiresAt = session.expires_at ? new Date(session.expires_at * 1000).toISOString() : 'unknown';
+      const remainingSeconds = session.expires_at ? session.expires_at - Math.floor(Date.now() / 1000) : 0;
+      console.log(`[SUPABASE ${now}] 🔍 Session check:`, {
+        hasSession: true,
+        expiresAt,
+        remainingSeconds: `${remainingSeconds} seconds (${Math.floor(remainingSeconds / 60)} minutes)`,
+        willExpireSoon: remainingSeconds < 600 // 10分以内
+      });
+    } else {
+      console.log(`[SUPABASE ${now}] ⚠️ Session check: NO SESSION${error ? ` (error: ${error.message})` : ''}`);
+    }
+  }, 5 * 60 * 1000); // 5分ごと
 }

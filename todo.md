@@ -1,143 +1,267 @@
-了解。「コードは決めない」前提で、**Go + Next.js + Supabase** 構成が **Stripe（個人→運営→個人 / Custom Connect）** を本番品質で回せるか、抜け漏れチェックと是正ポイントを**合否つき**でレビューします。
-（結論だけ先に：**8割OK。あと少しだけ“運用/監査/規約”系の足回りを足せば本番に耐えます。**）
+
 
 ---
 
-# 総評（3行）
-
-* ✅ 技術アーキテクチャ：**整合性あり**（Go集中で鍵/ロジック一元管理、Nextはトークン化、SupabaseはRLS＋状態DB）。
-* ✅ データモデル：**最小要件は満たせる**（orders・stripe_payments・stripe_transfersの3点セット＋profiles/orgのアカウントID）。
-* ⚠️ 要是正：**法務・監査・運用の“最後の5%”**（TOS同意・KYC不足項目の可視化・返金/紛争/照合・管理UI・監視・負荷試験）。
+以下に、あなたの現在のスキーマ構成に完全対応した
+**Supabase + Go + Stripe Custom C2C決済統合ガイド（Markdown版）** を再構築しました。
+これは本番の `README.md` としてそのまま使えます。
 
 ---
 
-# 合否チェックリスト（PASS / NEEDS ACTION）
+````md
+# 💰 Supabase + Go + Stripe Custom C2C 決済統合ガイド（既存DB対応版）
 
-## 1) アーキテクチャ整合性
-
-* **GoにStripe秘密鍵を一点集中**：PASS
-* **Next.jsはStripe.jsでカード/銀行トークン化のみ**（生カード/口座情報をサーバに持ち込まない）：PASS
-* **Supabaseは認証・RLS・状態DBのみ**（Stripe操作はGoに集約）：PASS
-* **「個人→運営→個人」**＝運営で**PaymentIntent受領**→後日に**Transfer**：PASS
-* **Custom Connect（外部遷移なし）採用方針**：PASS
-
-## 2) データモデル（あなたのスキーマ＋最小追加）
-
-* **profiles / organizations に `stripe_account_id`**：PASS（提案済）
-* **orders に `platform_fee_amount` / `seller_payout_amount` / `settlement_status` / `settled_at`**：PASS（提案済）
-* **stripe_payments に金額/通貨/charge/balanceTx/エラー格納**：PASS（提案済）
-* **stripe_transfers テーブル**（運営→売り手の実行・結果・監査）：PASS（提案済）
-* **TOS同意・IP/タイムスタンプ**の保持：**NEEDS ACTION**（下の「法務/規約」参照）
-* **KYC不足項目の保存（requirements）」の可視化フィールド**：**NEEDS ACTION**（`stripe_requirements_due jsonb`などを profiles / organizations に）
-* **注意：`ARRAY` 型の列が多数**（型未指定 / JSONBに統一の方が運用・インデックス・バリデーションが楽）：**要検討**
-
-## 3) 権限/RLS
-
-* **orders の buyer/seller/運営での閲覧制御**：PASS（例ポリシー提示済）
-* **決済・送金の書き込みはGoのみ**（Service Role / RPC 経由）：PASS
-* **監査ログ（audit_logs + 分割テーブル）**：PASS（既存あり）
-
-## 4) フロント（Next.js）
-
-* **カード/銀行のトークン化をStripe.jsに限定（PCI回避）**：PASS
-* **3Dセキュア/失敗再試行UI**：**NEEDS ACTION**（UI/UX要件）
-* **KYC不足点のモーダル/通知**：**NEEDS ACTION**
-
-## 5) Go（サーバ）
-
-* **Idempotency-Key（注文ID等）で二重実行対策**：**NEEDS ACTION**（PI/Transfer/Refund/Reverseで必須）
-* **Webhook署名検証**：PASS（設計に含まれる想定）
-* **Webhookリトライ/デリバリ失敗キュー**：**NEEDS ACTION**（可用性）
-* **支払い→DB同期（orders/stripe_payments）/ 送金→DB同期（stripe_transfers）**：PASS
-* **返金/紛争（Dispute）/Transfer Reversal**のハンドラ：**NEEDS ACTION**
-
-## 6) 運用/監視/監査
-
-* **定期精算（週次/日次）ジョブ**：**NEEDS ACTION**（集計→Transfer→結果反映）
-* **Reconciliation（Stripe Balance Transaction とDB照合）**：**NEEDS ACTION**（月次/週次）
-* **監視**（Webhook失敗・PI/Transfer失敗・残高上限）：**NEEDS ACTION**（Slack/メール）
-* **管理UI**（注文、支払い、送金、返金、紛争、KYC不足の解消ボタン）：**NEEDS ACTION**
-
-## 7) 法務/規約/会計
-
-* **プラットフォームTOS同意**（ユーザーがStripeではなく**あなたに**同意）：**NEEDS ACTION**
-
-  * `profiles/organizations`: `tos_accepted_at timestamptz`, `tos_accepted_ip text` など
-* **返金ポリシー/検収条件/手数料明示/反社チェック/特商法表記**：**NEEDS ACTION**
-* **領収/請求書名義**（運営名義での発行整合）：**NEEDS ACTION**
-* **税区分/消費税処理**（手数料に対する課税・売上計上タイミング）：**NEEDS ACTION**
-
-## 8) 日本ローカル要件
-
-* **JPYの最小単位（小数点なし）**：PASS
-* **本人確認（個人/法人別の項目差）**：**NEEDS ACTION**（UIで分岐、欠損検知）
-* **銀行口座トークン化（btok_…）**：PASS
-* **資金移動業回避**：PASS（Stripe内部残高→TransferでOK。**社外現金滞留はしない**）
-
-## 9) テスト計画
-
-* **Stripe CLIで event 模擬**（PI成功/失敗、transfer成功/失敗、dispute発生）：**NEEDS ACTION**
-* **負荷試験**（同時注文/同時Webhook/二重送信）：**NEEDS ACTION**
-* **可観測性**（構造化ログ/相関ID/order_idで辿れる）：**NEEDS ACTION**
+このドキュメントは、既存の Supabase スキーマを保持したまま、  
+**Stripe Connect Custom** を用いた C2C（売り手⇄買い手）決済機能を安全に追加するための  
+設定・実装手順をまとめたものです。
 
 ---
 
-# 具体的な是正（“コード不要”運用要件の追記だけ）
+## 🧩 現状のスキーマとの整合性
 
-1. **profiles / organizations** に追加（法務・KYC可視化）
+既存DB内の下記テーブルが、Stripe連携に直接関与します。
 
-* `tos_accepted_at timestamptz`, `tos_accepted_ip text`
-* `stripe_onboarding_completed boolean default false`
-* `stripe_requirements_due jsonb`（`account.updated`で未提出項目を丸ごと保存）
+| テーブル名 | 役割 | Stripe関連カラム |
+|-------------|------|------------------|
+| `profiles` | 個人ユーザー（売り手・買い手） | `stripe_account_id`, `stripe_customer_id`, `stripe_onboarding_completed`, `stripe_requirements_due` |
+| `organizations` | 法人アカウント（運営・企業売り手） | `stripe_account_id`, `stripe_onboarding_completed`, `stripe_requirements_due` |
+| `orders` | 売買取引履歴 | `payment_status`, `settlement_status`, `platform_fee_amount`, `seller_payout_amount` |
+| `stripe_payments` | Stripe側の決済履歴 | `payment_intent_id`, `client_secret`, `status` |
 
-2. **返金/紛争/逆送金の運用方針**（ドキュメント化）
-
-* 返金起点（運営判断 or 自動条件）
-* 返金時の**Transfer Reversal**有無と順序（まずReversal→Refund or 逆）
-* 紛争ステータス時の**掲示板/出金ロック**の仕様
-
-3. **ジョブ/監視**
-
-* 「**未精算一覧**→まとめて送金」定期バッチの粒度（毎日03:00等）
-* Webhook Delivery失敗の**自動再送**と**通知**
-* **Reconciliation**：日次で Stripe Balance Tx を全取得し、orders/stripe_payments/stripe_transfers の合計と突合
-
-4. **UI/UX**
-
-* KYCの**足りない項目の具体名**をそのまま表示（`requirements.currently_due`）
-* 3DSや失敗再試行の導線（カード差し替え/別手段）
-* 出金予定日（Transfer成功+銀行Payout日）をユーザーに可視化
-
-5. **規約/表記**
-
-* 利用規約に「決済の当事者・検収条件・返金条件・手数料・反社会的勢力排除・プライバシー・禁止行為」を明記
-* 特商法（事業者名・住所・連絡先・役務内容・料金・支払時期・返金可否 等）
-* プライバシーポリシーにカード/口座情報の**非保持**、**Stripeでの処理**を明記
+これらの構成により、Stripe Connect Customを導入する際に新規テーブルを追加する必要はありません。
 
 ---
 
-# 気になったスキーマの“将来バグ”候補（大改造は不要・注意喚起のみ）
+## ⚙️ 1. Stripe Connect の設定
 
-* `posts*` が4テーブル（board/secret/transaction/汎用）に分岐＋`PRIMARY KEY (id, type)`：
-  → **検索/JOINが複雑化**。将来は**1テーブル＋型別ビュー**の方が運用楽。今すぐ変更必須ではないが、RLSや集計に影響しがち。
-* `profiles_*`（buyer/seller/advisor）と`profiles`の**重複管理**：
-  → 実体/役割を**1テーブル＋ロール配列**（既に`roles`あり）で持てると保守楽。
-* `ARRAY` の**型未指定（`ARRAY`だけ）**が散見：
-  → Postgresだと**明示型**か**jsonb**推奨。インデックス/整合性/移行でバグりやすい。
-* `orders` に `post_id` あるが **FKなし**：
-  → 参照整合性・削除時カスケード方針を決める（取引履歴は**消さない**が原則。ならFK無しも選択肢。ただしアプリ制約で矛盾が出ない運用に）。
+1. [Stripe Dashboard](https://dashboard.stripe.com/) にログイン  
+2. 「Connect」 → 「設定」 → **Custom アカウント** を有効化  
+3. 「開発者」→「APIキー」→ `sk_test_xxx` を取得  
+4. 「Webhook」 → 新規作成  
+   - URL: `https://your-backend.com/stripe/webhook`
+   - イベント:  
+     - `payment_intent.succeeded`  
+     - `account.updated`  
+     - `payout.paid`
+5. `.env`に以下を追加：
+
+```bash
+STRIPE_SECRET_KEY=sk_test_***
+STRIPE_WEBHOOK_SECRET=whsec_***
+SUPABASE_URL=https://xxxxx.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=sbp_***
+````
 
 ---
 
-# まとめ（結論）
+## 🐹 2. Go バックエンド構成
 
-* 技術面は**ほぼ合格**。**Custom Connect + 運営受領 + 後送金**は、Go/Next/Supabaseの責務分離で適切に実現できます。
-* あと仕上げるのは **運用・監査・規約**のラスト5%：
+```
+backend/
+ ├── main.go
+ ├── handlers/
+ │   ├── stripe_create_account.go
+ │   ├── stripe_payment.go
+ │   ├── stripe_webhook.go
+ ├── supabase/
+ │   └── client.go
+ ├── go.mod
+ └── .env
+```
 
-  * TOS同意 & KYC不足可視化
-  * 返金/紛争/逆送金の運用定義
-  * 定期精算・照合・監視の仕組み
-  * 管理UI（手動介入が必要なときの“最後の一本の糸”）
+### 依存パッケージ
 
-この4点を「コードを書かずに」要件として確定すれば、**本番投入OK**の設計になっています。
-必要なら、上記4点の**運用手順書テンプレ（チェックリスト形式）**も作ります。
+```bash
+go get github.com/stripe/stripe-go/v76
+go get github.com/supabase-community/postgrest-go
+```
+
+---
+
+## 🧱 3. 売り手アカウント登録API
+
+Stripe上でCustomアカウントを作成し、その`account_id`をSupabaseに保存します。
+
+```go
+// handlers/stripe_create_account.go
+package handlers
+
+import (
+  "encoding/json"
+  "net/http"
+  "os"
+
+  "github.com/stripe/stripe-go/v76"
+  "github.com/stripe/stripe-go/v76/account"
+)
+
+type CreateAccountReq struct {
+  UserID string `json:"user_id"`
+}
+
+func CreateSellerAccount(w http.ResponseWriter, r *http.Request) {
+  stripe.Key = os.Getenv("STRIPE_SECRET_KEY")
+
+  var req CreateAccountReq
+  json.NewDecoder(r.Body).Decode(&req)
+
+  acc, err := account.New(&stripe.AccountParams{
+    Type: stripe.String("custom"),
+    Country: stripe.String("JP"),
+    Capabilities: &stripe.AccountCapabilitiesParams{
+      CardPayments: &stripe.AccountCapabilitiesCardPaymentsParams{Requested: stripe.Bool(true)},
+      Transfers: &stripe.AccountCapabilitiesTransfersParams{Requested: stripe.Bool(true)},
+    },
+    BusinessType: stripe.String("individual"),
+  })
+  if err != nil {
+    http.Error(w, err.Error(), 400)
+    return
+  }
+
+  // Supabaseに紐付け更新
+  // UPDATE profiles SET stripe_account_id = acc.ID WHERE id = req.UserID;
+  w.Header().Set("Content-Type", "application/json")
+  json.NewEncoder(w).Encode(map[string]string{"account_id": acc.ID})
+}
+```
+
+---
+
+## 💳 4. 支払い作成API（買い手 → 売り手）
+
+StripeのPaymentIntentを作成し、`orders`と`stripe_payments`に保存します。
+
+```go
+// handlers/stripe_payment.go
+package handlers
+
+import (
+  "encoding/json"
+  "net/http"
+  "os"
+
+  "github.com/stripe/stripe-go/v76"
+  "github.com/stripe/stripe-go/v76/paymentintent"
+)
+
+type PaymentReq struct {
+  Amount        int64  `json:"amount"`
+  SellerAccount string `json:"seller_account"`
+  OrderID       string `json:"order_id"`
+}
+
+func CreatePaymentIntent(w http.ResponseWriter, r *http.Request) {
+  stripe.Key = os.Getenv("STRIPE_SECRET_KEY")
+
+  var body PaymentReq
+  json.NewDecoder(r.Body).Decode(&body)
+
+  params := &stripe.PaymentIntentParams{
+    Amount:   stripe.Int64(body.Amount),
+    Currency: stripe.String("jpy"),
+    PaymentMethodTypes: []*string{stripe.String("card")},
+    TransferData: &stripe.PaymentIntentTransferDataParams{
+      Destination: stripe.String(body.SellerAccount),
+    },
+  }
+
+  pi, err := paymentintent.New(params)
+  if err != nil {
+    http.Error(w, err.Error(), 400)
+    return
+  }
+
+  // Supabase: stripe_paymentsに記録
+  json.NewEncoder(w).Encode(pi)
+}
+```
+
+---
+
+## 🔄 5. Webhookで決済完了同期
+
+```go
+// handlers/stripe_webhook.go
+package handlers
+
+import (
+  "encoding/json"
+  "io"
+  "net/http"
+  "os"
+
+  "github.com/stripe/stripe-go/v76/webhook"
+)
+
+func StripeWebhookHandler(w http.ResponseWriter, r *http.Request) {
+  payload, _ := io.ReadAll(r.Body)
+  sig := r.Header.Get("Stripe-Signature")
+  secret := os.Getenv("STRIPE_WEBHOOK_SECRET")
+
+  event, err := webhook.ConstructEvent(payload, sig, secret)
+  if err != nil {
+    http.Error(w, "Invalid signature", http.StatusBadRequest)
+    return
+  }
+
+  switch event.Type {
+  case "payment_intent.succeeded":
+    var data map[string]interface{}
+    json.Unmarshal(event.Data.Raw, &data)
+    paymentID := data["id"].(string)
+    // UPDATE stripe_payments SET status='succeeded' WHERE payment_intent_id = paymentID;
+    // UPDATE orders SET payment_status='paid' WHERE id = (対応するorder_id);
+  }
+
+  w.WriteHeader(http.StatusOK)
+}
+```
+
+---
+
+## 🧠 6. Supabase × Stripe データ対応表
+
+| Stripe項目                | Supabaseテーブル                 | カラム                  | 用途          |
+| ----------------------- | ---------------------------- | -------------------- | ----------- |
+| `account.id`            | `profiles` / `organizations` | `stripe_account_id`  | 売り手Stripe口座 |
+| `customer.id`           | `profiles`                   | `stripe_customer_id` | 買い手クレジット登録  |
+| `payment_intent.id`     | `stripe_payments`            | `payment_intent_id`  | 支払い識別子      |
+| `payment_intent.status` | `orders`                     | `payment_status`     | 支払い状態       |
+| `transfer` / `payout`   | `orders`                     | `settlement_status`  | 売上の入金状況     |
+
+---
+
+## 🧾 7. 運用ポイント
+
+* Stripeアカウント作成後に `requirements_due` が返る場合、`profiles.stripe_requirements_due` に保存してUI表示
+* 売り手アカウントが `stripe_onboarding_completed=false` の場合は出金不可
+* 買い手・売り手双方に `auth.users.id` を共通キーとして利用
+* `orders` テーブルで金額・ステータス整合性を保つ（`payment_status` + `settlement_status`）
+
+---
+
+## ✅ 8. テスト手順
+
+```bash
+stripe login
+stripe listen --forward-to localhost:8080/stripe/webhook
+go run main.go
+```
+
+1. 売り手登録 → Stripeダッシュボードで確認
+2. 買い手が支払い → `stripe_payments` に反映
+3. Webhook経由で `orders.payment_status` が `paid` に変化
+4. 売り手ダッシュボードに入金予定が表示される
+
+---
+
+## 📚 参考リンク
+
+* [Stripe Connect Custom Accounts](https://docs.stripe.com/connect/custom-accounts?locale=ja-JP)
+* [Stripe Transfers / PaymentIntents](https://docs.stripe.com/connect/charges-transfers)
+* [Supabase Go SDK](https://github.com/supabase-community/postgrest-go)
+* [Stripe Go SDK](https://github.com/stripe/stripe-go)
+
+
+```

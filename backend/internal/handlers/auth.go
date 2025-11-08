@@ -474,7 +474,7 @@ func setAuthCookies(w http.ResponseWriter, accessToken, refreshToken string, use
 		MaxAge:   60 * 60, // 1時間
 	})
 
-	// 2. refresh_token (HttpOnly) - リフレッシュトークン（7日間有効）
+	// 2. refresh_token (HttpOnly) - リフレッシュトークン（2日間有効）
 	http.SetCookie(w, &http.Cookie{
 		Name:     "refresh_token",
 		Value:    refreshToken,
@@ -483,7 +483,7 @@ func setAuthCookies(w http.ResponseWriter, accessToken, refreshToken string, use
 		HttpOnly: true,
 		Secure:   false, // HTTPの場合はfalse
 		SameSite: http.SameSiteLaxMode,
-		MaxAge:   60 * 60 * 24 * 7, // 7日間
+		MaxAge:   60 * 60 * 24 * 2, // 2日間
 	})
 
 	fmt.Printf("[DEBUG] setAuthCookies: Set HttpOnly auth cookies for user: %s\n", user.ID)
@@ -537,15 +537,36 @@ func (s *Server) CheckSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// auth_tokenクッキーを確認
-	cookie, err := r.Cookie("auth_token")
-	if err != nil || cookie.Value == "" {
+	// トークンを取得（優先順位: Authorization header > access_token cookie > auth_token cookie）
+	var tokenString string
+
+	// 1. Authorization headerをチェック
+	authHeader := r.Header.Get("Authorization")
+	if authHeader != "" && len(authHeader) > 7 && authHeader[:7] == "Bearer " {
+		tokenString = authHeader[7:]
+	}
+
+	// 2. access_token cookieをチェック
+	if tokenString == "" {
+		if cookie, err := r.Cookie("access_token"); err == nil && cookie.Value != "" {
+			tokenString = cookie.Value
+		}
+	}
+
+	// 3. auth_token cookieをチェック（後方互換性のため）
+	if tokenString == "" {
+		if cookie, err := r.Cookie("auth_token"); err == nil && cookie.Value != "" {
+			tokenString = cookie.Value
+		}
+	}
+
+	if tokenString == "" {
 		response.Error(w, http.StatusUnauthorized, "No session found")
 		return
 	}
 
 	// トークンを検証してユーザー情報を取得
-	token, err := jwt.ParseWithClaims(cookie.Value, &middleware.SupabaseJWTClaims{}, func(token *jwt.Token) (interface{}, error) {
+	token, err := jwt.ParseWithClaims(tokenString, &middleware.SupabaseJWTClaims{}, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
@@ -564,7 +585,7 @@ func (s *Server) CheckSession(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// プロフィール情報を取得
-	userClient := s.supabase.GetAuthenticatedClient(cookie.Value)
+	userClient := s.supabase.GetAuthenticatedClient(tokenString)
 	var profiles []models.Profile
 	_, err = userClient.From("profiles").Select("*", "", false).Eq("id", claims.Sub).ExecuteTo(&profiles)
 

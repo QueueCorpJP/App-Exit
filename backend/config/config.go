@@ -16,6 +16,9 @@ type Config struct {
 	SupabaseServiceKey string
 	SupabaseJWTSecret  string
 	AllowedOrigins     []string
+	StripeSecretKey    string
+	StripePublicKey    string
+	StripeWebhookSecret string
 }
 
 func LoadConfig() *Config {
@@ -29,6 +32,9 @@ func LoadConfig() *Config {
 		SupabaseServiceKey: getEnv("SUPABASE_SERVICE_ROLE_KEY", ""),
 		SupabaseJWTSecret:  getEnv("SUPABASE_JWT_SECRET", ""),
 		AllowedOrigins:     parseAllowedOrigins(),
+		StripeSecretKey:    getEnv("STRIPE_SECRET_KEY", ""),
+		StripePublicKey:    getEnv("STRIPE_PUBLIC_KEY", ""),
+		StripeWebhookSecret: getEnv("STRIPE_WEBHOOK_SECRET", ""),
 	}
 
 	// 必須の環境変数をチェック
@@ -59,6 +65,11 @@ func (c *Config) Validate() error {
 
 	if c.SupabaseJWTSecret == "" {
 		return fmt.Errorf("SUPABASE_JWT_SECRET is required")
+	}
+
+	// Stripe keys are optional in development
+	if c.Environment == "production" && c.StripeSecretKey == "" {
+		return fmt.Errorf("STRIPE_SECRET_KEY is required in production")
 	}
 
 	return nil

@@ -43,10 +43,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const checkBackendSession = async (): Promise<boolean> => {
     try {
       const apiUrl = getApiUrl();
+
+      // Supabaseセッションからトークンを取得
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+
+      // トークンがあればAuthorizationヘッダーに追加
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`;
+      }
+
       const response = await fetch(`${apiUrl}/api/auth/session`, {
         method: 'GET',
         credentials: 'include', // HTTPOnly Cookieを送信
         cache: 'no-store',
+        headers,
       });
 
       if (response.ok) {

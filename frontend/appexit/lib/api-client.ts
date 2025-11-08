@@ -483,3 +483,69 @@ export const activeViewApi = {
   getActiveViewStatus: (postId: string) =>
     apiClient.get<ActiveViewStatusResponse>(`/api/posts/${postId}/active-views/status`),
 };
+
+/**
+ * Stripe types
+ */
+export interface StripeAccountStatus {
+  hasAccount: boolean;
+  accountId?: string;
+  onboardingCompleted: boolean;
+  chargesEnabled: boolean;
+  payoutsEnabled: boolean;
+  requirementsDue: string[];
+  tosAcceptedAt?: string;
+  tosAcceptedIp?: string;
+}
+
+export interface PayoutInfo {
+  totalEarnings: number;
+  pendingAmount: number;
+  availableAmount: number;
+  lastPayoutDate?: string;
+  nextPayoutDate?: string;
+}
+
+export interface CreateStripeAccountRequest {
+  tosAccepted: boolean;
+  tosAcceptedIp?: string;
+}
+
+export interface CreateStripeAccountResponse {
+  success: boolean;
+  data?: {
+    accountId: string;
+    onboardingCompleted: boolean;
+  };
+  message?: string;
+}
+
+export interface StripeOnboardingLinkResponse {
+  success: boolean;
+  data?: {
+    url: string;
+  };
+  message?: string;
+}
+
+/**
+ * Stripe API
+ * バックエンド実装後に使用されるAPI
+ */
+export const stripeApi = {
+  // Stripeアカウント情報を取得
+  getAccountStatus: () =>
+    apiClient.get<{ success: boolean; data: StripeAccountStatus }>('/api/stripe/account-status'),
+  
+  // Stripeアカウントを作成
+  createAccount: (data: CreateStripeAccountRequest) =>
+    apiClient.post<CreateStripeAccountResponse>('/api/stripe/create-account', data),
+  
+  // Stripe本人確認フローのリンクを取得
+  getOnboardingLink: () =>
+    apiClient.post<StripeOnboardingLinkResponse>('/api/stripe/onboarding-link', {}),
+  
+  // 精算情報を取得
+  getPayoutInfo: () =>
+    apiClient.get<{ success: boolean; data: PayoutInfo }>('/api/stripe/payout-info'),
+};

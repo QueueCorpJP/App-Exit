@@ -29,6 +29,8 @@ func SetupRoutes(cfg *config.Config) http.Handler {
 	fmt.Println("[ROUTES] Setting up routes...")
 
 	// Create auth middleware with Supabase JWT secret and SupabaseService (will be recreated as needed)
+	// Create Stripe service
+	stripeService := services.NewStripeService(cfg)
 
 	// Health check
 	mux.HandleFunc("/health", server.HealthCheck)
@@ -123,6 +125,19 @@ func SetupRoutes(cfg *config.Config) http.Handler {
 	fmt.Println("[ROUTES] Registered: /api/storage/upload (with auth)")
 	fmt.Println("[ROUTES] Registered: /api/storage/signed-url")
 	fmt.Println("[ROUTES] Registered: /api/storage/signed-urls")
+
+	// Stripe routes (protected)
+	stripeHandler := NewStripeHandler(cfg, server.supabase, stripeService)
+	mux.HandleFunc("/api/stripe/account-status", auth(stripeHandler.HandleGetAccountStatus))
+	mux.HandleFunc("/api/stripe/create-account", auth(stripeHandler.HandleCreateAccount))
+	mux.HandleFunc("/api/stripe/create-onboarding-link", auth(stripeHandler.HandleCreateOnboardingLink))
+	mux.HandleFunc("/api/stripe/onboarding-link", auth(stripeHandler.HandleGetOnboardingLink))
+	mux.HandleFunc("/api/stripe/payout-info", auth(stripeHandler.HandleGetPayoutInfo))
+	fmt.Println("[ROUTES] Registered: /api/stripe/account-status (with auth)")
+	fmt.Println("[ROUTES] Registered: /api/stripe/create-account (with auth)")
+	fmt.Println("[ROUTES] Registered: /api/stripe/create-onboarding-link (with auth)")
+	fmt.Println("[ROUTES] Registered: /api/stripe/onboarding-link (with auth)")
+	fmt.Println("[ROUTES] Registered: /api/stripe/payout-info (with auth)")
 
 	// Apply global middleware (order matters: Recovery -> CORS -> Logger)
 	handler := middleware.Recovery(mux)
