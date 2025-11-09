@@ -429,8 +429,8 @@ func setAuthCookies(w http.ResponseWriter, accessToken, refreshToken string, use
 	cookieDomain := ""
 	// 同じドメインの異なるポート間での共有を許可するため、Domainは設定しない
 
-	// 1. auth_token (HttpOnly) - セッション管理用アクセストークン（30分有効）
-	// Supabase JWTの有効期限（30分）に合わせてCookie有効期限も30分に設定
+	// 1. auth_token (HttpOnly) - セッション管理用アクセストークン（60分有効）
+	// Supabase JWTの有効期限（60分）に合わせてCookie有効期限も60分に設定
 	http.SetCookie(w, &http.Cookie{
 		Name:     "auth_token",
 		Value:    accessToken,
@@ -439,10 +439,10 @@ func setAuthCookies(w http.ResponseWriter, accessToken, refreshToken string, use
 		HttpOnly: true,
 		Secure:   false, // HTTPの場合はfalse
 		SameSite: http.SameSiteLaxMode,
-		MaxAge:   30 * 60, // 30分（JWT有効期限と一致）
+		MaxAge:   60 * 60, // 60分（JWT有効期限と一致）
 	})
 
-	// 1.5. access_token (JavaScriptアクセス可能) - Authorization ヘッダー用（30分有効）
+	// 1.5. access_token (JavaScriptアクセス可能) - Authorization ヘッダー用（60分有効）
 	http.SetCookie(w, &http.Cookie{
 		Name:     "access_token",
 		Value:    accessToken,
@@ -451,7 +451,7 @@ func setAuthCookies(w http.ResponseWriter, accessToken, refreshToken string, use
 		HttpOnly: false, // JavaScriptからアクセス可能
 		Secure:   false,
 		SameSite: http.SameSiteLaxMode,
-		MaxAge:   30 * 60, // 30分（JWT有効期限と一致）
+		MaxAge:   60 * 60, // 60分（JWT有効期限と一致）
 	})
 
 	// 2. refresh_token (HttpOnly) - リフレッシュトークン（2日間有効）

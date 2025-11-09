@@ -53,7 +53,7 @@ export default function ProjectsListPage() {
   const [loading, setLoading] = useState(true);
 
   // フィルター状態
-  const [showFilters, setShowFilters] = useState(true);
+  const [showFilters, setShowFilters] = useState(false);
   const [searchKeyword, setSearchKeyword] = useState('');
   const [searchInput, setSearchInput] = useState(''); // 検索入力用の一時的な状態
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
@@ -347,14 +347,8 @@ export default function ProjectsListPage() {
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#F9F8F7' }}>
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* タイトル */}
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold" style={{ color: '#323232' }}>プロダクトを探す</h1>
-          <p className="text-gray-600 mt-2">条件を指定してプロダクトを検索できます</p>
-        </div>
-
         {/* フィルターエリア（上部） */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6 border border-gray-200">
+        <div className="bg-white rounded-lg p-6 mb-6 border border-gray-200">
           {/* フィルターヘッダー */}
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
@@ -386,8 +380,61 @@ export default function ProjectsListPage() {
             </div>
           </div>
 
+          {/* 選択中のフィルター表示（閉じている時も表示） */}
+          {!showFilters && activeFilterCount > 0 && (
+            <div className="flex flex-wrap gap-2 mt-4">
+              {searchKeyword && (
+                <span className="px-3 py-1 bg-gray-100 rounded-full text-sm flex items-center gap-2">
+                  <span className="text-gray-600">キーワード:</span>
+                  <span className="font-semibold">{searchKeyword}</span>
+                </span>
+              )}
+              {selectedCategories.map((cat) => (
+                <span key={cat} className="px-3 py-1 bg-gray-100 rounded-full text-sm flex items-center gap-2">
+                  <span className="text-gray-600">カテゴリ:</span>
+                  <span className="font-semibold">{cat}</span>
+                </span>
+              ))}
+              {selectedPostTypes.map((type) => (
+                <span key={type} className="px-3 py-1 bg-gray-100 rounded-full text-sm flex items-center gap-2">
+                  <span className="text-gray-600">タイプ:</span>
+                  <span className="font-semibold">
+                    {type === 'transaction' ? '取引' : type === 'board' ? '掲示板' : 'シークレット'}
+                  </span>
+                </span>
+              ))}
+              {selectedStatuses.map((status) => (
+                <span key={status} className="px-3 py-1 bg-gray-100 rounded-full text-sm flex items-center gap-2">
+                  <span className="text-gray-600">ステータス:</span>
+                  <span className="font-semibold">{status}</span>
+                </span>
+              ))}
+              {(priceMin || priceMax) && (
+                <span className="px-3 py-1 bg-gray-100 rounded-full text-sm flex items-center gap-2">
+                  <span className="text-gray-600">価格:</span>
+                  <span className="font-semibold">
+                    {priceMin && `${Number(priceMin).toLocaleString()}円〜`}
+                    {priceMax && `${Number(priceMax).toLocaleString()}円`}
+                  </span>
+                </span>
+              )}
+              {selectedTechStack.map((tech) => (
+                <span key={tech} className="px-3 py-1 bg-gray-100 rounded-full text-sm flex items-center gap-2">
+                  <span className="text-gray-600">技術:</span>
+                  <span className="font-semibold">{tech}</span>
+                </span>
+              ))}
+            </div>
+          )}
+
           {/* フィルターコンテンツ */}
-          <div className={`${showFilters ? 'block' : 'hidden'}`}>
+          <div
+            className="overflow-hidden transition-all duration-200 ease-in-out"
+            style={{
+              maxHeight: showFilters ? '2000px' : '0',
+              opacity: showFilters ? 1 : 0,
+            }}
+          >
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {/* キーワード検索 */}
               <div className="lg:col-span-2">

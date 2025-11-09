@@ -58,12 +58,14 @@ export default function ChatBot() {
     return (
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 w-16 h-16 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center z-50 group"
-        style={{ backgroundColor: '#E65D65' }}
+        className="fixed bottom-6 right-6 w-16 h-16 rounded-full transition-all duration-200 flex items-center justify-center z-50 group overflow-hidden"
         aria-label="チャットボットを開く"
       >
-        <MessageCircle className="w-7 h-7 text-white group-hover:scale-110 transition-transform" />
-        <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white animate-pulse"></div>
+        <img
+          src="/chat.png"
+          alt="チャット"
+          className="w-full h-full object-cover group-hover:scale-110 transition-transform"
+        />
       </button>
     );
   }
@@ -79,20 +81,19 @@ export default function ChatBot() {
     >
       {/* ヘッダー */}
       <div
-        className="flex items-center justify-between p-4 rounded-t-lg cursor-pointer"
-        style={{ backgroundColor: '#E65D65' }}
+        className="flex items-center justify-between p-4 rounded-t-lg cursor-pointer border-b"
+        style={{ backgroundColor: '#323232', borderColor: '#323232' }}
         onClick={() => setIsMinimized(!isMinimized)}
       >
         <div className="flex items-center gap-3">
           <div className="relative">
-            <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center">
-              <MessageCircle className="w-5 h-5" style={{ color: '#E65D65' }} />
+            <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: '#fff' }}>
+              <MessageCircle className="w-5 h-5" style={{ color: '#323232' }} />
             </div>
-            <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
           </div>
           <div>
-            <h3 className="font-bold text-white text-base">AppExit サポート</h3>
-            <p className="text-white text-xs opacity-90">オンライン</p>
+            <h3 className="font-bold text-base" style={{ color: '#fff' }}>AppExit サポート</h3>
+            <p className="text-xs" style={{ color: '#fff', opacity: 0.9 }}>チャットで質問</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -101,10 +102,10 @@ export default function ChatBot() {
               e.stopPropagation();
               setIsMinimized(!isMinimized);
             }}
-            className="p-1.5 hover:bg-white/20 rounded transition-colors"
+            className="p-1.5 rounded transition-colors hover:bg-white/10"
             aria-label={isMinimized ? '展開' : '最小化'}
           >
-            <Minimize2 className="w-5 h-5 text-white" />
+            <Minimize2 className="w-5 h-5" style={{ color: '#fff' }} />
           </button>
           <button
             onClick={(e) => {
@@ -112,10 +113,10 @@ export default function ChatBot() {
               setIsOpen(false);
               setIsMinimized(false);
             }}
-            className="p-1.5 hover:bg-white/20 rounded transition-colors"
+            className="p-1.5 rounded transition-colors hover:bg-white/10"
             aria-label="閉じる"
           >
-            <X className="w-5 h-5 text-white" />
+            <X className="w-5 h-5" style={{ color: '#fff' }} />
           </button>
         </div>
       </div>
@@ -124,7 +125,7 @@ export default function ChatBot() {
       {!isMinimized && (
         <>
           {/* メッセージ一覧 */}
-          <div className="h-[calc(100%-8rem)] overflow-y-auto p-4 space-y-4" style={{ backgroundColor: '#F9F8F7' }}>
+          <div className="h-[calc(100%-8rem)] overflow-y-auto p-4 space-y-4" style={{ backgroundColor: '#fff' }}>
             {messages.map((msg, index) => (
               <div
                 key={index}
@@ -132,19 +133,20 @@ export default function ChatBot() {
               >
                 <div className={`max-w-[80%] ${msg.isUser ? 'order-2' : 'order-1'}`}>
                   <div
-                    className={`rounded-lg px-4 py-2.5 ${
+                    className={`rounded-lg px-4 py-2.5 border ${
                       msg.isUser
                         ? 'rounded-br-none'
                         : 'rounded-bl-none'
                     }`}
                     style={{
-                      backgroundColor: msg.isUser ? '#E65D65' : '#fff',
-                      color: msg.isUser ? '#fff' : '#323232'
+                      backgroundColor: msg.isUser ? '#323232' : '#fff',
+                      color: msg.isUser ? '#fff' : '#323232',
+                      borderColor: '#323232'
                     }}
                   >
                     <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{msg.text}</p>
                   </div>
-                  <p className={`text-xs text-gray-500 mt-1 ${msg.isUser ? 'text-right' : 'text-left'}`}>
+                  <p className={`text-xs mt-1 ${msg.isUser ? 'text-right' : 'text-left'}`} style={{ color: '#323232', opacity: 0.6 }}>
                     {formatTime(msg.timestamp)}
                   </p>
                 </div>
@@ -153,7 +155,7 @@ export default function ChatBot() {
           </div>
 
           {/* 入力エリア */}
-          <div className="absolute bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-200 rounded-b-lg">
+          <div className="absolute bottom-0 left-0 right-0 p-4 border-t rounded-b-lg" style={{ backgroundColor: '#fff', borderColor: '#323232' }}>
             <div className="flex items-center gap-2">
               <input
                 type="text"
@@ -161,17 +163,21 @@ export default function ChatBot() {
                 onChange={(e) => setMessage(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="メッセージを入力..."
-                className="flex-1 px-4 py-2.5 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:border-transparent text-sm"
-                style={{ '--tw-ring-color': '#E65D65' } as React.CSSProperties}
+                className="flex-1 px-4 py-2.5 border rounded-full focus:outline-none focus:ring-2 focus:border-transparent text-sm"
+                style={{
+                  borderColor: '#323232',
+                  '--tw-ring-color': '#323232',
+                  color: '#323232'
+                } as React.CSSProperties}
               />
               <button
                 onClick={handleSendMessage}
                 disabled={message.trim() === ''}
-                className="w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-md"
-                style={{ backgroundColor: '#E65D65' }}
+                className="w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-80"
+                style={{ backgroundColor: '#323232' }}
                 aria-label="送信"
               >
-                <Send className="w-5 h-5 text-white" />
+                <Send className="w-5 h-5" style={{ color: '#fff' }} />
               </button>
             </div>
           </div>

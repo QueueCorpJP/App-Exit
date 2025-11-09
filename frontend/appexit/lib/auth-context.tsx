@@ -194,11 +194,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         }, 30 * 1000); // 30秒ごと
 
-        // トークンを積極的にリフレッシュ（20分ごと）
-        // 30分でトークンが期限切れになる問題に対応するため、20分ごとにリフレッシュ
-        // 25分から20分に短縮して、より確実にリフレッシュ
+        // トークンを積極的にリフレッシュ（45分ごと）
+        // 60分でトークンが期限切れになるため、45分ごとにリフレッシュ（有効期限の75%）
         tokenRefreshIntervalRef.current = setInterval(async () => {
-          console.log('[AUTH-CONTEXT] Proactively refreshing tokens (20min interval)...');
+          console.log('[AUTH-CONTEXT] Proactively refreshing tokens (45min interval)...');
           try {
             // 1. Supabaseのトークンをリフレッシュ
             const { data, error } = await supabase.auth.refreshSession();
@@ -220,7 +219,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           } catch (err) {
             console.error('[AUTH-CONTEXT] ❌ Error refreshing tokens:', err);
           }
-        }, 20 * 60 * 1000); // 20分ごと（30分の期限切れ前に確実にリフレッシュ）
+        }, 45 * 60 * 1000); // 45分ごと（60分の期限切れ前に確実にリフレッシュ）
       }
     });
 
