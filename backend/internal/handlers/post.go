@@ -126,10 +126,12 @@ func (s *Server) ListPosts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get all unique author user IDs
+	// Get all unique author user IDs and post IDs
 	authorIDs := make(map[string]bool)
+	postIDs := make([]string, 0, len(postsData))
 	for _, post := range postsData {
 		authorIDs[post.AuthorUserID] = true
+		postIDs = append(postIDs, post.ID)
 	}
 
 	// Fetch profiles for all authors
@@ -155,19 +157,49 @@ func (s *Server) ListPosts(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Fetch active view counts for all posts
+	activeViewCountMap := make(map[string]int)
+	fmt.Printf("[ListPosts] Fetching active view counts for %d posts...\n", len(postIDs))
+	if len(postIDs) > 0 {
+		var activeViews []models.ProductActiveView
+		_, err := client.From("product_active_views").
+			Select("*", "", false).
+			In("post_id", postIDs).
+			ExecuteTo(&activeViews)
+
+		if err != nil {
+			fmt.Printf("[ListPosts] ❌ ERROR: Failed to query active views: %v\n", err)
+		} else {
+			fmt.Printf("[ListPosts] ✓ Retrieved %d active view records\n", len(activeViews))
+			// Count active views per post
+			for _, view := range activeViews {
+				activeViewCountMap[view.PostID]++
+			}
+			fmt.Printf("[ListPosts] ✓ Active view counts: %v\n", activeViewCountMap)
+		}
+	}
+
 	// Transform to PostWithDetails
 	result := make([]models.PostWithDetails, 0, len(postsData))
 	for _, post := range postsData {
+		activeCount := activeViewCountMap[post.ID]
 		result = append(result, models.PostWithDetails{
-			Post:          post,
-			AuthorProfile: profilesMap[post.AuthorUserID],
+			Post:            post,
+			AuthorProfile:   profilesMap[post.AuthorUserID],
+			ActiveViewCount: activeCount,
 		})
+		if activeCount > 0 {
+			fmt.Printf("[ListPosts] Post %s (%s) has %d active views\n", post.ID, post.Title, activeCount)
+		}
 	}
 
 	// 空の配列でも正常に返す
 	if result == nil {
 		result = []models.PostWithDetails{}
 	}
+
+	fmt.Printf("[ListPosts] ✅ Returning %d posts with active view counts\n", len(result))
+	fmt.Printf("========== LIST POSTS END ==========\n\n")
 	response.Success(w, http.StatusOK, result)
 }
 
@@ -218,9 +250,26 @@ func (s *Server) GetPost(w http.ResponseWriter, r *http.Request, postID string) 
 		fmt.Printf("[GET /api/posts/%s] ⚠️ Warning: Author profile not found\n", postID)
 	}
 
+	// Fetch active view count for this post
+	activeViewCount := 0
+	var activeViews []models.ProductActiveView
+	fmt.Printf("[GET /api/posts/%s] Fetching active view count...\n", postID)
+	_, err = client.From("product_active_views").
+		Select("*", "", false).
+		Eq("post_id", postID).
+		ExecuteTo(&activeViews)
+
+	if err != nil {
+		fmt.Printf("[GET /api/posts/%s] ❌ ERROR: Failed to query active view count: %v\n", postID, err)
+	} else {
+		activeViewCount = len(activeViews)
+		fmt.Printf("[GET /api/posts/%s] ✓ Retrieved %d active view records (count: %d)\n", postID, len(activeViews), activeViewCount)
+	}
+
 	response := models.PostWithDetails{
-		Post:          post,
-		AuthorProfile: authorProfilePtr,
+		Post:            post,
+		AuthorProfile:   authorProfilePtr,
+		ActiveViewCount: activeViewCount,
 	}
 
 	fmt.Printf("[GET /api/posts/%s] ✅ Returning post with author profile\n", postID)
@@ -669,4 +718,230 @@ func (s *Server) DeletePost(w http.ResponseWriter, r *http.Request, postID strin
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// HandlePostLikes handles GET (status) and POST (toggle) for post likes
+func (s *Server) HandlePostLikes(w http.ResponseWriter, r *http.Request) {
+	parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
+	if len(parts) < 4 || parts[3] != "likes" {
+		http.Error(w, "Invalid path", http.StatusBadRequest)
+		return
+	}
+	postID := parts[2]
+	switch r.Method {
+	case http.MethodGet:
+		s.GetPostLikes(w, r, postID)
+	case http.MethodPost:
+		s.TogglePostLike(w, r, postID)
+	default:
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+// HandlePostDislikes handles GET (status) and POST (toggle) for post dislikes
+func (s *Server) HandlePostDislikes(w http.ResponseWriter, r *http.Request) {
+	parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
+	if len(parts) < 4 || parts[3] != "dislikes" {
+		http.Error(w, "Invalid path", http.StatusBadRequest)
+		return
+	}
+	postID := parts[2]
+	switch r.Method {
+	case http.MethodGet:
+		s.GetPostDislikes(w, r, postID)
+	case http.MethodPost:
+		s.TogglePostDislike(w, r, postID)
+	default:
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+// GetPostLikes returns like count and whether current user liked the post
+func (s *Server) GetPostLikes(w http.ResponseWriter, r *http.Request, postID string) {
+	userID, _ := r.Context().Value("user_id").(string)
+	client := s.supabase.GetServiceClient()
+
+	type Row struct {
+		PostID string `json:"post_id"`
+	}
+	var rows []Row
+	_, err := client.From("post_likes").
+		Select("post_id", "", false).
+		Eq("post_id", postID).
+		ExecuteTo(&rows)
+	if err != nil {
+		http.Error(w, "Failed to fetch likes", http.StatusInternalServerError)
+		return
+	}
+	likeCount := len(rows)
+	isLiked := false
+	if userID != "" {
+		var userRows []Row
+		_, err := client.From("post_likes").
+			Select("post_id", "", false).
+			Eq("post_id", postID).
+			Eq("user_id", userID).
+			Limit(1, "").
+			ExecuteTo(&userRows)
+		if err == nil && len(userRows) > 0 {
+			isLiked = true
+		}
+	}
+	result := map[string]interface{}{
+		"post_id":   postID,
+		"like_count": likeCount,
+		"is_liked":   isLiked,
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(result)
+}
+
+// TogglePostLike toggles like for the current user
+func (s *Server) TogglePostLike(w http.ResponseWriter, r *http.Request, postID string) {
+	userID, ok := r.Context().Value("user_id").(string)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+	impersonateJWT, ok := r.Context().Value("impersonate_jwt").(string)
+	if !ok || impersonateJWT == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+	client := s.supabase.GetAuthenticatedClient(impersonateJWT)
+
+	// Check existing
+	type Row struct {
+		PostID string `json:"post_id"`
+		UserID string `json:"user_id"`
+	}
+	var existing []Row
+	_, err := client.From("post_likes").
+		Select("post_id, user_id", "", false).
+		Eq("post_id", postID).
+		Eq("user_id", userID).
+		Limit(1, "").
+		ExecuteTo(&existing)
+	if err == nil && len(existing) > 0 {
+		// Unlike
+		_, _, err = client.From("post_likes").
+			Delete("", "").
+			Eq("post_id", postID).
+			Eq("user_id", userID).
+			Execute()
+		if err != nil {
+			http.Error(w, "Failed to unlike post", http.StatusInternalServerError)
+			return
+		}
+	} else {
+		// Like
+		data := map[string]interface{}{
+			"post_id": postID,
+			"user_id": userID,
+		}
+		_, _, err = client.From("post_likes").
+			Insert(data, false, "", "", "").
+			Execute()
+		if err != nil {
+			http.Error(w, "Failed to like post", http.StatusInternalServerError)
+			return
+		}
+	}
+	s.GetPostLikes(w, r, postID)
+}
+
+// GetPostDislikes returns dislike count and whether current user disliked the post
+func (s *Server) GetPostDislikes(w http.ResponseWriter, r *http.Request, postID string) {
+	userID, _ := r.Context().Value("user_id").(string)
+	client := s.supabase.GetServiceClient()
+
+	type Row struct {
+		PostID string `json:"post_id"`
+	}
+	var rows []Row
+	_, err := client.From("post_dislikes").
+		Select("post_id", "", false).
+		Eq("post_id", postID).
+		ExecuteTo(&rows)
+	if err != nil {
+		http.Error(w, "Failed to fetch dislikes", http.StatusInternalServerError)
+		return
+	}
+	count := len(rows)
+	isDisliked := false
+	if userID != "" {
+		var userRows []Row
+		_, err := client.From("post_dislikes").
+			Select("post_id", "", false).
+			Eq("post_id", postID).
+			Eq("user_id", userID).
+			Limit(1, "").
+			ExecuteTo(&userRows)
+		if err == nil && len(userRows) > 0 {
+			isDisliked = true
+		}
+	}
+	result := map[string]interface{}{
+		"post_id":       postID,
+		"dislike_count": count,
+		"is_disliked":   isDisliked,
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(result)
+}
+
+// TogglePostDislike toggles dislike for the current user
+func (s *Server) TogglePostDislike(w http.ResponseWriter, r *http.Request, postID string) {
+	userID, ok := r.Context().Value("user_id").(string)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+	impersonateJWT, ok := r.Context().Value("impersonate_jwt").(string)
+	if !ok || impersonateJWT == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+	client := s.supabase.GetAuthenticatedClient(impersonateJWT)
+
+	// Check existing
+	type Row struct {
+		PostID string `json:"post_id"`
+		UserID string `json:"user_id"`
+	}
+	var existing []Row
+	_, err := client.From("post_dislikes").
+		Select("post_id, user_id", "", false).
+		Eq("post_id", postID).
+		Eq("user_id", userID).
+		Limit(1, "").
+		ExecuteTo(&existing)
+	if err == nil && len(existing) > 0 {
+		// Remove
+		_, _, err = client.From("post_dislikes").
+			Delete("", "").
+			Eq("post_id", postID).
+			Eq("user_id", userID).
+			Execute()
+		if err != nil {
+			http.Error(w, "Failed to remove dislike", http.StatusInternalServerError)
+			return
+		}
+	} else {
+		// Add
+		data := map[string]interface{}{
+			"post_id": postID,
+			"user_id": userID,
+		}
+		_, _, err = client.From("post_dislikes").
+			Insert(data, false, "", "", "").
+			Execute()
+		if err != nil {
+			http.Error(w, "Failed to add dislike", http.StatusInternalServerError)
+			return
+		}
+	}
+	s.GetPostDislikes(w, r, postID)
 }

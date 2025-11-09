@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Search, SlidersHorizontal, X, ChevronDown, ChevronUp } from 'lucide-react';
 import { getImageUrls } from '@/lib/storage';
 import ProjectCard from '@/components/ui/ProjectCard';
@@ -46,6 +47,7 @@ const CATEGORIES = [
 ];
 
 export default function ProjectsListPage() {
+  const searchParams = useSearchParams();
   const [projects, setProjects] = useState<ProjectWithImage[]>([]);
   const [filteredProjects, setFilteredProjects] = useState<ProjectWithImage[]>([]);
   const [loading, setLoading] = useState(true);
@@ -68,6 +70,15 @@ export default function ProjectsListPage() {
   // 利用可能な技術スタックのリスト
   const [availableTechStacks, setAvailableTechStacks] = useState<string[]>([]);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
+
+  // URLパラメータから検索キーワードを取得
+  useEffect(() => {
+    const searchQuery = searchParams.get('search');
+    if (searchQuery) {
+      setSearchKeyword(searchQuery);
+      setSearchInput(searchQuery);
+    }
+  }, [searchParams]);
 
   // 初回のみ全データを取得して技術スタックリストを作成し、データも表示
   useEffect(() => {
@@ -335,48 +346,49 @@ export default function ProjectsListPage() {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#F9F8F7' }}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* ヘッダー */}
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* タイトル */}
         <div className="mb-6">
-          <h1 className="text-3xl font-bold mb-2" style={{ color: '#323232' }}>プロダクトを探す</h1>
-          <p className="text-gray-600">様々な条件で検索・絞り込みができます</p>
+          <h1 className="text-2xl font-bold" style={{ color: '#323232' }}>プロダクトを探す</h1>
+          <p className="text-gray-600 mt-2">条件を指定してプロダクトを検索できます</p>
         </div>
 
         {/* フィルターエリア（上部） */}
-        <div className="bg-white rounded-sm p-6 mb-6">
+        <div className="bg-white rounded-lg shadow-sm p-6 mb-6 border border-gray-200">
           {/* フィルターヘッダー */}
           <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-2">
-              <SlidersHorizontal size={20} style={{ color: '#E65D65' }} />
-              <h2 className="text-lg font-bold" style={{ color: '#323232' }}>フィルター</h2>
+            <div className="flex items-center gap-3">
+              <SlidersHorizontal size={22} style={{ color: '#E65D65' }} />
+              <h2 className="text-xl font-bold" style={{ color: '#323232' }}>検索条件</h2>
               {activeFilterCount > 0 && (
-                <span className="px-2 py-1 text-xs font-semibold rounded-full" style={{ backgroundColor: '#E65D65', color: '#fff' }}>
+                <span className="px-3 py-1 text-xs font-bold rounded-full" style={{ backgroundColor: '#E65D65', color: '#fff' }}>
                   {activeFilterCount}
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               {activeFilterCount > 0 && (
                 <button
                   onClick={clearAllFilters}
-                  className="text-sm py-2 px-4 rounded-sm border hover:bg-gray-50 transition-colors"
-                  style={{ borderColor: '#323232', color: '#323232' }}
+                  className="text-sm py-2 px-4 rounded-md border-2 hover:bg-gray-50 transition-colors font-semibold"
+                  style={{ borderColor: '#E65D65', color: '#E65D65' }}
                 >
                   すべてクリア
                 </button>
               )}
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className="p-1 hover:bg-gray-100 rounded"
+                className="p-2 hover:bg-gray-100 rounded-md transition-colors"
+                title={showFilters ? 'フィルターを閉じる' : 'フィルターを開く'}
               >
-                {showFilters ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                {showFilters ? <ChevronUp size={22} /> : <ChevronDown size={22} />}
               </button>
             </div>
           </div>
 
           {/* フィルターコンテンツ */}
           <div className={`${showFilters ? 'block' : 'hidden'}`}>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {/* キーワード検索 */}
               <div className="lg:col-span-2">
                 <label className="block text-sm font-semibold mb-2" style={{ color: '#323232' }}>
@@ -541,13 +553,13 @@ export default function ProjectsListPage() {
 
               {/* 技術スタック */}
               {availableTechStacks.length > 0 && (
-                <div className="lg:col-span-2">
+                <div className="lg:col-span-3">
                   <label className="block text-sm font-semibold mb-2" style={{ color: '#323232' }}>
                     技術スタック
                   </label>
-                  <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto">
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 max-h-40 overflow-y-auto p-3 bg-gray-50 rounded-md border border-gray-200">
                     {availableTechStacks.map(tech => (
-                      <label key={tech} className="flex items-center gap-2 cursor-pointer">
+                      <label key={tech} className="flex items-center gap-2 cursor-pointer hover:bg-white p-2 rounded transition-colors">
                         <input
                           type="checkbox"
                           checked={selectedTechStack.includes(tech)}

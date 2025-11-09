@@ -93,10 +93,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   /**
+   * バックエンドのトークンをリフレッシュ
+   */
+  const refreshBackendToken = async (): Promise<boolean> => {
+    try {
+      const apiUrl = getApiUrl();
+      const response = await fetch(`${apiUrl}/api/auth/refresh`, {
+        method: 'POST',
+        credentials: 'include', // refresh_token Cookieを送信
+        cache: 'no-store',
+      });
+
+      if (response.ok) {
+        console.log('[AUTH-CONTEXT] ✓ Backend token refreshed successfully');
+        return true;
+      } else {
+        console.error('[AUTH-CONTEXT] ❌ Backend token refresh failed');
+        return false;
+      }
+    } catch (error) {
+      console.error('[AUTH-CONTEXT] Error refreshing backend token:', error);
+      return false;
+    }
+  };
+
+  /**
    * セッションを手動でリフレッシュ
    */
   const refreshSession = async () => {
     console.log('[AUTH-CONTEXT] Manually refreshing session...');
+
+    // Supabaseのトークンをリフレッシュ
+    try {
+      const { data, error } = await supabase.auth.refreshSession();
+      if (!error && data.session) {
+        console.log('[AUTH-CONTEXT] ✓ Supabase token refreshed');
+        // バックエンドのトークンもリフレッシュ
+        await refreshBackendToken();
+      }
+    } catch (err) {
+      console.error('[AUTH-CONTEXT] Error refreshing Supabase token:', err);
+    }
+
     await checkBackendSession();
   };
 
@@ -156,37 +194,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         }, 30 * 1000); // 30秒ごと
 
-        // トークンを積極的にリフレッシュ（30分ごと = トークン有効期限の半分）
+        // トークンを積極的にリフレッシュ（20分ごと）
+        // 30分でトークンが期限切れになる問題に対応するため、20分ごとにリフレッシュ
+        // 25分から20分に短縮して、より確実にリフレッシュ
         tokenRefreshIntervalRef.current = setInterval(async () => {
-          console.log('[AUTH-CONTEXT] Proactively refreshing Supabase token...');
+          console.log('[AUTH-CONTEXT] Proactively refreshing tokens (20min interval)...');
           try {
+            // 1. Supabaseのトークンをリフレッシュ
             const { data, error } = await supabase.auth.refreshSession();
             if (error) {
-              console.error('[AUTH-CONTEXT] Token refresh failed:', error);
+              console.error('[AUTH-CONTEXT] ❌ Supabase token refresh failed:', error);
+              console.error('[AUTH-CONTEXT] Error details:', JSON.stringify(error, null, 2));
             } else if (data.session) {
-              console.log('[AUTH-CONTEXT] ✓ Token refreshed proactively');
-              // Cookieは supabase.ts の onAuthStateChange で自動更新される
+              console.log('[AUTH-CONTEXT] ✓ Supabase token refreshed proactively');
+              console.log('[AUTH-CONTEXT] New token expires at:', new Date(data.session.expires_at! * 1000).toLocaleString());
+
+              // 2. バックエンドのトークンもリフレッシュ
+              const backendRefreshed = await refreshBackendToken();
+              if (backendRefreshed) {
+                console.log('[AUTH-CONTEXT] ✓ Backend token refreshed proactively');
+              } else {
+                console.error('[AUTH-CONTEXT] ❌ Backend token refresh failed during proactive refresh');
+              }
             }
           } catch (err) {
-            console.error('[AUTH-CONTEXT] Error refreshing token:', err);
+            console.error('[AUTH-CONTEXT] ❌ Error refreshing tokens:', err);
           }
-        }, 30 * 60 * 1000); // 30分ごと（トークン有効期限1時間の半分）
+        }, 20 * 60 * 1000); // 20分ごと（30分の期限切れ前に確実にリフレッシュ）
       }
     });
 
     // ページがフォーカスされたときにセッションをチェック&トークンリフレッシュ
     const handleFocus = async () => {
-      console.log('[AUTH-CONTEXT] Page focused, checking session and refreshing token...');
+      console.log('[AUTH-CONTEXT] Page focused, checking session and refreshing tokens...');
       await checkBackendSession();
 
       // フォーカス時にもトークンをリフレッシュ（長時間放置後の復帰対策）
       try {
         const { data, error } = await supabase.auth.refreshSession();
         if (!error && data.session) {
-          console.log('[AUTH-CONTEXT] ✓ Token refreshed on focus');
+          console.log('[AUTH-CONTEXT] ✓ Supabase token refreshed on focus');
+
+          // バックエンドのトークンもリフレッシュ
+          const backendRefreshed = await refreshBackendToken();
+          if (backendRefreshed) {
+            console.log('[AUTH-CONTEXT] ✓ Backend token refreshed on focus');
+          }
         }
       } catch (err) {
-        console.error('[AUTH-CONTEXT] Error refreshing token on focus:', err);
+        console.error('[AUTH-CONTEXT] Error refreshing tokens on focus:', err);
       }
     };
     window.addEventListener('focus', handleFocus);

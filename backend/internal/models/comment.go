@@ -35,6 +35,8 @@ type PostCommentWithDetails struct {
 	AuthorProfile *AuthorProfile `json:"author_profile,omitempty"`
 	LikeCount     int             `json:"like_count"`
 	IsLiked       bool            `json:"is_liked"`
+	DislikeCount  int             `json:"dislike_count"`
+	IsDisliked    bool            `json:"is_disliked"`
 	ReplyCount    int             `json:"reply_count"`
 	Replies       []CommentReplyWithDetails `json:"replies,omitempty"`
 }

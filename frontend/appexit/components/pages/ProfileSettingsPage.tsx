@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Button from '@/components/ui/Button'
 import { profileApi, type Profile } from '@/lib/api-client'
 import { uploadAvatarImage } from '@/lib/storage'
-import { Camera } from 'lucide-react'
+import { Camera, CreditCard, CheckCircle2 } from 'lucide-react'
 
 export default function ProfileSettingsPage() {
   const router = useRouter()
@@ -34,6 +34,9 @@ export default function ProfileSettingsPage() {
       const response = await profileApi.getProfile()
 
       if (response.success && response.data) {
+        console.log('[ProfileSettings] Loaded profile:', response.data)
+        console.log('[ProfileSettings] stripe_account_id:', response.data.stripe_account_id)
+        console.log('[ProfileSettings] stripe_onboarding_completed:', response.data.stripe_onboarding_completed)
         setProfile(response.data)
         setDisplayName(response.data.display_name)
         setAge(response.data.age || undefined)
@@ -314,6 +317,136 @@ export default function ProfileSettingsPage() {
             </Button>
           </div>
         </form>
+
+        {/* 決済設定カード（売り手・仲介のみ表示） */}
+        {(profile.role === 'seller' || profile.role === 'advisor' || profile.roles?.includes('seller') || profile.roles?.includes('advisor')) && (
+          <div className="bg-white p-8 rounded-sm mt-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                {profile.stripe_account_id && profile.stripe_onboarding_completed ? (
+                  <>
+                    <div className="relative w-16 h-16">
+                      {/* グラデーション背景 */}
+                      <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-green-400 via-emerald-500 to-teal-600 shadow-lg"></div>
+
+                      {/* パルスアニメーション */}
+                      <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-green-400 via-emerald-500 to-teal-600 animate-pulse opacity-75"></div>
+
+                      {/* Stripeアイコン（クレジットカード） */}
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <CreditCard className="w-7 h-7 text-white" strokeWidth={2} />
+                      </div>
+
+                      {/* チェックマークバッジ */}
+                      <div className="absolute -top-1 -right-1 w-7 h-7 bg-white rounded-full shadow-md flex items-center justify-center border-2 border-green-500">
+                        <CheckCircle2 className="w-5 h-5 text-green-600" strokeWidth={2.5} />
+                      </div>
+
+                      {/* 光沢エフェクト */}
+                      <div className="absolute inset-0 rounded-xl bg-gradient-to-tr from-white/20 to-transparent"></div>
+                    </div>
+                    <div>
+                      <h3 className="text-base font-bold text-gray-800 flex items-center">
+                        決済登録完了
+                        <span className="ml-2 px-2 py-0.5 text-xs font-semibold bg-green-100 text-green-700 rounded-full">
+                          認証済み
+                        </span>
+                      </h3>
+                      <p className="text-sm text-gray-600 mt-1">
+                        Stripe決済アカウントが登録されています
+                      </p>
+                      <div className="flex items-center mt-2 space-x-2">
+                        <div className="flex items-center text-xs text-green-600">
+                          <CheckCircle2 className="w-3.5 h-3.5 mr-1" strokeWidth={2.5} />
+                          本人確認完了
+                        </div>
+                        <span className="text-gray-300">•</span>
+                        <div className="flex items-center text-xs text-green-600">
+                          <CheckCircle2 className="w-3.5 h-3.5 mr-1" strokeWidth={2.5} />
+                          売上受取可能
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                ) : profile.stripe_account_id ? (
+                  <>
+                    <div className="relative w-16 h-16">
+                      {/* グラデーション背景 */}
+                      <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-yellow-400 via-amber-500 to-orange-500 shadow-lg"></div>
+
+                      {/* Stripeアイコン（クレジットカード） */}
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <CreditCard className="w-7 h-7 text-white" strokeWidth={2} />
+                      </div>
+
+                      {/* 警告バッジ */}
+                      <div className="absolute -top-1 -right-1 w-7 h-7 bg-white rounded-full shadow-md flex items-center justify-center border-2 border-yellow-500">
+                        <span className="text-yellow-600 font-bold text-sm">!</span>
+                      </div>
+
+                      {/* 光沢エフェクト */}
+                      <div className="absolute inset-0 rounded-xl bg-gradient-to-tr from-white/20 to-transparent"></div>
+                    </div>
+                    <div>
+                      <h3 className="text-base font-bold text-gray-800 flex items-center">
+                        本人確認が必要です
+                        <span className="ml-2 px-2 py-0.5 text-xs font-semibold bg-yellow-100 text-yellow-700 rounded-full">
+                          要確認
+                        </span>
+                      </h3>
+                      <p className="text-sm text-gray-600 mt-1">
+                        Stripeの本人確認を完了してください
+                      </p>
+                      <p className="text-xs text-yellow-600 mt-2">
+                        ⚠️ 本人確認が完了するまで売上の受取はできません
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="relative w-16 h-16">
+                      {/* グラデーション背景 */}
+                      <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-blue-400 via-indigo-500 to-purple-600 shadow-lg"></div>
+
+                      {/* Stripeアイコン（クレジットカード） */}
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <CreditCard className="w-7 h-7 text-white" strokeWidth={2} />
+                      </div>
+
+                      {/* プラスバッジ */}
+                      <div className="absolute -top-1 -right-1 w-7 h-7 bg-white rounded-full shadow-md flex items-center justify-center border-2 border-blue-500">
+                        <span className="text-blue-600 font-bold text-lg leading-none">+</span>
+                      </div>
+
+                      {/* 光沢エフェクト */}
+                      <div className="absolute inset-0 rounded-xl bg-gradient-to-tr from-white/20 to-transparent"></div>
+                    </div>
+                    <div>
+                      <h3 className="text-base font-bold text-gray-800 flex items-center">
+                        決済設定
+                        <span className="ml-2 px-2 py-0.5 text-xs font-semibold bg-blue-100 text-blue-700 rounded-full">
+                          未設定
+                        </span>
+                      </h3>
+                      <p className="text-sm text-gray-600 mt-1">
+                        売上を受け取るにはStripe決済の設定が必要です
+                      </p>
+                      <p className="text-xs text-blue-600 mt-2">
+                        💡 数分で簡単に設定できます
+                      </p>
+                    </div>
+                  </>
+                )}
+              </div>
+              <Button
+                variant={profile.stripe_account_id && profile.stripe_onboarding_completed ? "outline" : "primary"}
+                onClick={() => router.push('/settings/payment')}
+              >
+                {profile.stripe_account_id && profile.stripe_onboarding_completed ? '設定を確認' : profile.stripe_account_id ? '本人確認を完了' : '設定を開始'}
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

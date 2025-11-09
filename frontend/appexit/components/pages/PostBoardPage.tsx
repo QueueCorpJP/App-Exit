@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { ArrowLeft, ArrowUp, ArrowDown, MessageCircle, Share2, MoreHorizontal, Award, Flame, Image as ImageIcon, X, ChevronDown, Calendar, Globe, Send } from 'lucide-react';
-import { postApi } from '@/lib/api-client';
+import { postApi, commentApi, PostCommentWithDetails } from '@/lib/api-client';
 import { uploadImage, getImageUrls } from '@/lib/storage';
 import Image from 'next/image';
 
@@ -12,7 +12,7 @@ interface Post {
   id: string;
   title: string;
   body: string | null;
-  cover_image_url: string | null;
+  eyecatch_url: string | null;
   author_user_id: string;
   created_at: string;
   type: string;
@@ -34,8 +34,13 @@ export default function PostBoardPage({ initialPosts = [] }: PostBoardPageProps)
   const [posts, setPosts] = useState<PostWithImageUrl[]>([]);
   const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [commentInput, setCommentInput] = useState('');
+  const [commentInputs, setCommentInputs] = useState<Record<string, string>>({});
   const [replyToUser, setReplyToUser] = useState<string | null>(null);
+  const [likeStates, setLikeStates] = useState<Record<string, { like_count: number; is_liked: boolean }>>({});
+  const [dislikeStates, setDislikeStates] = useState<Record<string, { dislike_count: number; is_disliked: boolean }>>({});
+  const [commentCounts, setCommentCounts] = useState<Record<string, number>>({});
+  const [commentSectionsOpen, setCommentSectionsOpen] = useState<Record<string, boolean>>({});
+  const [postComments, setPostComments] = useState<Record<string, PostCommentWithDetails[]>>({});
 
   const [formData, setFormData] = useState({
     title: '',
@@ -60,7 +65,7 @@ export default function PostBoardPage({ initialPosts = [] }: PostBoardPageProps)
       }
 
       // 画像パスを収集
-      const imagePaths = postsData.map(post => post.cover_image_url).filter((path): path is string => !!path);
+      const imagePaths = postsData.map(post => post.eyecatch_url).filter((path): path is string => !!path);
       console.log('[BOARD] Image paths:', imagePaths);
 
       // 署名付きURLを一括取得
@@ -69,8 +74,8 @@ export default function PostBoardPage({ initialPosts = [] }: PostBoardPageProps)
 
       // 投稿データに画像URLを追加
       const postsWithImages: PostWithImageUrl[] = postsData.map(post => {
-        const imageUrl = post.cover_image_url ? imageUrlMap.get(post.cover_image_url) : undefined;
-        console.log(`[BOARD] Post ${post.id}: path="${post.cover_image_url}" → url="${imageUrl ? imageUrl.substring(0, 50) + '...' : 'none'}"`);
+        const imageUrl = post.eyecatch_url ? imageUrlMap.get(post.eyecatch_url) : undefined;
+        console.log(`[BOARD] Post ${post.id}: path="${post.eyecatch_url}" → url="${imageUrl ? imageUrl.substring(0, 50) + '...' : 'none'}"`);
 
         return {
           ...post,
@@ -84,6 +89,37 @@ export default function PostBoardPage({ initialPosts = [] }: PostBoardPageProps)
       console.error('[BOARD] Failed to load image URLs:', err);
     }
   };
+
+  // 投稿のメタ情報（いいね/バット、コメント数）を取得
+  useEffect(() => {
+    const fetchMeta = async () => {
+      if (initialPosts.length === 0) return;
+      try {
+        const updatesLike: Record<string, { like_count: number; is_liked: boolean }> = {};
+        const updatesDislike: Record<string, { dislike_count: number; is_disliked: boolean }> = {};
+        const updatesCommentCount: Record<string, number> = {};
+
+        await Promise.all(initialPosts.map(async (p) => {
+          const [likesRes, dislikesRes, commentsRes] = await Promise.all([
+            postApi.getLikes(p.id).catch(() => ({ like_count: 0, is_liked: false } as any)),
+            postApi.getDislikes(p.id).catch(() => ({ dislike_count: 0, is_disliked: false } as any)),
+            commentApi.getPostComments(p.id).catch(() => [] as any),
+          ]);
+          updatesLike[p.id] = { like_count: likesRes.like_count ?? 0, is_liked: likesRes.is_liked ?? false };
+          updatesDislike[p.id] = { dislike_count: dislikesRes.dislike_count ?? 0, is_disliked: dislikesRes.is_disliked ?? false };
+          updatesCommentCount[p.id] = Array.isArray(commentsRes) ? commentsRes.length : 0;
+        }));
+
+        setLikeStates(updatesLike);
+        setDislikeStates(updatesDislike);
+        setCommentCounts(updatesCommentCount);
+      } catch (e) {
+        console.warn('[BOARD] Failed to load meta:', e);
+      }
+    };
+    fetchMeta();
+    // initialPostsが変わったら再取得
+  }, [initialPosts]);
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -123,7 +159,7 @@ export default function PostBoardPage({ initialPosts = [] }: PostBoardPageProps)
         type: 'board' as const,
         title: formData.title,
         body: formData.body,
-        cover_image_url: coverImagePath,
+        eyecatch_url: coverImagePath,
         is_active: true,
       };
 
@@ -144,37 +180,96 @@ export default function PostBoardPage({ initialPosts = [] }: PostBoardPageProps)
     }
   };
 
-  const CommentItem = ({ username = 'ユーザー', timeAgo = '1日前', body = 'コメント内容', votes = 0, replyTo }: {
-    username?: string;
-    timeAgo?: string;
-    body?: string;
-    votes?: number;
-    replyTo?: string;
-  }) => {
+  // 投稿のいいね/バット切替
+  const handleToggleLike = async (postId: string) => {
+    try {
+      const res = await postApi.toggleLike(postId);
+      setLikeStates(prev => ({ ...prev, [postId]: { like_count: res.like_count ?? 0, is_liked: res.is_liked ?? false } }));
+    } catch (e) {
+      console.error('toggle like failed', e);
+    }
+  };
+  const handleToggleDislike = async (postId: string) => {
+    try {
+      const res = await postApi.toggleDislike(postId);
+      setDislikeStates(prev => ({ ...prev, [postId]: { dislike_count: res.dislike_count ?? 0, is_disliked: res.is_disliked ?? false } }));
+    } catch (e) {
+      console.error('toggle dislike failed', e);
+    }
+  };
+
+  // コメントセクションの開閉
+  const toggleCommentSection = async (postId: string) => {
+    const isCurrentlyOpen = commentSectionsOpen[postId];
+    setCommentSectionsOpen(prev => ({ ...prev, [postId]: !isCurrentlyOpen }));
+
+    // 開く場合はコメントを取得
+    if (!isCurrentlyOpen && !postComments[postId]) {
+      try {
+        const comments = await commentApi.getPostComments(postId);
+        if (Array.isArray(comments)) {
+          // 古い順にソート（created_atの昇順）
+          const sortedComments = comments.sort((a, b) =>
+            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+          );
+          setPostComments(prev => ({ ...prev, [postId]: sortedComments }));
+        }
+      } catch (e) {
+        console.error('Failed to load comments', e);
+      }
+    }
+  };
+
+  // コメント送信（Enterで送信）
+  const handleSubmitComment = async (postId: string) => {
+    const text = commentInputs[postId]?.trim();
+    if (!text) return;
+    try {
+      await commentApi.createComment(postId, { content: text });
+      setCommentInputs(prev => ({ ...prev, [postId]: '' }));
+      // コメント一覧を再取得して最新のコメントを表示
+      const comments = await commentApi.getPostComments(postId);
+      if (Array.isArray(comments)) {
+        // 古い順にソート（created_atの昇順）
+        const sortedComments = comments.sort((a, b) =>
+          new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        );
+        setPostComments(prev => ({ ...prev, [postId]: sortedComments }));
+        setCommentCounts(prev => ({ ...prev, [postId]: sortedComments.length }));
+      }
+    } catch (e) {
+      console.error('create comment failed', e);
+    }
+  };
+
+  const CommentItem = ({ comment }: { comment: PostCommentWithDetails }) => {
+    const displayName = comment.author_profile?.display_name || `User ${comment.user_id.substring(0, 8)}`;
+    const timeAgo = formatTimeAgo(new Date(comment.created_at));
+
     return (
       <div className="flex gap-3">
-        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex-shrink-0" />
+        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex-shrink-0 flex items-center justify-center text-white text-xs font-bold">
+          {displayName[0].toUpperCase()}
+        </div>
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-1">
-            <span className="font-semibold text-sm">{username}</span>
+            <span className="font-semibold text-sm">{displayName}</span>
             <span className="text-xs text-gray-500">• {timeAgo}</span>
           </div>
-          {replyTo && (
-            <div className="text-xs text-blue-600 mb-1">
-              <MessageCircle className="w-3 h-3 inline mr-1" />
-              @{replyTo} への返信
-            </div>
-          )}
-          <p className="text-sm text-gray-800 mb-2">{body}</p>
+          <p className="text-sm text-gray-800 mb-2">{comment.content}</p>
           <div className="flex items-center gap-4 text-sm text-gray-600">
-            <button className="flex items-center gap-1 hover:text-orange-500">
-              <ArrowUp className="w-4 h-4" />
-              <span>{votes}</span>
-              <ArrowDown className="w-4 h-4" />
-            </button>
+            <div className="flex items-center gap-1">
+              <button className="hover:text-orange-500">
+                <ArrowUp className="w-4 h-4" />
+              </button>
+              <span>{comment.like_count}</span>
+              <button className="hover:text-blue-500">
+                <ArrowDown className="w-4 h-4" />
+              </button>
+            </div>
             <button
               className="flex items-center gap-1 hover:text-blue-600"
-              onClick={() => setReplyToUser(username)}
+              onClick={() => setReplyToUser(displayName)}
             >
               <MessageCircle className="w-4 h-4" />
               返信
@@ -191,6 +286,20 @@ export default function PostBoardPage({ initialPosts = [] }: PostBoardPageProps)
         </div>
       </div>
     );
+  };
+
+  // 時間経過を表示する関数
+  const formatTimeAgo = (date: Date): string => {
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return 'たった今';
+    if (diffMins < 60) return `${diffMins}分前`;
+    if (diffHours < 24) return `${diffHours}時間前`;
+    return `${diffDays}日前`;
   };
 
   return (
@@ -370,18 +479,27 @@ export default function PostBoardPage({ initialPosts = [] }: PostBoardPageProps)
                 {/* Action Buttons */}
                 <div className="flex items-center gap-3">
                   <div className="flex items-center gap-2 bg-gray-100 rounded-full px-3 py-1.5">
-                    <button className="hover:text-orange-500 transition-colors">
+                  <button
+                    className={`hover:text-orange-500 transition-colors ${likeStates[post.id]?.is_liked ? 'text-orange-500' : ''}`}
+                    onClick={() => handleToggleLike(post.id)}
+                  >
                       <ArrowUp className="w-5 h-5" />
                     </button>
-                    <span className="text-sm font-bold">0</span>
-                    <button className="hover:text-blue-500 transition-colors">
+                  <span className="text-sm font-bold">{likeStates[post.id]?.like_count ?? 0}</span>
+                  <button
+                    className={`hover:text-blue-500 transition-colors ${dislikeStates[post.id]?.is_disliked ? 'text-blue-500' : ''}`}
+                    onClick={() => handleToggleDislike(post.id)}
+                  >
                       <ArrowDown className="w-5 h-5" />
                     </button>
                   </div>
 
-                  <button className="flex items-center gap-2 bg-gray-100 rounded-full px-3 py-1.5 hover:bg-gray-200 transition-colors">
+                <button
+                  className="flex items-center gap-2 bg-gray-100 rounded-full px-3 py-1.5 hover:bg-gray-200 transition-colors"
+                  onClick={() => toggleCommentSection(post.id)}
+                >
                     <MessageCircle className="w-5 h-5" />
-                    <span className="text-sm font-bold">0</span>
+                  <span className="text-sm font-bold">{commentCounts[post.id] ?? 0}</span>
                   </button>
 
                   <button className="flex items-center gap-2 bg-gray-100 rounded-full px-3 py-1.5 hover:bg-gray-200 transition-colors">
@@ -391,48 +509,63 @@ export default function PostBoardPage({ initialPosts = [] }: PostBoardPageProps)
                 </div>
               </div>
 
-              {/* Comment Input Section */}
-              <div className="p-6 border-b border-gray-100">
-                <div className="flex items-center gap-3">
-                  {replyToUser && (
-                    <div className="flex items-center gap-2 text-xs text-blue-600 mb-2">
-                      <span>@{replyToUser} に返信中</span>
-                      <button onClick={() => setReplyToUser(null)} className="hover:text-red-600">
-                        <X className="w-3 h-3" />
+              {/* Comment Input Section & Comments - Only show when open */}
+              <div
+                className="overflow-hidden transition-all duration-200 ease-in-out"
+                style={{
+                  maxHeight: commentSectionsOpen[post.id] ? '2000px' : '0',
+                  opacity: commentSectionsOpen[post.id] ? 1 : 0,
+                }}
+              >
+                {/* Comment Input Section */}
+                <div className="p-6 border-b border-gray-100">
+                  <div className="flex flex-col gap-2">
+                    {replyToUser && (
+                      <div className="flex items-center gap-2 text-xs text-blue-600">
+                        <span>@{replyToUser} に返信中</span>
+                        <button onClick={() => setReplyToUser(null)} className="hover:text-red-600">
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    )}
+                    <div className="relative flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={commentInputs[post.id] ?? ''}
+                        onChange={(e) => setCommentInputs(prev => ({ ...prev, [post.id]: e.target.value }))}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault();
+                            handleSubmitComment(post.id);
+                          }
+                        }}
+                        placeholder={replyToUser ? `@${replyToUser} に返信...` : "コメントを追加..."}
+                        className="flex-1 px-4 py-2.5 pr-12 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                      />
+                      <button
+                        onClick={() => handleSubmitComment(post.id)}
+                        disabled={!commentInputs[post.id]?.trim()}
+                        className="absolute right-2 p-2 text-blue-500 hover:text-blue-700 disabled:text-gray-300 disabled:cursor-not-allowed transition-colors"
+                        title="送信"
+                      >
+                        <Send className="w-5 h-5" />
                       </button>
                     </div>
-                  )}
-                  <input
-                    type="text"
-                    value={commentInput}
-                    onChange={(e) => setCommentInput(e.target.value)}
-                    placeholder={replyToUser ? `@${replyToUser} に返信...` : "コメントを追加..."}
-                    className="flex-1 px-4 py-2.5 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                  />
+                  </div>
                 </div>
-              </div>
 
-              {/* Comments Section */}
-              <div className="p-6 space-y-6">
-                <CommentItem
-                  username="Dr-Dark-Flames"
-                  timeAgo="28日前"
-                  body="Self host Q yall"
-                  votes={99}
-                />
-                <CommentItem
-                  username="Railway-User"
-                  timeAgo="27日前"
-                  body="Or, Railway with one click deploy with Next.js and Postgres Database"
-                  votes={10}
-                  replyTo="Dr-Dark-Flames"
-                />
-                <CommentItem
-                  username="JamieClimbsRocks"
-                  timeAgo="28日前"
-                  body="Have never used Vercel as there is this alternative: https://opennext.js.org/ ✅"
-                  votes={68}
-                />
+                {/* Comments Section */}
+                <div className="p-6 space-y-6">
+                  {postComments[post.id] && postComments[post.id].length > 0 ? (
+                    postComments[post.id].map((comment) => (
+                      <CommentItem key={comment.id} comment={comment} />
+                    ))
+                  ) : (
+                    <div className="text-center text-gray-500 text-sm py-4">
+                      まだコメントがありません。最初のコメントを投稿しましょう！
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           ))}

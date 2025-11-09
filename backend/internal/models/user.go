@@ -24,6 +24,8 @@ type Profile struct {
 	TermsAcceptedAt   *time.Time `json:"terms_accepted_at,omitempty"`
 	PrivacyAcceptedAt *time.Time `json:"privacy_accepted_at,omitempty"`
 	StripeCustomerID  *string    `json:"stripe_customer_id,omitempty"`
+	StripeAccountID   *string    `json:"stripe_account_id,omitempty"`
+	StripeOnboardingCompleted *bool  `json:"stripe_onboarding_completed,omitempty"`
 	ListingCount      *int       `json:"listing_count,omitempty"`
 	ServiceCategories []string   `json:"service_categories,omitempty"`
 	DesiredExitTiming *string    `json:"desired_exit_timing,omitempty"`

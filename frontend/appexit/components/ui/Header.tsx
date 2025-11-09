@@ -72,8 +72,21 @@ export default function Header() {
                 type="text"
                 placeholder="キーワード検索"
                 className="w-full px-4 py-2 border border-gray-400 rounded-l-full rounded-r-none text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    const keyword = (e.target as HTMLInputElement).value;
+                    window.location.href = `/projects?search=${encodeURIComponent(keyword)}`;
+                  }
+                }}
               />
-              <button className="px-4 bg-red-600 text-white rounded-l-none rounded-r-full text-sm font-semibold hover:bg-red-700 transition-colors border border-red-600 flex items-center whitespace-nowrap">
+              <button
+                className="px-4 bg-red-600 text-white rounded-l-none rounded-r-full text-sm font-semibold hover:bg-red-700 transition-colors border border-red-600 flex items-center whitespace-nowrap"
+                onClick={(e) => {
+                  const input = (e.currentTarget.previousElementSibling as HTMLInputElement);
+                  const keyword = input?.value || '';
+                  window.location.href = `/projects?search=${encodeURIComponent(keyword)}`;
+                }}
+              >
                 検索
               </button>
             </div>
@@ -157,9 +170,12 @@ export default function Header() {
                         {(profile?.display_name || user.email || 'U').charAt(0).toUpperCase()}
                       </div>
                     )}
-                    <span className="text-sm font-semibold">
-                      {profile?.display_name || user.email?.split('@')[0] || 'ユーザー'}
-                    </span>
+                  </Link>
+                  <Link
+                    href="/profile"
+                    className="text-sm font-semibold text-gray-700 hover:text-gray-900"
+                  >
+                    {profile?.display_name || user.email?.split('@')[0] || 'ユーザー'}
                   </Link>
                   <button
                     onClick={() => setIsDropdownOpen(!isDropdownOpen)}
@@ -262,8 +278,23 @@ export default function Header() {
               type="text"
               placeholder="キーワード検索"
               className="flex-1 px-4 py-2 border border-gray-400 rounded-l-full rounded-r-none text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  const keyword = (e.target as HTMLInputElement).value;
+                  window.location.href = `/projects?search=${encodeURIComponent(keyword)}`;
+                  setIsMobileMenuOpen(false);
+                }
+              }}
             />
-            <button className="px-4 bg-red-600 text-white rounded-l-none rounded-r-full text-sm font-semibold hover:bg-red-700 transition-colors border border-red-600 flex items-center whitespace-nowrap">
+            <button
+              className="px-4 bg-red-600 text-white rounded-l-none rounded-r-full text-sm font-semibold hover:bg-red-700 transition-colors border border-red-600 flex items-center whitespace-nowrap"
+              onClick={(e) => {
+                const input = (e.currentTarget.previousElementSibling as HTMLInputElement);
+                const keyword = input?.value || '';
+                window.location.href = `/projects?search=${encodeURIComponent(keyword)}`;
+                setIsMobileMenuOpen(false);
+              }}
+            >
               検索
             </button>
           </div>

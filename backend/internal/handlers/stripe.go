@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"time"
@@ -113,10 +114,12 @@ func (h *StripeHandler) HandleCreateAccount(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	log.Printf("[STRIPE] Created account: %s for user: %s", account.ID, userID)
+
 	// Requirementsを取得
 	requirementsJSON, _ := h.stripeService.ConvertRequirementsToJSON(account)
 
-	// プロフィールを更新
+	// プロフィールを更新（即座保存）
 	updateData := map[string]interface{}{
 		"stripe_account_id":            account.ID,
 		"tos_accepted_at":              time.Now(),
@@ -133,9 +136,23 @@ func (h *StripeHandler) HandleCreateAccount(w http.ResponseWriter, r *http.Reque
 		ExecuteTo(nil)
 
 	if err != nil {
-		log.Printf("[STRIPE] Failed to update profile with Stripe account ID: %v", err)
-		// Stripeアカウントは作成済みなので、エラーを返すがアカウントIDは返す
+		log.Printf("[STRIPE] Failed to save stripe_account_id: %v", err)
+
+		// ロールバック: Stripeアカウントを削除
+		log.Printf("[STRIPE] Rolling back: deleting Stripe account: %s", account.ID)
+		delErr := h.stripeService.DeleteAccount(ctx, account.ID)
+		if delErr != nil {
+			log.Printf("[STRIPE] CRITICAL: Failed to rollback Stripe account %s: %v", account.ID, delErr)
+			log.Printf("[STRIPE] CRITICAL: Orphaned account needs manual cleanup: %s", account.ID)
+		} else {
+			log.Printf("[STRIPE] Successfully rolled back Stripe account: %s", account.ID)
+		}
+
+		response.Error(w, http.StatusInternalServerError, "Failed to save Stripe account ID")
+		return
 	}
+
+	log.Printf("[STRIPE] Successfully saved stripe_account_id: %s", account.ID)
 
 	// レスポンス
 	response.Success(w, http.StatusOK, CreateAccountResponse{
@@ -274,10 +291,12 @@ func (h *StripeHandler) HandleCreateOnboardingLink(w http.ResponseWriter, r *htt
 			return
 		}
 
+		log.Printf("[STRIPE] Created account: %s for user: %s", account.ID, userID)
+
 		// Requirementsを取得
 		requirementsJSON, _ := h.stripeService.ConvertRequirementsToJSON(account)
 
-		// プロフィールを更新
+		// プロフィールを更新（即座保存）
 		updateData := map[string]interface{}{
 			"stripe_account_id":            account.ID,
 			"stripe_onboarding_completed":  false,
@@ -292,8 +311,23 @@ func (h *StripeHandler) HandleCreateOnboardingLink(w http.ResponseWriter, r *htt
 			ExecuteTo(nil)
 
 		if err != nil {
-			log.Printf("[STRIPE] Failed to update profile with Stripe account ID: %v", err)
+			log.Printf("[STRIPE] Failed to save stripe_account_id: %v", err)
+
+			// ロールバック: Stripeアカウントを削除
+			log.Printf("[STRIPE] Rolling back: deleting Stripe account: %s", account.ID)
+			delErr := h.stripeService.DeleteAccount(ctx, account.ID)
+			if delErr != nil {
+				log.Printf("[STRIPE] CRITICAL: Failed to rollback Stripe account %s: %v", account.ID, delErr)
+				log.Printf("[STRIPE] CRITICAL: Orphaned account needs manual cleanup: %s", account.ID)
+			} else {
+				log.Printf("[STRIPE] Successfully rolled back Stripe account: %s", account.ID)
+			}
+
+			response.Error(w, http.StatusInternalServerError, "Failed to save Stripe account ID")
+			return
 		}
+
+		log.Printf("[STRIPE] Successfully saved stripe_account_id: %s", account.ID)
 
 		// オンボーディングリンクを作成
 		link, err := h.stripeService.CreateAccountLink(ctx, account.ID, req.ReturnURL, req.RefreshURL)
@@ -533,4 +567,153 @@ func (h *StripeHandler) HandleGetPayoutInfo(w http.ResponseWriter, r *http.Reque
 		LastPayoutDate:  "",  // TODO: 最終出金日を取得
 		NextPayoutDate:  "",  // TODO: 次回出金予定日を計算
 	})
+}
+
+// HandleStripeWebhook はStripeからのWebhookを処理
+func (h *StripeHandler) HandleStripeWebhook(w http.ResponseWriter, r *http.Request) {
+	const MaxBodyBytes = int64(65536)
+	r.Body = http.MaxBytesReader(w, r.Body, MaxBodyBytes)
+
+	// リクエストボディを読み取り
+	payload, err := io.ReadAll(r.Body)
+	if err != nil {
+		log.Printf("[STRIPE WEBHOOK] Error reading request body: %v", err)
+		response.Error(w, http.StatusServiceUnavailable, "Error reading request body")
+		return
+	}
+
+	// Webhook署名を検証
+	event, err := h.stripeService.ConstructWebhookEvent(payload, r.Header.Get("Stripe-Signature"))
+	if err != nil {
+		log.Printf("[STRIPE WEBHOOK] Webhook signature verification failed: %v", err)
+		response.Error(w, http.StatusBadRequest, "Webhook signature verification failed")
+		return
+	}
+
+	log.Printf("[STRIPE WEBHOOK] Received event: %s", event.Type)
+
+	// イベントタイプに応じて処理
+	switch event.Type {
+	case "account.updated":
+		h.handleAccountUpdated(event)
+	case "account.external_account.created":
+		h.handleExternalAccountCreated(event)
+	case "account.external_account.deleted":
+		h.handleExternalAccountDeleted(event)
+	case "account.external_account.updated":
+		h.handleExternalAccountUpdated(event)
+	default:
+		log.Printf("[STRIPE WEBHOOK] Unhandled event type: %s", event.Type)
+	}
+
+	// Stripeに成功を返す
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"status": "success"})
+}
+
+// handleAccountUpdated はaccount.updatedイベントを処理
+// 注意: このイベントは売り手（Connect Account）専用です
+// 買い手（Customer）にはaccount.updatedイベントは発生しません
+func (h *StripeHandler) handleAccountUpdated(event interface{}) {
+	// イベントデータをパース
+	var acc map[string]interface{}
+	eventData, ok := event.(map[string]interface{})
+	if !ok {
+		log.Printf("[STRIPE WEBHOOK] Failed to parse event data")
+		return
+	}
+
+	data, ok := eventData["data"].(map[string]interface{})
+	if !ok {
+		log.Printf("[STRIPE WEBHOOK] Failed to parse event.data")
+		return
+	}
+
+	object, ok := data["object"].(map[string]interface{})
+	if !ok {
+		log.Printf("[STRIPE WEBHOOK] Failed to parse event.data.object")
+		return
+	}
+
+	acc = object
+	accountID, ok := acc["id"].(string)
+	if !ok {
+		log.Printf("[STRIPE WEBHOOK] Account ID not found in event")
+		return
+	}
+
+	log.Printf("[STRIPE WEBHOOK] Processing account.updated for Connect Account: %s", accountID)
+
+	// chargesEnabled と payoutsEnabled を取得
+	chargesEnabled := false
+	payoutsEnabled := false
+
+	if val, ok := acc["charges_enabled"].(bool); ok {
+		chargesEnabled = val
+	}
+	if val, ok := acc["payouts_enabled"].(bool); ok {
+		payoutsEnabled = val
+	}
+
+	onboardingCompleted := chargesEnabled && payoutsEnabled
+
+	// Requirements情報を取得
+	requirementsJSON := "{}"
+	if requirements, ok := acc["requirements"].(map[string]interface{}); ok {
+		reqBytes, err := json.Marshal(requirements)
+		if err == nil {
+			requirementsJSON = string(reqBytes)
+		}
+	}
+
+	// Supabaseを更新（本人確認状態のみ更新）
+	updateData := map[string]interface{}{
+		"stripe_onboarding_completed": onboardingCompleted,
+		"stripe_requirements_due":     requirementsJSON,
+		"updated_at":                  time.Now(),
+	}
+
+	// stripe_account_idでprofileを検索して更新
+	_, err := h.supabaseService.GetServiceClient().
+		From("profiles").
+		Update(updateData, "", "").
+		Eq("stripe_account_id", accountID).
+		ExecuteTo(nil)
+
+	if err != nil {
+		log.Printf("[STRIPE WEBHOOK] Failed to update profiles table: %v", err)
+	} else {
+		log.Printf("[STRIPE WEBHOOK] Successfully updated seller profile for account: %s (onboarding_completed: %v)", accountID, onboardingCompleted)
+	}
+
+	// organizationsテーブルも更新（組織が売り手の場合）
+	_, err = h.supabaseService.GetServiceClient().
+		From("organizations").
+		Update(updateData, "", "").
+		Eq("stripe_account_id", accountID).
+		ExecuteTo(nil)
+
+	if err != nil {
+		log.Printf("[STRIPE WEBHOOK] Failed to update organizations table: %v", err)
+	} else {
+		log.Printf("[STRIPE WEBHOOK] Successfully updated seller organization for account: %s", accountID)
+	}
+}
+
+// handleExternalAccountCreated は外部アカウント（銀行口座等）追加イベントを処理
+func (h *StripeHandler) handleExternalAccountCreated(event interface{}) {
+	log.Printf("[STRIPE WEBHOOK] External account created")
+	// 必要に応じて処理を追加
+}
+
+// handleExternalAccountDeleted は外部アカウント削除イベントを処理
+func (h *StripeHandler) handleExternalAccountDeleted(event interface{}) {
+	log.Printf("[STRIPE WEBHOOK] External account deleted")
+	// 必要に応じて処理を追加
+}
+
+// handleExternalAccountUpdated は外部アカウント更新イベントを処理
+func (h *StripeHandler) handleExternalAccountUpdated(event interface{}) {
+	log.Printf("[STRIPE WEBHOOK] External account updated")
+	// 必要に応じて処理を追加
 }

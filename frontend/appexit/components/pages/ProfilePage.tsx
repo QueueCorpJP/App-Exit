@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { CreditCard } from 'lucide-react';
+import { CreditCard, CheckCircle2, AlertCircle } from 'lucide-react';
 import { profileApi, Profile } from '@/lib/api-client';
 import { useAuth } from '@/lib/auth-context';
 import { postApi, Post } from '@/lib/api-client';
@@ -39,6 +39,9 @@ export default function ProfilePage() {
 
         const response = await profileApi.getProfile();
         if (isMounted && response.success && response.data) {
+          console.log('[ProfilePage] Loaded profile:', response.data);
+          console.log('[ProfilePage] stripe_account_id:', response.data.stripe_account_id);
+          console.log('[ProfilePage] stripe_onboarding_completed:', response.data.stripe_onboarding_completed);
           setProfile(response.data);
         }
 
@@ -119,7 +122,7 @@ export default function ProfilePage() {
   if (loading) {
     return (
       <div className="min-h-screen" style={{ backgroundColor: '#F9F8F7' }}>
-        <div className="max-w-[600px] mx-auto">
+        <div className="max-w-4xl mx-auto">
           <div className="animate-pulse px-4 pt-4">
             <div className="w-32 h-32 bg-gray-300 rounded-full"></div>
           </div>
@@ -145,7 +148,7 @@ export default function ProfilePage() {
     <div className="min-h-screen" style={{ backgroundColor: '#F9F8F7' }}>
       {/* ヘッダー */}
       <div className="sticky top-16 bg-white z-10 border-b border-gray-200">
-        <div className="max-w-[600px] mx-auto px-4">
+        <div className="max-w-4xl mx-auto px-4">
           <div className="flex items-center h-14">
             <button
               onClick={() => router.back()}
@@ -176,7 +179,7 @@ export default function ProfilePage() {
             </div>
 
       {/* プロフィール情報 */}
-      <div className="max-w-[600px] mx-auto px-4 pt-4">
+      <div className="max-w-4xl mx-auto px-4 pt-4">
         {/* プロフィール画像と編集ボタン */}
         <div className="flex items-end justify-between mb-4">
           <div className="w-32 h-32 rounded-full overflow-hidden bg-gray-200">
@@ -201,14 +204,57 @@ export default function ProfilePage() {
             >
               プロフィールを編集
             </Link>
-            <Link
-              href="/settings/payment"
-              className="flex items-center justify-center gap-2 px-4 py-2 border-2 rounded-full font-semibold hover:bg-gray-50 transition-colors"
-              style={{ borderColor: '#E65D65', color: '#E65D65' }}
-            >
-              <CreditCard size={18} />
-              決済設定
-            </Link>
+            {profile.stripe_account_id && profile.stripe_onboarding_completed ? (
+              <Link
+                href="/settings/payment"
+                className="relative w-12 h-12 flex items-center justify-center group"
+                title="決済設定完了"
+              >
+                <div className="relative">
+                  <svg className="w-8 h-8 text-emerald-600 group-hover:text-emerald-700 transition-colors" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/>
+                  </svg>
+                  {/* チェックマークオーバーレイ */}
+                  <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-emerald-500 rounded-full flex items-center justify-center shadow-md">
+                    <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                </div>
+              </Link>
+            ) : profile.stripe_account_id ? (
+              <Link
+                href="/settings/payment"
+                className="relative w-12 h-12 flex items-center justify-center group"
+                title="本人確認が必要です"
+              >
+                <div className="relative">
+                  <svg className="w-8 h-8 text-amber-600 group-hover:text-amber-700 transition-colors" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/>
+                  </svg>
+                  {/* 警告マークオーバーレイ */}
+                  <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-amber-500 rounded-full flex items-center justify-center shadow-md">
+                    <span className="text-white text-xs font-bold leading-none">!</span>
+                  </div>
+                </div>
+              </Link>
+            ) : (
+              <Link
+                href="/settings/payment"
+                className="relative w-12 h-12 flex items-center justify-center group"
+                title="決済設定が必要です"
+              >
+                <div className="relative">
+                  <svg className="w-8 h-8 text-indigo-600 group-hover:text-indigo-700 transition-colors" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/>
+                  </svg>
+                  {/* プラスマークオーバーレイ */}
+                  <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-indigo-500 rounded-full flex items-center justify-center shadow-md">
+                    <span className="text-white text-sm font-bold leading-none">+</span>
+                  </div>
+                </div>
+              </Link>
+            )}
           </div>
         </div>
 

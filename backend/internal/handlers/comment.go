@@ -113,6 +113,26 @@ func (s *Server) HandleCommentLikes(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// HandleCommentDislikes handles GET (list) and POST (toggle) for comment dislikes
+func (s *Server) HandleCommentDislikes(w http.ResponseWriter, r *http.Request) {
+	// Extract comment ID from URL path: /api/comments/:id/dislikes
+	parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
+	if len(parts) < 4 || parts[3] != "dislikes" {
+		http.Error(w, "Invalid path", http.StatusBadRequest)
+		return
+	}
+	commentID := parts[2]
+
+	switch r.Method {
+	case http.MethodGet:
+		s.GetCommentDislikes(w, r, commentID)
+	case http.MethodPost:
+		s.ToggleCommentDislike(w, r, commentID)
+	default:
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
 // ListPostComments retrieves all comments for a post
 func (s *Server) ListPostComments(w http.ResponseWriter, r *http.Request, postID string) {
 	fmt.Printf("[GET /api/posts/%s/comments] Listing comments\n", postID)
@@ -173,6 +193,8 @@ func (s *Server) ListPostComments(w http.ResponseWriter, r *http.Request, postID
 
 	likeCounts := make(map[string]int)
 	userLikes := make(map[string]bool)
+	dislikeCounts := make(map[string]int)
+	userDislikes := make(map[string]bool)
 	if len(commentIDs) > 0 {
 		// Count likes for each comment
 		type LikeRow struct {
@@ -187,6 +209,21 @@ func (s *Server) ListPostComments(w http.ResponseWriter, r *http.Request, postID
 		if err == nil {
 			for _, like := range likes {
 				likeCounts[like.CommentID]++
+			}
+		}
+
+		// Count dislikes
+		type DislikeRow struct {
+			CommentID string `json:"comment_id"`
+		}
+		var dislikes []DislikeRow
+		_, err = client.From("comment_dislikes").
+			Select("comment_id", "", false).
+			In("comment_id", commentIDs).
+			ExecuteTo(&dislikes)
+		if err == nil {
+			for _, d := range dislikes {
+				dislikeCounts[d.CommentID]++
 			}
 		}
 
@@ -205,6 +242,23 @@ func (s *Server) ListPostComments(w http.ResponseWriter, r *http.Request, postID
 			if err == nil {
 				for _, like := range userLikesData {
 					userLikes[like.CommentID] = true
+				}
+			}
+
+			// Check if current user disliked each comment
+			type UserDislikeRow struct {
+				CommentID string `json:"comment_id"`
+			}
+			var userDislikesData []UserDislikeRow
+			_, err = client.From("comment_dislikes").
+				Select("comment_id", "", false).
+				In("comment_id", commentIDs).
+				Eq("user_id", userID).
+				ExecuteTo(&userDislikesData)
+
+			if err == nil {
+				for _, d := range userDislikesData {
+					userDislikes[d.CommentID] = true
 				}
 			}
 		}
@@ -234,6 +288,8 @@ func (s *Server) ListPostComments(w http.ResponseWriter, r *http.Request, postID
 	for _, comment := range comments {
 		likeCount := likeCounts[comment.ID]
 		isLiked := userLikes[comment.ID]
+		dislikeCount := dislikeCounts[comment.ID]
+		isDisliked := userDislikes[comment.ID]
 		replyCount := replyCounts[comment.ID]
 
 		result = append(result, models.PostCommentWithDetails{
@@ -241,6 +297,8 @@ func (s *Server) ListPostComments(w http.ResponseWriter, r *http.Request, postID
 			AuthorProfile: profilesMap[comment.UserID],
 			LikeCount:     likeCount,
 			IsLiked:       isLiked,
+			DislikeCount:  dislikeCount,
+			IsDisliked:    isDisliked,
 			ReplyCount:    replyCount,
 			Replies:       []models.CommentReplyWithDetails{},
 		})
@@ -386,11 +444,27 @@ func (s *Server) GetComment(w http.ResponseWriter, r *http.Request, commentID st
 		replyCount = len(replies)
 	}
 
+	// Get dislike count
+	type DislikeRow struct {
+		CommentID string `json:"comment_id"`
+	}
+	var dislikes []DislikeRow
+	dislikeCount := 0
+	_, err = client.From("comment_dislikes").
+		Select("comment_id", "", false).
+		Eq("comment_id", commentID).
+		ExecuteTo(&dislikes)
+	if err == nil {
+		dislikeCount = len(dislikes)
+	}
+
 	result := models.PostCommentWithDetails{
 		PostComment:   comments[0],
 		AuthorProfile: authorProfile,
 		LikeCount:     likeCount,
 		IsLiked:       false,
+		DislikeCount:  dislikeCount,
+		IsDisliked:    false,
 		ReplyCount:    replyCount,
 		Replies:       []models.CommentReplyWithDetails{},
 	}
@@ -902,5 +976,111 @@ func (s *Server) ToggleCommentLike(w http.ResponseWriter, r *http.Request, comme
 	}
 
 	s.GetCommentLikes(w, r, commentID)
+}
+
+// GetCommentDislikes retrieves dislike count and user's dislike status for a comment
+func (s *Server) GetCommentDislikes(w http.ResponseWriter, r *http.Request, commentID string) {
+	userID, _ := r.Context().Value("user_id").(string)
+
+	client := s.supabase.GetServiceClient()
+
+	// Count total dislikes
+	type Row struct {
+		CommentID string `json:"comment_id"`
+	}
+	var rows []Row
+	_, err := client.From("comment_dislikes").
+		Select("comment_id", "", false).
+		Eq("comment_id", commentID).
+		ExecuteTo(&rows)
+	if err != nil {
+		http.Error(w, "Failed to fetch dislikes", http.StatusInternalServerError)
+		return
+	}
+
+	count := len(rows)
+	isDisliked := false
+
+	// Check if current user disliked this comment
+	if userID != "" {
+		var userRows []Row
+		_, err := client.From("comment_dislikes").
+			Select("comment_id", "", false).
+			Eq("comment_id", commentID).
+			Eq("user_id", userID).
+			Limit(1, "").
+			ExecuteTo(&userRows)
+		if err == nil && len(userRows) > 0 {
+			isDisliked = true
+		}
+	}
+
+	result := map[string]interface{}{
+		"comment_id":     commentID,
+		"dislike_count":  count,
+		"is_disliked":    isDisliked,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(result)
+}
+
+// ToggleCommentDislike toggles a dislike on a comment
+func (s *Server) ToggleCommentDislike(w http.ResponseWriter, r *http.Request, commentID string) {
+	userID, ok := r.Context().Value("user_id").(string)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	impersonateJWT, ok := r.Context().Value("impersonate_jwt").(string)
+	if !ok || impersonateJWT == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	client := s.supabase.GetAuthenticatedClient(impersonateJWT)
+
+	// Check if dislike already exists
+	type Row struct {
+		CommentID string `json:"comment_id"`
+		UserID    string `json:"user_id"`
+	}
+	var existing []Row
+	_, err := client.From("comment_dislikes").
+		Select("comment_id, user_id", "", false).
+		Eq("comment_id", commentID).
+		Eq("user_id", userID).
+		Limit(1, "").
+		ExecuteTo(&existing)
+
+	if err == nil && len(existing) > 0 {
+		// Remove dislike
+		_, _, err = client.From("comment_dislikes").
+			Delete("", "").
+			Eq("comment_id", commentID).
+			Eq("user_id", userID).
+			Execute()
+		if err != nil {
+			http.Error(w, "Failed to remove dislike", http.StatusInternalServerError)
+			return
+		}
+	} else {
+		// Add dislike
+		data := map[string]interface{}{
+			"comment_id": commentID,
+			"user_id":    userID,
+		}
+		_, _, err = client.From("comment_dislikes").
+			Insert(data, false, "", "", "").
+			Execute()
+		if err != nil {
+			http.Error(w, "Failed to add dislike", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	s.GetCommentDislikes(w, r, commentID)
 }
 

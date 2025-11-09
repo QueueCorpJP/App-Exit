@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Button from '@/components/ui/Button'
 import { AlertCircle, CheckCircle2, ExternalLink, AlertTriangle, CreditCard, Building2, User, ShoppingCart, Store } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
+import { apiClient } from '@/lib/api-client'
 
 // Stripeアカウントの状態を表す型
 interface StripeAccountStatus {
@@ -57,13 +58,13 @@ export default function PaymentSettingsPage() {
   // 表示するアカウントタイプを決定
   const getAccountTypes = (): AccountType[] => {
     const roles = getUserRoles()
-    
+
     if (roles.includes('advisor')) {
-      return ['buyer', 'seller']
+      return ['seller'] // 仲介も売り手アカウントのみ作成可能
     } else if (roles.includes('seller')) {
       return ['seller']
     } else if (roles.includes('buyer')) {
-      return ['buyer']
+      return [] // 買い手はStripeアカウント不要（決済時にCustomer作成）
     }
     return []
   }
@@ -78,23 +79,32 @@ export default function PaymentSettingsPage() {
       setError('')
 
       // バックエンドAPIからStripeアカウント情報を取得
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
-      const response = await fetch(`${apiUrl}/api/stripe/account-status`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-      })
+      const result = await apiClient.get<{ data: { account_status: StripeAccountStatus; payout_info?: PayoutInfo } }>('/api/stripe/account-status')
 
-      if (response.ok) {
-        const result = await response.json()
+      if (result.data) {
         setAccountStatus(result.data.account_status)
         if (result.data.payout_info) {
           setPayoutInfo(result.data.payout_info)
         }
+      }
+
+      // プロフィールからparty情報を取得
+      if (profile?.party) {
+        setUserParty(profile.party as 'individual' | 'organization')
+      }
+    } catch (err: any) {
+      console.error('Failed to load payment settings:', err)
+      // 404の場合はアカウント未作成として扱う
+      if (err.status === 404) {
+        setAccountStatus({
+          hasAccount: false,
+          onboardingCompleted: false,
+          chargesEnabled: false,
+          payoutsEnabled: false,
+          requirementsDue: [],
+        })
       } else {
-        // アカウントがまだない場合は404が返る想定
+        // その他のエラーもアカウント未作成として扱う
         setAccountStatus({
           hasAccount: false,
           onboardingCompleted: false,
@@ -103,21 +113,6 @@ export default function PaymentSettingsPage() {
           requirementsDue: [],
         })
       }
-
-      // プロフィールからparty情報を取得
-      if (profile?.party) {
-        setUserParty(profile.party as 'individual' | 'organization')
-      }
-    } catch (err) {
-      console.error('Failed to load payment settings:', err)
-      // エラーでもページは表示（アカウント未作成として扱う）
-      setAccountStatus({
-        hasAccount: false,
-        onboardingCompleted: false,
-        chargesEnabled: false,
-        payoutsEnabled: false,
-        requirementsDue: [],
-      })
     } finally {
       setIsLoading(false)
     }
@@ -134,32 +129,21 @@ export default function PaymentSettingsPage() {
 
     try {
       // バックエンドAPIを呼び出してStripeオンボーディングリンクを取得
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
-      const response = await fetch(`${apiUrl}/api/stripe/create-onboarding-link`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          account_type: accountType,
-          return_url: `${window.location.origin}/settings/payment?success=true`,
-          refresh_url: `${window.location.origin}/settings/payment?refresh=true`,
-        }),
+      const result = await apiClient.post<{ data: { url: string } }>('/api/stripe/create-onboarding-link', {
+        account_type: accountType,
+        return_url: `${window.location.origin}/settings/payment?success=true`,
+        refresh_url: `${window.location.origin}/settings/payment?refresh=true`,
       })
 
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({ error: 'リンクの取得に失敗しました' }))
-        throw new Error(error.error || 'リンクの取得に失敗しました')
-      }
-
-      const result = await response.json()
-      
       // Stripeのオンボーディングページにリダイレクト
-      window.location.href = result.data.url
-    } catch (error) {
+      if (result.data?.url) {
+        window.location.href = result.data.url
+      } else {
+        throw new Error('URLが取得できませんでした')
+      }
+    } catch (error: any) {
       console.error('Stripeオンボーディングリンク取得エラー:', error)
-      setError(error instanceof Error ? error.message : 'リンクの取得に失敗しました')
+      setError(error.message || 'リンクの取得に失敗しました')
       setIsProcessing(false)
     }
   }
@@ -169,19 +153,17 @@ export default function PaymentSettingsPage() {
     setError('')
 
     try {
-      // TODO: バックエンドAPIを呼び出してStripe本人確認フローを開始
-      // POST /api/stripe/onboarding-link
-      // response: { url: string } - Stripe本人確認ページへのリンク
+      const result = await apiClient.get<{ data: { url: string } }>('/api/stripe/onboarding-link')
 
-      console.log('Stripe本人確認フロー開始')
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-
-      // 仮のURL
-      // window.location.href = 'https://connect.stripe.com/...'
-      alert('Stripe本人確認ページに移動します（バックエンド実装後）')
-    } catch (error) {
+      // Stripeの本人確認ページにリダイレクト
+      if (result.data?.url) {
+        window.location.href = result.data.url
+      } else {
+        throw new Error('URLが取得できませんでした')
+      }
+    } catch (error: any) {
       console.error('本人確認フローエラー:', error)
-      setError('本人確認フローの開始に失敗しました')
+      setError(error.message || '本人確認フローの開始に失敗しました')
     } finally {
       setIsProcessing(false)
     }
@@ -208,14 +190,6 @@ export default function PaymentSettingsPage() {
   // アカウントタイプ別の説明とアイコンを取得
   const getAccountTypeInfo = (accountType: AccountType) => {
     switch (accountType) {
-      case 'buyer':
-        return {
-          icon: ShoppingCart,
-          title: '買い手アカウント',
-          description: 'アプリを購入する際の支払い管理を行うためのアカウントです。',
-          buttonText: '買い手用Stripeアカウントを作成',
-          color: 'blue'
-        }
       case 'seller':
         return {
           icon: Store,
@@ -223,6 +197,16 @@ export default function PaymentSettingsPage() {
           description: 'アプリを販売し、売上を受け取るためのアカウントです。',
           buttonText: '売り手用Stripeアカウントを作成',
           color: 'green'
+        }
+      case 'buyer':
+      default:
+        // 買い手は使用されない（決済時にCustomer作成）
+        return {
+          icon: ShoppingCart,
+          title: '買い手アカウント',
+          description: '買い手はStripeアカウント不要です。',
+          buttonText: '',
+          color: 'blue'
         }
     }
   }
@@ -244,8 +228,23 @@ export default function PaymentSettingsPage() {
           </div>
         )}
 
+        {/* 買い手の場合の案内メッセージ */}
+        {getUserRoles().includes('buyer') && !getUserRoles().includes('seller') && !getUserRoles().includes('advisor') && (
+          <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-sm mb-6">
+            <div className="flex items-start">
+              <AlertCircle className="w-5 h-5 mr-2 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold mb-1">買い手はStripe設定不要です</p>
+                <p className="text-sm">
+                  決済時に自動的に支払い情報が設定されます。プロダクトを購入する際にカード情報を入力してください。
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* roleが設定されていない場合の警告 */}
-        {accountTypes.length === 0 && (
+        {accountTypes.length === 0 && !getUserRoles().includes('buyer') && (
           <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-sm mb-6 flex items-start">
             <AlertCircle className="w-5 h-5 mr-2 flex-shrink-0 mt-0.5" />
             <span>プロフィールにroleが設定されていません。先に設定を完了してください。</span>
@@ -343,15 +342,6 @@ export default function PaymentSettingsPage() {
               )
             })}
 
-            {/* advisorの場合は両方のアカウントを作成する案内 */}
-            {accountTypes.length > 1 && (
-              <div className="bg-blue-50 border border-blue-200 rounded-sm p-4">
-                <p className="text-sm text-blue-800">
-                  ℹ️ Advisorとして登録されているため、買い手と売り手の両方のアカウントを作成できます。
-                  それぞれのアカウントは独立して管理されます。
-                </p>
-              </div>
-            )}
           </div>
         )}
 

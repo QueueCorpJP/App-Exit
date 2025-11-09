@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/yourusername/appexit-backend/pkg/response"
@@ -214,7 +215,10 @@ func (s *Server) GetSignedURLs(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("[STORAGE] Getting signed URLs: bucket=%s, paths=%d, expiresIn=%d\n", req.Bucket, len(req.Paths), req.ExpiresIn)
 
 	urls := make(map[string]string)
+	var mu sync.Mutex
+	var wg sync.WaitGroup
 
+	// 並列処理で署名付きURLを取得（N+1問題の改善）
 	for _, path := range req.Paths {
 		// 空のパスはスキップ
 		if strings.TrimSpace(path) == "" {
@@ -227,14 +231,25 @@ func (s *Server) GetSignedURLs(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		signedURL, err := s.supabase.GetSignedURL(req.Bucket, path, req.ExpiresIn)
-		if err != nil {
-			fmt.Printf("[STORAGE] Warning: Failed to create signed URL for %s: %v\n", path, err)
-			// エラーがあっても他のURLは取得を続ける
-			continue
-		}
-		urls[path] = signedURL
+		// goroutineで並列処理
+		wg.Add(1)
+		go func(p string) {
+			defer wg.Done()
+
+			signedURL, err := s.supabase.GetSignedURL(req.Bucket, p, req.ExpiresIn)
+			if err != nil {
+				fmt.Printf("[STORAGE] Warning: Failed to create signed URL for %s: %v\n", p, err)
+				return
+			}
+
+			mu.Lock()
+			urls[p] = signedURL
+			mu.Unlock()
+		}(path)
 	}
+
+	// すべてのgoroutineの完了を待つ
+	wg.Wait()
 
 	response.Success(w, http.StatusOK, GetSignedURLsResponse{
 		URLs: urls,

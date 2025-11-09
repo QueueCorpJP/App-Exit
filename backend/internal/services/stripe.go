@@ -11,6 +11,7 @@ import (
 	"github.com/stripe/stripe-go/v76/accountlink"
 	"github.com/stripe/stripe-go/v76/balance"
 	"github.com/stripe/stripe-go/v76/transfer"
+	"github.com/stripe/stripe-go/v76/webhook"
 	"github.com/yourusername/appexit-backend/config"
 )
 
@@ -56,8 +57,11 @@ func (s *StripeService) CreateConnectedAccount(
 	}
 
 	// 利用規約同意設定
+	// 注意: 日本のプラットフォームが日本のアカウントを作成する場合、
+	// service_agreement は "full" を使用する必要がある
+	// "recipient" は国際送金の場合のみ使用可能
 	params.TOSAcceptance = &stripe.AccountTOSAcceptanceParams{
-		ServiceAgreement: stripe.String("recipient"),
+		ServiceAgreement: stripe.String("full"),
 	}
 
 	acc, err := account.New(params)
@@ -106,6 +110,21 @@ func (s *StripeService) GetAccount(
 	}
 
 	return acc, nil
+}
+
+// DeleteAccount はStripeアカウントを削除（ロールバック用）
+func (s *StripeService) DeleteAccount(
+	ctx context.Context,
+	accountID string,
+) error {
+	_, err := account.Del(accountID, nil)
+	if err != nil {
+		log.Printf("[STRIPE] Failed to delete account: %v", err)
+		return fmt.Errorf("failed to delete Stripe account: %w", err)
+	}
+
+	log.Printf("[STRIPE] Deleted account: %s", accountID)
+	return nil
 }
 
 // GetBalance はStripeアカウントの残高を取得
@@ -202,5 +221,18 @@ func (s *StripeService) GetRequirementsDueList(acc *stripe.Account) []string {
 		return []string{}
 	}
 	return acc.Requirements.CurrentlyDue
+}
+
+// ConstructWebhookEvent はWebhookペイロードを検証してイベントを構築
+func (s *StripeService) ConstructWebhookEvent(payload []byte, signature string) (stripe.Event, error) {
+	webhookSecret := s.cfg.StripeWebhookSecret
+
+	event, err := webhook.ConstructEvent(payload, signature, webhookSecret)
+	if err != nil {
+		log.Printf("[STRIPE] Webhook signature verification failed: %v", err)
+		return event, fmt.Errorf("webhook signature verification failed: %w", err)
+	}
+
+	return event, nil
 }
 

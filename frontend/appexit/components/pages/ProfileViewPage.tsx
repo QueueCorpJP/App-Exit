@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { CreditCard } from 'lucide-react';
 import { profileApi, Profile } from '@/lib/api-client';
 import { useAuth } from '@/lib/auth-context';
 import { postApi, Post } from '@/lib/api-client';
@@ -28,6 +29,9 @@ export default function ProfileViewPage({ userId }: ProfileViewPageProps) {
         setLoading(true);
         const response = await profileApi.getProfileById(userId);
         if (response.success && response.data) {
+          console.log('[ProfileViewPage] Loaded profile:', response.data);
+          console.log('[ProfileViewPage] stripe_account_id:', response.data.stripe_account_id);
+          console.log('[ProfileViewPage] stripe_onboarding_completed:', response.data.stripe_onboarding_completed);
           setProfile(response.data);
         }
 
@@ -183,15 +187,31 @@ export default function ProfileViewPage({ userId }: ProfileViewPageProps) {
               >
                 プロフィールを編集
               </Link>
-              <Link
-                href="/settings/payment"
-                className="px-4 py-2 border border-gray-300 rounded-full font-semibold text-gray-900 hover:bg-gray-50 transition-colors flex items-center space-x-1"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                </svg>
-                <span>Stripe設定</span>
-              </Link>
+              {profile.stripe_account_id && profile.stripe_onboarding_completed ? (
+                <Link
+                  href="/settings/payment"
+                  className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center hover:bg-green-200 transition-colors"
+                  title="決済設定完了"
+                >
+                  <CreditCard className="w-5 h-5 text-green-600" />
+                </Link>
+              ) : profile.stripe_account_id ? (
+                <Link
+                  href="/settings/payment"
+                  className="px-4 py-2 border border-gray-300 rounded-full font-semibold text-gray-900 hover:bg-gray-50 transition-colors flex items-center space-x-1"
+                >
+                  <CreditCard className="w-4 h-4" />
+                  <span>本人確認を完了</span>
+                </Link>
+              ) : (
+                <Link
+                  href="/settings/payment"
+                  className="px-4 py-2 border border-gray-300 rounded-full font-semibold text-gray-900 hover:bg-gray-50 transition-colors flex items-center space-x-1"
+                >
+                  <CreditCard className="w-4 h-4" />
+                  <span>Stripe設定</span>
+                </Link>
+              )}
             </div>
           ) : (
             <button className="px-4 py-2 bg-black text-white rounded-full font-semibold hover:bg-gray-800 transition-colors mb-4">

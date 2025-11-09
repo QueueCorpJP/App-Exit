@@ -4,6 +4,7 @@ import "./globals.css";
 import { AuthProvider } from "@/lib/auth-context";
 import Header from "@/components/ui/Header";
 import Footer from "@/components/ui/Footer";
+import ChatBotWrapper from "@/components/ui/ChatBotWrapper";
 
 const notoSansJP = Noto_Sans_JP({
   variable: "--font-noto-sans-jp",
@@ -211,6 +212,7 @@ export default function RootLayout({
               {children}
             </main>
             <Footer />
+            <ChatBotWrapper />
           </div>
         </AuthProvider>
       </body>

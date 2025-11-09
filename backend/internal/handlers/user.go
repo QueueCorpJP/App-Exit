@@ -63,12 +63,25 @@ func (s *Server) GetUserByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var profile models.Profile
-	_, err := client.From("profiles").Select("*", "", false).Eq("id", userID).Single().ExecuteTo(&profile)
-	if err != nil {
+	var profiles []models.Profile
+	_, err := client.From("profiles").Select("*", "", false).Eq("id", userID).ExecuteTo(&profiles)
+	if err != nil || len(profiles) == 0 {
 		// プロフィールが存在しない場合は正常なレスポンスとしてnullを返す
 		response.Success(w, http.StatusOK, nil)
 		return
+	}
+
+	// sellerのプロフィールを優先的に取得（stripe_account_idが設定されている可能性が高い）
+	var profile models.Profile
+	for _, p := range profiles {
+		if p.Role == "seller" {
+			profile = p
+			break
+		}
+	}
+	// sellerが見つからない場合は最初のプロフィールを使用
+	if profile.ID == "" && len(profiles) > 0 {
+		profile = profiles[0]
 	}
 
 	response.Success(w, http.StatusOK, profile)

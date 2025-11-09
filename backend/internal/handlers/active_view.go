@@ -109,17 +109,15 @@ func (s *Server) CreateActiveView(w http.ResponseWriter, r *http.Request, postID
 	}
 
 	// Get the updated count of active views for this post
-	var countResult []map[string]interface{}
+	var allViews []models.ProductActiveView
 	_, err = client.From("product_active_views").
-		Select("count", "exact", false).
+		Select("id", "", false).
 		Eq("post_id", postID).
-		ExecuteTo(&countResult)
+		ExecuteTo(&allViews)
 
 	activeViewCount := 0
-	if err == nil && len(countResult) > 0 {
-		if count, ok := countResult[0]["count"].(float64); ok {
-			activeViewCount = int(count)
-		}
+	if err == nil {
+		activeViewCount = len(allViews)
 	}
 
 	fmt.Printf("[CREATE ACTIVE VIEW] ✓ Successfully created active view (new count: %d)\n", activeViewCount)
@@ -185,17 +183,15 @@ func (s *Server) DeleteActiveView(w http.ResponseWriter, r *http.Request, postID
 	}
 
 	// Get the updated count of active views for this post
-	var countResult []map[string]interface{}
+	var allViews []models.ProductActiveView
 	_, err = client.From("product_active_views").
-		Select("count", "exact", false).
+		Select("id", "", false).
 		Eq("post_id", postID).
-		ExecuteTo(&countResult)
+		ExecuteTo(&allViews)
 
 	activeViewCount := 0
-	if err == nil && len(countResult) > 0 {
-		if count, ok := countResult[0]["count"].(float64); ok {
-			activeViewCount = int(count)
-		}
+	if err == nil {
+		activeViewCount = len(allViews)
 	}
 
 	fmt.Printf("[DELETE ACTIVE VIEW] ✓ Successfully deleted active view (new count: %d)\n", activeViewCount)

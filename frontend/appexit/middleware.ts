@@ -16,9 +16,22 @@ export function middleware(request: NextRequest) {
 
   // 公開ページ（認証不要）
   const publicPaths = [
+    '/',              // ホーム画面
     '/login',
     '/register',
     '/reset-password',
+    '/privacy',       // プライバシーポリシー
+    '/terms',         // 利用規約
+    '/tokusho',       // 特定商取引法
+    '/faq',           // FAQ
+    '/contact',       // お問い合わせ
+    '/compliance',    // コンプライアンス
+    '/cookie-policy', // クッキーポリシー
+    '/security',      // セキュリティ
+    '/report',        // 通報
+    '/customer-harassment', // カスタマーハラスメント
+    '/seminar',       // セミナー
+    '/support-service', // サポートサービス
     '/_next',
     '/api',
     '/favicon.ico',
@@ -28,10 +41,6 @@ export function middleware(request: NextRequest) {
   // 公開ページへのアクセスは常に許可
   const isPublicPath = publicPaths.some(path => pathname.startsWith(path))
   if (isPublicPath) {
-    // ログイン済みユーザーがログイン/登録ページにアクセスした場合、ホームにリダイレクト
-    if (authToken && (pathname === '/login' || pathname === '/register')) {
-      return NextResponse.redirect(new URL('/', request.url))
-    }
     return NextResponse.next()
   }
 

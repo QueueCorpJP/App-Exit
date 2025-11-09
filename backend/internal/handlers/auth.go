@@ -167,31 +167,8 @@ func (s *Server) Login(w http.ResponseWriter, r *http.Request) {
 		UpdatedAt: authResp.User.UpdatedAt,
 	}
 
-	// 3. Cookieにトークンを設定
-	// セキュアなCookie設定（SameSite=Lax）
-	// 開発環境ではSecure: falseにしてHTTPでも動作させる
-
-	// セッション管理用（HTTPOnly）
-	http.SetCookie(w, &http.Cookie{
-		Name:     "auth_token",
-		Value:    authResp.AccessToken,
-		Path:     "/",
-		MaxAge:   3600, // 1時間
-		HttpOnly: true,
-		Secure:   false, // 開発環境用（本番環境ではtrueにすること）
-		SameSite: http.SameSiteLaxMode,
-	})
-
-	// JavaScriptからアクセス可能なトークン（Authorization ヘッダー用）
-	http.SetCookie(w, &http.Cookie{
-		Name:     "access_token",
-		Value:    authResp.AccessToken,
-		Path:     "/",
-		MaxAge:   3600, // 1時間
-		HttpOnly: false, // JavaScriptからアクセス可能
-		Secure:   false,
-		SameSite: http.SameSiteLaxMode,
-	})
+	// 3. Cookieにトークンを設定（setAuthCookies関数を使用）
+	setAuthCookies(w, authResp.AccessToken, authResp.RefreshToken, &user, profilePtr)
 
 	// 4. SupabaseのAccessTokenとRefreshTokenを返す
 	// トークンはフロントエンドのSupabaseセッション（LocalStorage）で管理される
@@ -204,7 +181,7 @@ func (s *Server) Login(w http.ResponseWriter, r *http.Request) {
 
 	fmt.Printf("[LOGIN] Returning tokens: access_token length=%d, refresh_token length=%d\n",
 		len(authResp.AccessToken), len(authResp.RefreshToken))
-	fmt.Printf("[LOGIN] Setting auth_token cookie\n")
+	fmt.Printf("[LOGIN] Setting auth cookies\n")
 
 	response.Success(w, http.StatusOK, loginResponse)
 }
@@ -439,6 +416,8 @@ func (s *Server) GetProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fmt.Printf("[GET PROFILE] ✅ Profile fetched successfully: %s\n", profile.DisplayName)
+	fmt.Printf("[GET PROFILE] stripe_account_id: %v\n", profile.StripeAccountID)
+	fmt.Printf("[GET PROFILE] stripe_onboarding_completed: %v\n", profile.StripeOnboardingCompleted)
 	fmt.Printf("========== GET PROFILE END (SUCCESS) ==========\n\n")
 	response.Success(w, http.StatusOK, profile)
 }
@@ -450,7 +429,8 @@ func setAuthCookies(w http.ResponseWriter, accessToken, refreshToken string, use
 	cookieDomain := ""
 	// 同じドメインの異なるポート間での共有を許可するため、Domainは設定しない
 
-	// 1. auth_token (HttpOnly) - セッション管理用アクセストークン（1時間有効）
+	// 1. auth_token (HttpOnly) - セッション管理用アクセストークン（30分有効）
+	// Supabase JWTの有効期限（30分）に合わせてCookie有効期限も30分に設定
 	http.SetCookie(w, &http.Cookie{
 		Name:     "auth_token",
 		Value:    accessToken,
@@ -459,10 +439,10 @@ func setAuthCookies(w http.ResponseWriter, accessToken, refreshToken string, use
 		HttpOnly: true,
 		Secure:   false, // HTTPの場合はfalse
 		SameSite: http.SameSiteLaxMode,
-		MaxAge:   60 * 60, // 1時間
+		MaxAge:   30 * 60, // 30分（JWT有効期限と一致）
 	})
 
-	// 1.5. access_token (JavaScriptアクセス可能) - Authorization ヘッダー用（1時間有効）
+	// 1.5. access_token (JavaScriptアクセス可能) - Authorization ヘッダー用（30分有効）
 	http.SetCookie(w, &http.Cookie{
 		Name:     "access_token",
 		Value:    accessToken,
@@ -471,7 +451,7 @@ func setAuthCookies(w http.ResponseWriter, accessToken, refreshToken string, use
 		HttpOnly: false, // JavaScriptからアクセス可能
 		Secure:   false,
 		SameSite: http.SameSiteLaxMode,
-		MaxAge:   60 * 60, // 1時間
+		MaxAge:   30 * 60, // 30分（JWT有効期限と一致）
 	})
 
 	// 2. refresh_token (HttpOnly) - リフレッシュトークン（2日間有効）
@@ -808,21 +788,28 @@ func (s *Server) RefreshToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	fmt.Printf("[INFO] RefreshToken: Starting token refresh process\n")
+
 	// refresh_tokenクッキーを取得
 	refreshCookie, err := r.Cookie("refresh_token")
 	if err != nil || refreshCookie.Value == "" {
+		fmt.Printf("[ERROR] RefreshToken: No refresh token found in cookies: %v\n", err)
 		response.Error(w, http.StatusUnauthorized, "No refresh token found")
 		return
 	}
+
+	fmt.Printf("[DEBUG] RefreshToken: Found refresh token cookie (length: %d)\n", len(refreshCookie.Value))
 
 	// Supabaseのリフレッシュトークンで新しいトークンを取得
 	anonClient := s.supabase.GetAnonClient()
 	authResp, err := anonClient.Auth.RefreshToken(refreshCookie.Value)
 	if err != nil {
-		fmt.Printf("[ERROR] RefreshToken: Failed to refresh token: %v\n", err)
+		fmt.Printf("[ERROR] RefreshToken: Supabase refresh failed: %v\n", err)
 		response.Error(w, http.StatusUnauthorized, "Failed to refresh token")
 		return
 	}
+
+	fmt.Printf("[INFO] RefreshToken: Successfully refreshed Supabase token for user: %s\n", authResp.User.Email)
 
 	// UUIDを文字列に変換
 	userID := fmt.Sprintf("%x-%x-%x-%x-%x",
@@ -857,6 +844,8 @@ func (s *Server) RefreshToken(w http.ResponseWriter, r *http.Request) {
 
 	// 新しいクッキーを設定
 	setAuthCookies(w, authResp.AccessToken, authResp.RefreshToken, &user, profilePtr)
+
+	fmt.Printf("[INFO] RefreshToken: Successfully set new auth cookies for user: %s\n", user.ID)
 
 	response.Success(w, http.StatusOK, map[string]interface{}{
 		"token": authResp.AccessToken,

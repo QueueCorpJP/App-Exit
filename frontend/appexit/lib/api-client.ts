@@ -202,6 +202,9 @@ export interface Profile {
   display_name: string;
   age?: number;
   icon_url?: string;
+  stripe_customer_id?: string;
+  stripe_account_id?: string;
+  stripe_onboarding_completed?: boolean;
   created_at: string;
   updated_at: string;
   // その他のフィールド
@@ -312,6 +315,14 @@ export const postApi = {
   getPost: (id: string) => apiClient.get<Post>(`/api/posts/${id}`),
   updatePost: (id: string, data: Partial<Post>) => apiClient.put<Post>(`/api/posts/${id}`, data),
   deletePost: (id: string) => apiClient.delete<void>(`/api/posts/${id}`),
+  getLikes: (postId: string) =>
+    apiClient.get<{ post_id: string; like_count: number; is_liked: boolean }>(`/api/posts/${postId}/likes`),
+  toggleLike: (postId: string) =>
+    apiClient.post<{ like_count: number; is_liked: boolean }>(`/api/posts/${postId}/likes`, {}),
+  getDislikes: (postId: string) =>
+    apiClient.get<{ post_id: string; dislike_count: number; is_disliked: boolean }>(`/api/posts/${postId}/dislikes`),
+  toggleDislike: (postId: string) =>
+    apiClient.post<{ dislike_count: number; is_disliked: boolean }>(`/api/posts/${postId}/dislikes`, {}),
 };
 
 /**
@@ -323,8 +334,10 @@ export interface PostCommentWithDetails {
   user_id: string;
   content: string;
   like_count: number;
+  dislike_count?: number;
   reply_count: number;
   is_liked: boolean;
+  is_disliked?: boolean;
   created_at: string;
   updated_at: string;
   author_profile?: {
@@ -353,6 +366,10 @@ export const commentApi = {
     apiClient.post<PostCommentWithDetails>(`/api/posts/${postId}/comments`, data),
   toggleCommentLike: (commentId: string) =>
     apiClient.post<ToggleLikeResponse>(`/api/comments/${commentId}/likes`, {}),
+  getCommentDislikes: (commentId: string) =>
+    apiClient.get<{ comment_id: string; dislike_count: number; is_disliked: boolean }>(`/api/comments/${commentId}/dislikes`),
+  toggleCommentDislike: (commentId: string) =>
+    apiClient.post<{ dislike_count: number; is_disliked: boolean }>(`/api/comments/${commentId}/dislikes`, {}),
 };
 
 /**

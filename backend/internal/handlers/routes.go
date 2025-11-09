@@ -133,11 +133,14 @@ func SetupRoutes(cfg *config.Config) http.Handler {
 	mux.HandleFunc("/api/stripe/create-onboarding-link", auth(stripeHandler.HandleCreateOnboardingLink))
 	mux.HandleFunc("/api/stripe/onboarding-link", auth(stripeHandler.HandleGetOnboardingLink))
 	mux.HandleFunc("/api/stripe/payout-info", auth(stripeHandler.HandleGetPayoutInfo))
+	// Stripe Webhook (public - Stripeからのリクエスト)
+	mux.HandleFunc("/api/stripe/webhook", stripeHandler.HandleStripeWebhook)
 	fmt.Println("[ROUTES] Registered: /api/stripe/account-status (with auth)")
 	fmt.Println("[ROUTES] Registered: /api/stripe/create-account (with auth)")
 	fmt.Println("[ROUTES] Registered: /api/stripe/create-onboarding-link (with auth)")
 	fmt.Println("[ROUTES] Registered: /api/stripe/onboarding-link (with auth)")
 	fmt.Println("[ROUTES] Registered: /api/stripe/payout-info (with auth)")
+	fmt.Println("[ROUTES] Registered: /api/stripe/webhook (public)")
 
 	// Apply global middleware (order matters: Recovery -> CORS -> Logger)
 	handler := middleware.Recovery(mux)
@@ -187,6 +190,25 @@ func (s *Server) HandlePostByIDRoute(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
+	// /api/posts/:id/likes or /api/posts/:id/dislikes
+	if len(parts) >= 4 && (parts[3] == "likes" || parts[3] == "dislikes") {
+		auth := middleware.AuthWithSupabase(s.config.SupabaseJWTSecret, s.supabase)
+		if parts[3] == "likes" {
+			if r.Method == http.MethodPost {
+				auth(s.HandlePostLikes)(w, r)
+			} else {
+				s.HandlePostLikes(w, r)
+			}
+		} else {
+			if r.Method == http.MethodPost {
+				auth(s.HandlePostDislikes)(w, r)
+			} else {
+				s.HandlePostDislikes(w, r)
+			}
+		}
+		return
+	}
+	
 	if len(parts) >= 4 && parts[3] == "comments" {
 		// This is a comment route
 		auth := middleware.AuthWithSupabase(s.config.SupabaseJWTSecret, s.supabase)
@@ -228,6 +250,14 @@ func (s *Server) HandleCommentRoute(w http.ResponseWriter, r *http.Request) {
 				auth(s.HandleCommentLikes)(w, r)
 			} else {
 				s.HandleCommentLikes(w, r)
+			}
+		} else if parts[3] == "dislikes" {
+			// /api/comments/:id/dislikes
+			auth := middleware.AuthWithSupabase(s.config.SupabaseJWTSecret, s.supabase)
+			if r.Method == http.MethodPost {
+				auth(s.HandleCommentDislikes)(w, r)
+			} else {
+				s.HandleCommentDislikes(w, r)
 			}
 		} else {
 			http.Error(w, "Invalid path", http.StatusBadRequest)

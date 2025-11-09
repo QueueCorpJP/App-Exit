@@ -88,6 +88,8 @@ export interface Profile {
   terms_accepted_at?: string | null;
   privacy_accepted_at?: string | null;
   stripe_customer_id?: string | null;
+  stripe_account_id?: string | null;
+  stripe_onboarding_completed?: boolean | null;
   created_at?: string;
   updated_at?: string;
   listing_count?: number | null;
