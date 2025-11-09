@@ -159,7 +159,7 @@ export default function PostBoardPage({ initialPosts = [] }: PostBoardPageProps)
         type: 'board' as const,
         title: formData.title,
         body: formData.body,
-        eyecatch_url: coverImagePath,
+        eyecatch_url: coverImagePath || undefined,
         is_active: true,
       };
 

@@ -4,7 +4,7 @@ interface Post {
   id: string;
   title: string;
   body: string | null;
-  cover_image_url: string | null;
+  eyecatch_url: string | null;
   author_user_id: string;
   created_at: string;
   type: string;
