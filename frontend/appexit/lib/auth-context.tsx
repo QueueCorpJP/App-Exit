@@ -77,6 +77,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Cookieベースのセッション管理のため、Supabaseセッションの復元は不要
         // バックエンドセッションが有効であれば、Cookieからトークンを取得して使用する
 
+        // トークンの有効期限をチェックして、必要に応じてリフレッシュ
+        if (accessToken) {
+          try {
+            const payload = JSON.parse(atob(accessToken.split('.')[1]));
+            const expiresAt = payload.exp * 1000; // ミリ秒に変換
+            const now = Date.now();
+            const timeUntilExpiry = expiresAt - now;
+            const twentyMinutes = 20 * 60 * 1000; // 20分（ミリ秒）
+
+            // 残り20分以下の場合は自動的にリフレッシュ
+            if (timeUntilExpiry < twentyMinutes && timeUntilExpiry > 0) {
+              const minutesUntilExpiry = Math.round(timeUntilExpiry / 1000 / 60);
+              console.log(`[AUTH-CONTEXT] Token expires in ${minutesUntilExpiry} minutes, refreshing during session check...`);
+              await refreshBackendToken();
+            }
+          } catch (decodeError) {
+            console.warn('[AUTH-CONTEXT] Error decoding token during session check:', decodeError);
+          }
+        }
+
         setUser({
           id: sessionData.id,
           email: sessionData.email,
@@ -87,6 +107,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setProfile(sessionData.profile);
 
         return true;
+      } else if (response.status === 401) {
+        // 401エラーの場合、リフレッシュトークンが期限切れの可能性がある
+        console.log('[AUTH-CONTEXT] 401 Unauthorized - session expired, clearing local state');
+        setUser(null);
+        setProfile(null);
+        
+        // Cookieをクリア（ログアウト処理）
+        if (typeof document !== 'undefined') {
+          document.cookie = 'access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+          document.cookie = 'auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+        }
+        
+        return false;
       } else {
         console.log('[AUTH-CONTEXT] No backend session found');
         setUser(null);
@@ -134,6 +167,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.log('[AUTH-CONTEXT] ✓ Backend token refreshed successfully');
         // リフレッシュ成功（セッション再確認は呼び出し元で行う）
         return true;
+      } else if (response.status === 401) {
+        // 401エラーの場合、リフレッシュトークンが期限切れ
+        const errorText = await response.text();
+        console.error('[AUTH-CONTEXT] ❌ Refresh token expired (401):', errorText);
+        
+        // セッションをクリア（ログアウト処理）
+        // 注意: setUser/setProfileは呼び出し元で処理される
+        
+        // Cookieをクリア
+        if (typeof document !== 'undefined') {
+          document.cookie = 'access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+          document.cookie = 'auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+        }
+        
+        return false;
       } else {
         const errorText = await response.text();
         console.error('[AUTH-CONTEXT] ❌ Backend token refresh failed:', response.status, errorText);
@@ -263,19 +311,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                   console.log('[AUTH-CONTEXT] ✓ Backend token refreshed proactively');
                   console.log('[AUTH-CONTEXT] Session will be maintained for 2 days via refresh token');
                 } else {
+                  // リフレッシュに失敗した場合、セッションが無効になった可能性がある
+                  // セッションチェックを実行して状態を更新
+                  const stillValid = await checkBackendSession();
+                  if (!stillValid) {
+                    // セッションが無効になったらインターバルをクリア
+                    if (sessionCheckIntervalRef.current) {
+                      clearInterval(sessionCheckIntervalRef.current);
+                      sessionCheckIntervalRef.current = null;
+                    }
+                    if (tokenRefreshIntervalRef.current) {
+                      clearInterval(tokenRefreshIntervalRef.current);
+                      tokenRefreshIntervalRef.current = null;
+                    }
+                    return; // リトライしない（セッション期限切れ）
+                  }
+                  
                   console.error('[AUTH-CONTEXT] ❌ Backend token refresh failed, retrying...');
                   // リトライ（最大3回）
                   let retryCount = 0;
                   const maxRetries = 3;
-                  while (retryCount < maxRetries && !backendRefreshed) {
+                  let retrySuccess = false;
+                  while (retryCount < maxRetries && !retrySuccess) {
                     retryCount++;
                     console.log(`[AUTH-CONTEXT] Retrying token refresh (attempt ${retryCount}/${maxRetries})...`);
                     await new Promise(resolve => setTimeout(resolve, 2000)); // 2秒待機
                     const retried = await refreshBackendToken();
                     if (retried) {
                       console.log('[AUTH-CONTEXT] ✓ Token refreshed after retry');
-                      break;
+                      retrySuccess = true;
                     }
+                  }
+                  
+                  if (!retrySuccess) {
+                    // すべてのリトライが失敗した場合、セッションを再確認
+                    await checkBackendSession();
                   }
                 }
               } else {

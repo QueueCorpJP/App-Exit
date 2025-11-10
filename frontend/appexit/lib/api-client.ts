@@ -72,6 +72,18 @@ class ApiClient {
         if (response.ok) {
           console.log('[API-CLIENT] ✓ Token refreshed successfully');
           return true;
+        } else if (response.status === 401) {
+          // 401エラーの場合、リフレッシュトークンが期限切れ
+          const errorText = await response.text();
+          console.error('[API-CLIENT] ❌ Refresh token expired (401):', errorText);
+          
+          // Cookieをクリア（セッション期限切れ）
+          if (typeof document !== 'undefined') {
+            document.cookie = 'access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+            document.cookie = 'auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+          }
+          
+          return false;
         } else {
           const errorText = await response.text();
           console.error('[API-CLIENT] Failed to refresh token:', response.status, errorText);
