@@ -87,27 +87,17 @@ func (s *Server) CreateThread(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get user ID from context (set by auth middleware)
-	userID, ok := r.Context().Value("user_id").(string)
+	userID, ok := utils.RequireUserID(r, w)
 	if !ok {
-		response.Error(w, http.StatusUnauthorized, "Unauthorized")
 		return
 	}
 
 	var req models.CreateThreadRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		log.Printf("[CreateThread] Error decoding request body: %v", err)
-		response.Error(w, http.StatusBadRequest, "Invalid request body")
+	if !utils.DecodeAndValidate(r, w, &req) {
 		return
 	}
 
 	log.Printf("[CreateThread] Request decoded: RelatedPostID=%v, ParticipantIDs=%v", req.RelatedPostID, req.ParticipantIDs)
-
-	// Validate request
-	if err := utils.ValidateStruct(req); err != nil {
-		log.Printf("[CreateThread] Validation error: %v", err)
-		response.Error(w, http.StatusBadRequest, err.Error())
-		return
-	}
 
 	// Check if user is trying to create a thread with themselves
 	for _, pid := range req.ParticipantIDs {
@@ -205,30 +195,36 @@ func (s *Server) CreateThread(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[CreateThread] Found %d existing participants", len(existingParticipants))
 	}
 	
+	// 一括挿入用のスライスを作成
+	var participantInserts []ParticipantInsert
 	for pid := range uniqueParticipants {
 		// 既に参加者として登録されている場合はスキップ
 		if existingParticipantMap[pid] {
 			log.Printf("[CreateThread] Participant %s already exists, skipping", pid)
 			continue
 		}
-		
-		participantInsert := ParticipantInsert{
+
+		participantInserts = append(participantInserts, ParticipantInsert{
 			ThreadID: thread.ID,
 			UserID:   pid,
-		}
-		log.Printf("[CreateThread] Inserting participant: thread_id=%s, user_id=%s", thread.ID, pid)
+		})
+		log.Printf("[CreateThread] Will insert participant: thread_id=%s, user_id=%s", thread.ID, pid)
+	}
+
+	// 挿入するデータがある場合のみ実行
+	if len(participantInserts) > 0 {
+		log.Printf("[CreateThread] Inserting %d participants in batch", len(participantInserts))
 		_, _, err = serviceClient.From("thread_participants").
-			Insert(participantInsert, false, "", "", "").
+			Insert(participantInserts, false, "", "", "").
 			Execute()
 
 		if err != nil {
-			log.Printf("[CreateThread] Failed to add participant %s to thread %s: %v", pid, thread.ID, err)
+			log.Printf("[CreateThread] Failed to add participants to thread %s: %v", thread.ID, err)
 			log.Printf("[CreateThread] Thread created_by: %s, Current userID: %s", thread.CreatedBy, userID)
-			// エラーメッセージに詳細を含める
-			response.Error(w, http.StatusInternalServerError, fmt.Sprintf("Failed to add participant %s: %v", pid, err))
+			response.Error(w, http.StatusInternalServerError, fmt.Sprintf("Failed to add participants: %v", err))
 			return
 		}
-		log.Printf("[CreateThread] Successfully added participant %s", pid)
+		log.Printf("[CreateThread] Successfully added %d participants", len(participantInserts))
 	}
 	log.Printf("[CreateThread] Successfully added all participants to thread %s", thread.ID)
 
@@ -423,6 +419,19 @@ func (s *Server) GetThreads(w http.ResponseWriter, r *http.Request) {
 			log.Printf("[GetThreads] ERROR: Failed to fetch profiles: %v", err)
 		} else {
 			log.Printf("[GetThreads] Successfully fetched %d profiles", len(profileRows))
+
+			// Collect all icon paths for batch signed URL generation
+			var iconPaths []string
+			for _, row := range profileRows {
+				if row.IconURL != nil && *row.IconURL != "" {
+					iconPaths = append(iconPaths, *row.IconURL)
+				}
+			}
+
+			// Generate signed URLs in batch
+			signedURLMap := s.supabase.GetBatchSignedURLs("profile-icons", iconPaths, 3600)
+			log.Printf("[GetThreads] Generated %d signed URLs in batch", len(signedURLMap))
+
 			for _, row := range profileRows {
 				log.Printf("[GetThreads] Profile: id=%s, display_name=%s, icon_url=%v", row.ID, row.DisplayName, row.IconURL)
 
@@ -436,16 +445,15 @@ func (s *Server) GetThreads(w http.ResponseWriter, r *http.Request) {
 					privacyAcceptedAt = &t
 				}
 
-				// Generate signed URL for icon if it exists
+				// Get signed URL from batch result
 				var iconURL *string
 				if row.IconURL != nil && *row.IconURL != "" {
-					signedURL, urlErr := s.supabase.GetSignedURL("profile-icons", *row.IconURL, 3600)
-					if urlErr != nil {
-						log.Printf("[GetThreads] Warning: Failed to generate signed URL for icon %s: %v", *row.IconURL, urlErr)
-						iconURL = row.IconURL
-					} else {
+					if signedURL, ok := signedURLMap[*row.IconURL]; ok {
 						iconURL = &signedURL
-						log.Printf("[GetThreads] Generated signed URL for icon: %s", signedURL)
+						log.Printf("[GetThreads] Using batch-generated signed URL for icon: %s", signedURL)
+					} else {
+						log.Printf("[GetThreads] Warning: No signed URL found for icon %s", *row.IconURL)
+						iconURL = row.IconURL
 					}
 				}
 
@@ -673,6 +681,18 @@ func (s *Server) GetThreadByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Collect all icon paths for batch signed URL generation
+	var iconPaths []string
+	for _, row := range profileRows {
+		if row.IconURL != nil && *row.IconURL != "" {
+			iconPaths = append(iconPaths, *row.IconURL)
+		}
+	}
+
+	// Generate signed URLs in batch
+	signedURLMap := s.supabase.GetBatchSignedURLs("profile-icons", iconPaths, 3600)
+	log.Printf("[GetThreadByID] Generated %d signed URLs in batch", len(signedURLMap))
+
 	var participants []models.Profile
 	for _, row := range profileRows {
 		var termsAcceptedAt, privacyAcceptedAt *time.Time
@@ -685,16 +705,15 @@ func (s *Server) GetThreadByID(w http.ResponseWriter, r *http.Request) {
 			privacyAcceptedAt = &t
 		}
 
-		// Generate signed URL for icon if it exists
+		// Get signed URL from batch result
 		var iconURL *string
 		if row.IconURL != nil && *row.IconURL != "" {
-			signedURL, urlErr := s.supabase.GetSignedURL("profile-icons", *row.IconURL, 3600)
-			if urlErr != nil {
-				log.Printf("[GetThreadByID] Warning: Failed to generate signed URL for icon %s: %v", *row.IconURL, urlErr)
-				iconURL = row.IconURL
-			} else {
+			if signedURL, ok := signedURLMap[*row.IconURL]; ok {
 				iconURL = &signedURL
-				log.Printf("[GetThreadByID] Generated signed URL for icon: %s", signedURL)
+				log.Printf("[GetThreadByID] Using batch-generated signed URL for icon: %s", signedURL)
+			} else {
+				log.Printf("[GetThreadByID] Warning: No signed URL found for icon %s", *row.IconURL)
+				iconURL = row.IconURL
 			}
 		}
 
@@ -732,10 +751,9 @@ func (s *Server) GetMessages(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID, ok := r.Context().Value("user_id").(string)
+	userID, ok := utils.RequireUserID(r, w)
 	if !ok {
 		log.Printf("[GetMessages] ERROR: user_id not found in context")
-		response.Error(w, http.StatusUnauthorized, "Unauthorized")
 		return
 	}
 	log.Printf("[GetMessages] Authenticated user: %s", userID)

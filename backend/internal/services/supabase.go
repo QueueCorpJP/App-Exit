@@ -302,6 +302,50 @@ func (s *SupabaseService) GetSignedURL(bucketName string, filePath string, expir
 	return result.SignedURL, nil
 }
 
+// GetBatchSignedURLs generates signed URLs for multiple files in parallel
+// Returns a map of filePath -> signedURL
+func (s *SupabaseService) GetBatchSignedURLs(bucketName string, filePaths []string, expiresIn int) map[string]string {
+	result := make(map[string]string)
+	if len(filePaths) == 0 {
+		return result
+	}
+
+	// Use channels to collect results
+	type urlResult struct {
+		path string
+		url  string
+	}
+	resultCh := make(chan urlResult, len(filePaths))
+
+	// Launch goroutines for parallel processing
+	var wg sync.WaitGroup
+	for _, path := range filePaths {
+		wg.Add(1)
+		go func(p string) {
+			defer wg.Done()
+			signedURL, err := s.GetSignedURL(bucketName, p, expiresIn)
+			if err != nil {
+				fmt.Printf("[WARN] Failed to generate signed URL for %s: %v\n", p, err)
+				return
+			}
+			resultCh <- urlResult{path: p, url: signedURL}
+		}(path)
+	}
+
+	// Close channel when all goroutines complete
+	go func() {
+		wg.Wait()
+		close(resultCh)
+	}()
+
+	// Collect results
+	for r := range resultCh {
+		result[r.path] = r.url
+	}
+
+	return result
+}
+
 // DeleteFile deletes a file from Supabase Storage
 func (s *SupabaseService) DeleteFile(bucketName string, filePath string) error {
 	client := s.GetServiceClient()

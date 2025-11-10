@@ -91,25 +91,32 @@ export default function PostBoardPage({ initialPosts = [] }: PostBoardPageProps)
     }
   };
 
-  // 投稿のメタ情報（いいね/バット、コメント数）を取得
+  // 投稿のメタ情報（いいね/バット、コメント数）を一括取得
   useEffect(() => {
     const fetchMeta = async () => {
       if (initialPosts.length === 0) return;
       try {
+        const postIds = initialPosts.map(p => p.id);
+
+        // 1回のAPIリクエストで全メタデータを取得
+        const metadata = await postApi.getBatchMetadata(postIds);
+
         const updatesLike: Record<string, { like_count: number; is_liked: boolean }> = {};
         const updatesDislike: Record<string, { dislike_count: number; is_disliked: boolean }> = {};
         const updatesCommentCount: Record<string, number> = {};
 
-        await Promise.all(initialPosts.map(async (p) => {
-          const [likesRes, dislikesRes, commentsRes] = await Promise.all([
-            postApi.getLikes(p.id).catch(() => ({ like_count: 0, is_liked: false } as any)),
-            postApi.getDislikes(p.id).catch(() => ({ dislike_count: 0, is_disliked: false } as any)),
-            commentApi.getPostComments(p.id).catch(() => [] as any),
-          ]);
-          updatesLike[p.id] = { like_count: likesRes.like_count ?? 0, is_liked: likesRes.is_liked ?? false };
-          updatesDislike[p.id] = { dislike_count: dislikesRes.dislike_count ?? 0, is_disliked: dislikesRes.is_disliked ?? false };
-          updatesCommentCount[p.id] = Array.isArray(commentsRes) ? commentsRes.length : 0;
-        }));
+        // メタデータをステートに変換
+        metadata.forEach(meta => {
+          updatesLike[meta.post_id] = {
+            like_count: meta.like_count,
+            is_liked: meta.is_liked
+          };
+          updatesDislike[meta.post_id] = {
+            dislike_count: meta.dislike_count,
+            is_disliked: meta.is_disliked
+          };
+          updatesCommentCount[meta.post_id] = meta.comment_count;
+        });
 
         setLikeStates(updatesLike);
         setDislikeStates(updatesDislike);

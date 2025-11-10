@@ -144,6 +144,71 @@ func AuthWithSupabase(supabaseJWTSecret string, supabaseService *services.Supaba
 	}
 }
 
+// OptionalAuthWithSupabase は認証がある場合のみ検証するミドルウェア
+// 認証がない場合はそのまま通す（userIDはコンテキストに設定されない）
+func OptionalAuthWithSupabase(supabaseJWTSecret string, supabaseService *services.SupabaseService) func(http.HandlerFunc) http.HandlerFunc {
+	return func(next http.HandlerFunc) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			// Authorizationヘッダーからトークンを取得
+			authHeader := r.Header.Get("Authorization")
+			if authHeader == "" {
+				// 認証なし - そのまま通す
+				next(w, r)
+				return
+			}
+
+			// 認証ヘッダーがある場合は検証する
+			if len(authHeader) < 8 || authHeader[:7] != "Bearer " {
+				// 無効なフォーマットの場合もそのまま通す（エラーにしない）
+				next(w, r)
+				return
+			}
+
+			tokenString := authHeader[7:]
+
+			// Verify Supabase JWT token
+			token, err := jwt.ParseWithClaims(tokenString, &SupabaseJWTClaims{}, func(token *jwt.Token) (interface{}, error) {
+				if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+					return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+				}
+				return []byte(supabaseJWTSecret), nil
+			})
+
+			if err != nil {
+				// トークンが無効な場合もそのまま通す（エラーにしない）
+				next(w, r)
+				return
+			}
+
+			claims, ok := token.Claims.(*SupabaseJWTClaims)
+			if !ok || !token.Valid {
+				// クレームが無効な場合もそのまま通す
+				next(w, r)
+				return
+			}
+
+			userID := claims.Sub
+
+			// Generate impersonate JWT for RLS operations
+			impersonateJWT, err := supabaseService.GenerateImpersonateJWT(userID)
+			if err != nil {
+				// JWT生成失敗の場合もそのまま通す（ユーザーIDは設定しない）
+				next(w, r)
+				return
+			}
+
+			// 認証成功 - コンテキストにユーザー情報を追加
+			ctx := context.WithValue(r.Context(), "user_id", userID)
+			ctx = context.WithValue(ctx, "email", claims.Email)
+			ctx = context.WithValue(ctx, "role", claims.Role)
+			ctx = context.WithValue(ctx, "impersonate_jwt", impersonateJWT)
+			r = r.WithContext(ctx)
+
+			next(w, r)
+		}
+	}
+}
+
 // Auth is a convenience wrapper
 // Deprecated: Use AuthWithSupabase instead
 func Auth(next http.HandlerFunc) http.HandlerFunc {

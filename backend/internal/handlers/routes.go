@@ -99,8 +99,10 @@ func SetupRoutes(cfg *config.Config) http.Handler {
 	fmt.Println("[ROUTES] Registered: /api/messages/upload-image (with auth)")
 
 	// Post routes
+	mux.HandleFunc("/api/posts/metadata", server.HandlePostsMetadataRoute) // Must be before /api/posts/
 	mux.HandleFunc("/api/posts", server.HandlePostsRoute)
 	mux.HandleFunc("/api/posts/", server.HandlePostByIDRoute)
+	fmt.Println("[ROUTES] Registered: /api/posts/metadata (with optional auth)")
 	fmt.Println("[ROUTES] Registered: /api/posts")
 	fmt.Println("[ROUTES] Registered: /api/posts/")
 
@@ -212,10 +214,12 @@ func (s *Server) HandlePostByIDRoute(w http.ResponseWriter, r *http.Request) {
 	if len(parts) >= 4 && parts[3] == "comments" {
 		// This is a comment route
 		auth := middleware.AuthWithSupabase(s.config.SupabaseJWTSecret, s.supabase)
+		optionalAuth := middleware.OptionalAuthWithSupabase(s.config.SupabaseJWTSecret, s.supabase)
 		if r.Method == http.MethodPost {
 			auth(s.HandlePostComments)(w, r)
 		} else {
-			s.HandlePostComments(w, r)
+			// GET: optional auth for user-specific like states
+			optionalAuth(s.HandlePostComments)(w, r)
 		}
 		return
 	}
@@ -271,6 +275,13 @@ func (s *Server) HandleCommentRoute(w http.ResponseWriter, r *http.Request) {
 			auth(s.HandleCommentByID)(w, r)
 		}
 	}
+}
+
+// HandlePostsMetadataRoute handles metadata with optional auth
+func (s *Server) HandlePostsMetadataRoute(w http.ResponseWriter, r *http.Request) {
+	// Try to get auth header, but don't fail if it's missing
+	optionalAuth := middleware.OptionalAuthWithSupabase(s.config.SupabaseJWTSecret, s.supabase)
+	optionalAuth(s.GetPostsMetadata)(w, r)
 }
 
 // HandleProfileRoute handles profile with conditional auth

@@ -3,6 +3,7 @@
 import { useState, memo } from 'react';
 import { MessageWithSender, ThreadDetail } from '@/lib/api-client';
 import { Image as ImageIcon, X } from 'lucide-react';
+import Button from '@/components/ui/Button';
 
 interface MessageThreadProps {
   threadDetail: ThreadDetail | null;
@@ -98,7 +99,8 @@ function MessageThread({
     <div className="flex-1 md:flex-1 w-full md:w-auto flex flex-col h-full overflow-hidden bg-white">
       {/* チャットヘッダー */}
       <div className="p-4 border-b border-gray-200 bg-white flex-shrink-0">
-        <div className="flex items-center justify-between">
+        <div className="grid grid-cols-3 items-center gap-4">
+          {/* 左側：ユーザー情報 */}
           <div className="flex items-center gap-3">
             {onBack && (
               <button
@@ -129,6 +131,54 @@ function MessageThread({
                 {otherParticipant?.display_name || 'ユーザー'}
               </h2>
             </div>
+          </div>
+
+          {/* 中央：契約書状況 */}
+          <div className="flex items-center justify-center gap-1">
+            <span className="font-semibold" style={{ color: '#323232' }}>
+              契約書状況
+            </span>
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
+              style={{ color: '#323232' }}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M19 9l-7 7-7-7"
+              />
+            </svg>
+          </div>
+
+          {/* 右側：売却するボタン */}
+          <div className="flex justify-end">
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-sm bg-transparent border-2 hover:opacity-80 gap-2"
+              style={{ borderColor: '#E65D65', color: '#E65D65' }}
+            >
+              売却する
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 5l7 7-7 7"
+                />
+              </svg>
+            </Button>
           </div>
         </div>
       </div>

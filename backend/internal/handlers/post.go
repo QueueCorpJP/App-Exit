@@ -763,32 +763,32 @@ func (s *Server) GetPostLikes(w http.ResponseWriter, r *http.Request, postID str
 
 	type Row struct {
 		PostID string `json:"post_id"`
+		UserID string `json:"user_id"`
 	}
 	var rows []Row
 	_, err := client.From("post_likes").
-		Select("post_id", "", false).
+		Select("post_id, user_id", "", false).
 		Eq("post_id", postID).
 		ExecuteTo(&rows)
 	if err != nil {
 		http.Error(w, "Failed to fetch likes", http.StatusInternalServerError)
 		return
 	}
+
+	// クライアント側で集計
 	likeCount := len(rows)
 	isLiked := false
 	if userID != "" {
-		var userRows []Row
-		_, err := client.From("post_likes").
-			Select("post_id", "", false).
-			Eq("post_id", postID).
-			Eq("user_id", userID).
-			Limit(1, "").
-			ExecuteTo(&userRows)
-		if err == nil && len(userRows) > 0 {
-			isLiked = true
+		for _, row := range rows {
+			if row.UserID == userID {
+				isLiked = true
+				break
+			}
 		}
 	}
+
 	result := map[string]interface{}{
-		"post_id":   postID,
+		"post_id":    postID,
 		"like_count": likeCount,
 		"is_liked":   isLiked,
 	}
@@ -858,30 +858,30 @@ func (s *Server) GetPostDislikes(w http.ResponseWriter, r *http.Request, postID 
 
 	type Row struct {
 		PostID string `json:"post_id"`
+		UserID string `json:"user_id"`
 	}
 	var rows []Row
 	_, err := client.From("post_dislikes").
-		Select("post_id", "", false).
+		Select("post_id, user_id", "", false).
 		Eq("post_id", postID).
 		ExecuteTo(&rows)
 	if err != nil {
 		http.Error(w, "Failed to fetch dislikes", http.StatusInternalServerError)
 		return
 	}
+
+	// クライアント側で集計
 	count := len(rows)
 	isDisliked := false
 	if userID != "" {
-		var userRows []Row
-		_, err := client.From("post_dislikes").
-			Select("post_id", "", false).
-			Eq("post_id", postID).
-			Eq("user_id", userID).
-			Limit(1, "").
-			ExecuteTo(&userRows)
-		if err == nil && len(userRows) > 0 {
-			isDisliked = true
+		for _, row := range rows {
+			if row.UserID == userID {
+				isDisliked = true
+				break
+			}
 		}
 	}
+
 	result := map[string]interface{}{
 		"post_id":       postID,
 		"dislike_count": count,
@@ -944,4 +944,128 @@ func (s *Server) TogglePostDislike(w http.ResponseWriter, r *http.Request, postI
 		}
 	}
 	s.GetPostDislikes(w, r, postID)
+}
+
+// GetPostsMetadata returns metadata (likes, dislikes, comment counts) for multiple posts
+// Expected query parameter: post_ids[] (can be repeated multiple times)
+// Example: /api/posts/metadata?post_ids[]=id1&post_ids[]=id2&post_ids[]=id3
+func (s *Server) GetPostsMetadata(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	userID, _ := r.Context().Value("user_id").(string)
+	client := s.supabase.GetServiceClient()
+
+	// Parse post IDs from query parameters
+	postIDs := r.URL.Query()["post_ids[]"]
+	if len(postIDs) == 0 {
+		http.Error(w, "No post IDs provided", http.StatusBadRequest)
+		return
+	}
+
+	// Prepare result structure
+	type PostMetadata struct {
+		PostID       string `json:"post_id"`
+		LikeCount    int    `json:"like_count"`
+		IsLiked      bool   `json:"is_liked"`
+		DislikeCount int    `json:"dislike_count"`
+		IsDisliked   bool   `json:"is_disliked"`
+		CommentCount int    `json:"comment_count"`
+	}
+
+	// Fetch all likes for the requested posts
+	type LikeRow struct {
+		PostID string `json:"post_id"`
+		UserID string `json:"user_id"`
+	}
+	var likeRows []LikeRow
+	_, err := client.From("post_likes").
+		Select("post_id, user_id", "", false).
+		In("post_id", postIDs).
+		ExecuteTo(&likeRows)
+	if err != nil {
+		http.Error(w, "Failed to fetch likes", http.StatusInternalServerError)
+		return
+	}
+
+	// Fetch all dislikes for the requested posts
+	type DislikeRow struct {
+		PostID string `json:"post_id"`
+		UserID string `json:"user_id"`
+	}
+	var dislikeRows []DislikeRow
+	_, err = client.From("post_dislikes").
+		Select("post_id, user_id", "", false).
+		In("post_id", postIDs).
+		ExecuteTo(&dislikeRows)
+	if err != nil {
+		http.Error(w, "Failed to fetch dislikes", http.StatusInternalServerError)
+		return
+	}
+
+	// Fetch all comment counts for the requested posts
+	type CommentRow struct {
+		PostID string `json:"post_id"`
+	}
+	var commentRows []CommentRow
+	_, err = client.From("post_comments").
+		Select("post_id", "", false).
+		In("post_id", postIDs).
+		ExecuteTo(&commentRows)
+	if err != nil {
+		http.Error(w, "Failed to fetch comments", http.StatusInternalServerError)
+		return
+	}
+
+	// Build metadata map
+	metadataMap := make(map[string]*PostMetadata)
+	for _, postID := range postIDs {
+		metadataMap[postID] = &PostMetadata{
+			PostID:       postID,
+			LikeCount:    0,
+			IsLiked:      false,
+			DislikeCount: 0,
+			IsDisliked:   false,
+			CommentCount: 0,
+		}
+	}
+
+	// Aggregate likes
+	for _, like := range likeRows {
+		if meta, ok := metadataMap[like.PostID]; ok {
+			meta.LikeCount++
+			if userID != "" && like.UserID == userID {
+				meta.IsLiked = true
+			}
+		}
+	}
+
+	// Aggregate dislikes
+	for _, dislike := range dislikeRows {
+		if meta, ok := metadataMap[dislike.PostID]; ok {
+			meta.DislikeCount++
+			if userID != "" && dislike.UserID == userID {
+				meta.IsDisliked = true
+			}
+		}
+	}
+
+	// Aggregate comments
+	for _, comment := range commentRows {
+		if meta, ok := metadataMap[comment.PostID]; ok {
+			meta.CommentCount++
+		}
+	}
+
+	// Convert map to slice
+	var result []PostMetadata
+	for _, meta := range metadataMap {
+		result = append(result, *meta)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(result)
 }

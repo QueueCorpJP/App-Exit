@@ -36,6 +36,7 @@ interface TopPageProps {
 export default function TopPage({ initialPosts = [], useMockCarousel = true }: TopPageProps) {
   const [posts, setPosts] = useState<Post[]>(initialPosts);
   const [projects, setProjects] = useState<ProjectWithImage[]>([]);
+  const [latestProjects, setLatestProjects] = useState<ProjectWithImage[]>([]);
   const [subscribedProjects, setSubscribedProjects] = useState<ProjectWithImage[]>([]);
   const [loading, setLoading] = useState(initialPosts.length === 0);
 
@@ -121,9 +122,17 @@ export default function TopPage({ initialPosts = [], useMockCarousel = true }: T
           };
         });
 
+        // 最新の投稿を取得（created_atでソート）
+        const sortedByDateWithoutImages = [...projectsWithoutImages].sort((a, b) => {
+          const dateA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+          const dateB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+          return dateB - dateA; // 新しい順
+        });
+
         // データを即座に表示して読み込みを解除
         if (isMounted) {
           setProjects(projectsWithoutImages);
+          setLatestProjects(sortedByDateWithoutImages);
           setLoading(false);
         }
 
@@ -213,8 +222,16 @@ export default function TopPage({ initialPosts = [], useMockCarousel = true }: T
             return post && post.subscribe === true;
           });
 
+          // 最新の投稿を取得（created_atでソート）
+          const sortedByDate = [...projectsWithImages].sort((a, b) => {
+            const dateA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+            const dateB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+            return dateB - dateA; // 新しい順
+          });
+
           if (isMounted) {
             setProjects(projectsWithImages);
+            setLatestProjects(sortedByDate);
             setSubscribedProjects(subscribed);
           }
         }
@@ -276,6 +293,39 @@ export default function TopPage({ initialPosts = [], useMockCarousel = true }: T
           <h2 className="text-2xl font-black mb-8 text-center" style={{ color: '#323232' }}>おすすめプロダクト</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {projects.map((project) => (
+              <ProjectCard
+                key={project.id}
+                id={project.id}
+                title={project.title}
+                category={project.category}
+                image={project.image}
+                imagePath={project.imagePath}
+                price={project.price}
+                monthlyRevenue={project.monthlyRevenue}
+                monthlyCost={project.monthlyCost}
+                profitMargin={project.profitMargin}
+                status={project.status}
+                watchCount={project.watchCount}
+                commentCount={project.commentCount}
+                updatedAt={project.updatedAt}
+                tag={project.tag}
+                badge={project.badge}
+                activeViewCount={project.activeViewCount}
+              />
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Latest Products Section */}
+      <section className="py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <p className="text-xl font-black mb-0.5 text-center" style={{ color: '#323232' }}>
+            <span style={{ color: '#b91c1c' }}>N</span>ew
+          </p>
+          <h2 className="text-2xl font-black mb-8 text-center" style={{ color: '#323232' }}>最新のプロダクト</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {latestProjects.map((project) => (
               <ProjectCard
                 key={project.id}
                 id={project.id}
