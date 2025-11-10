@@ -6,6 +6,8 @@
 *.dylib
 bin/
 dist/
+api
+appexit-backend
 
 # Test binary
 *.test
