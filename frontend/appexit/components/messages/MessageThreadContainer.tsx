@@ -59,45 +59,56 @@ function MessageThreadContainer({ threadId, onBack }: MessageThreadContainerProp
           return;
         }
 
-        if (detailResponse.success && detailResponse.data) {
-          setThreadDetail(detailResponse.data);
+        // スレッド詳細の処理
+        if (detailResponse && typeof detailResponse === 'object') {
+          if ('success' in detailResponse && 'data' in detailResponse && detailResponse.success) {
+            setThreadDetail(detailResponse.data);
+          } else if ('id' in detailResponse) {
+            // 直接ThreadDetailオブジェクトの場合
+            setThreadDetail(detailResponse as ThreadDetail);
+          }
         }
 
-        if (messagesResponse.success) {
-          const messages = messagesResponse.data || [];
+        // メッセージ一覧の処理
+        let messages: MessageWithSender[] = [];
+        if (messagesResponse && Array.isArray(messagesResponse)) {
+          messages = messagesResponse;
+        } else if (messagesResponse && typeof messagesResponse === 'object' && 'success' in messagesResponse && 'data' in messagesResponse) {
+          if (messagesResponse.success && Array.isArray(messagesResponse.data)) {
+            messages = messagesResponse.data;
+          }
+        }
 
-          // 画像パスを収集
-          const imagePaths = messages
-            .map(msg => msg.image_url)
-            .filter((path): path is string => !!path);
+        console.log('[MESSAGE-THREAD] Messages received:', messages);
 
-          if (imagePaths.length > 0) {
-            const imageUrlMap = await getImageUrls(imagePaths);
+        // 画像パスを収集
+        const imagePaths = messages
+          .map(msg => msg.image_url)
+          .filter((path): path is string => !!path);
 
-            // アンマウントされている場合は処理を中断
-            if (!isMounted || abortController.signal.aborted) {
-              return;
-            }
+        if (imagePaths.length > 0) {
+          const imageUrlMap = await getImageUrls(imagePaths);
 
-            const messagesWithSignedUrls = messages.map(msg => {
-              if (msg.image_url) {
-                return {
-                  ...msg,
-                  image_url: imageUrlMap.get(msg.image_url) || msg.image_url,
-                };
-              }
-              return msg;
-            });
-            setMessages(messagesWithSignedUrls);
-          } else {
-            setMessages(messages);
+          // アンマウントされている場合は処理を中断
+          if (!isMounted || abortController.signal.aborted) {
+            return;
           }
 
-          setError(null);
+          const messagesWithSignedUrls = messages.map(msg => {
+            if (msg.image_url) {
+              return {
+                ...msg,
+                image_url: imageUrlMap.get(msg.image_url) || msg.image_url,
+              };
+            }
+            return msg;
+          });
+          setMessages(messagesWithSignedUrls);
         } else {
-          setMessages([]);
-          setError(null);
+          setMessages(messages);
         }
+
+        setError(null);
       } catch (err) {
         // アンマウントされている場合はエラーを無視
         if (!isMounted || abortController.signal.aborted) {
@@ -191,18 +202,28 @@ function MessageThreadContainer({ threadId, onBack }: MessageThreadContainerProp
         file_url: imageUrl ? imageUrl : undefined,
       });
 
-      if (response.success && response.data) {
-        let signedImageUrl = response.data.image_url;
-        if (response.data.image_url) {
-          const imageUrlMap = await getImageUrls([response.data.image_url]);
-          signedImageUrl = imageUrlMap.get(response.data.image_url) || response.data.image_url;
+      let sentMessage: MessageWithSender | null = null;
+      if (response && typeof response === 'object') {
+        if ('success' in response && 'data' in response && response.success) {
+          sentMessage = response.data;
+        } else if ('id' in response) {
+          // 直接MessageWithSenderオブジェクトの場合
+          sentMessage = response as MessageWithSender;
+        }
+      }
+
+      if (sentMessage) {
+        let signedImageUrl = sentMessage.image_url;
+        if (sentMessage.image_url) {
+          const imageUrlMap = await getImageUrls([sentMessage.image_url]);
+          signedImageUrl = imageUrlMap.get(sentMessage.image_url) || sentMessage.image_url;
         }
 
         setMessages(prev =>
           prev.map(msg =>
             msg.id === tempId
               ? {
-                  ...response.data,
+                  ...sentMessage!,
                   image_url: signedImageUrl,
                   sender_name: user.name || 'あなた',
                   sender_icon_url: null,
@@ -214,7 +235,7 @@ function MessageThreadContainer({ threadId, onBack }: MessageThreadContainerProp
 
         // スレッド一覧の最終メッセージを更新（カスタムイベントを発火）
         const event = new CustomEvent('updateThreadLastMessage', {
-          detail: { threadId, lastMessage: response.data }
+          detail: { threadId, lastMessage: sentMessage }
         });
         window.dispatchEvent(event);
       }
