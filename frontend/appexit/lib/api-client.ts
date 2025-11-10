@@ -103,8 +103,27 @@ class ApiClient {
         cache: 'no-store',
       });
 
-      // 401エラーの場合、トークンをリフレッシュして再試行
+      // 401エラーの場合、公開APIエンドポイントかどうかをチェック
       if (response.status === 401 && !_isRetry) {
+        // 公開APIエンドポイントのリスト
+        const publicApiEndpoints = [
+          '/api/posts',
+          '/api/posts/',
+          '/api/users/',
+          '/api/storage/signed-url',
+          '/api/storage/signed-urls',
+        ];
+        
+        const isPublicApi = publicApiEndpoints.some(apiPath => 
+          endpoint === apiPath || endpoint.startsWith(apiPath)
+        );
+        
+        // 公開APIエンドポイントの場合は、401エラーを無視して空のデータを返す
+        if (isPublicApi) {
+          console.log('[API-CLIENT] 401 on public API endpoint, returning empty data');
+          return { data: [] } as T;
+        }
+        
         console.log('[API-CLIENT] 401 Unauthorized, attempting token refresh...');
 
         const refreshed = await this.refreshToken();
@@ -114,10 +133,52 @@ class ApiClient {
           // リトライフラグを立てて再度リクエスト
           return this.request<T>(endpoint, { ...options, _isRetry: true });
         } else {
-          console.error('[API-CLIENT] Token refresh failed, redirecting to login...');
-          // トークンリフレッシュ失敗 → ログインページへリダイレクト
-          if (typeof window !== 'undefined') {
+          console.error('[API-CLIENT] Token refresh failed');
+          // 公開ページの場合はリダイレクトしない
+          const publicPaths = [
+            '/',
+            '/login',
+            '/register',
+            '/reset-password',
+            '/privacy',
+            '/terms',
+            '/tokusho',
+            '/faq',
+            '/contact',
+            '/compliance',
+            '/cookie-policy',
+            '/security',
+            '/report',
+            '/customer-harassment',
+            '/seminar',
+            '/support-service',
+            '/projects',  // プロダクト一覧（公開）
+          ];
+          
+          const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
+          const isPublicPath = publicPaths.some(path => {
+            if (path === '/') {
+              return currentPath === '/';
+            }
+            // /projectsの場合は、/projects/newで始まるパスを除外
+            if (path === '/projects') {
+              return currentPath.startsWith('/projects') && !currentPath.startsWith('/projects/new');
+            }
+            return currentPath === path || currentPath.startsWith(path + '/');
+          });
+          
+          // 公開ページでない場合のみログインページへリダイレクト
+          if (typeof window !== 'undefined' && !isPublicPath) {
+            console.log('[API-CLIENT] Redirecting to login (not a public page)');
             window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname);
+          } else {
+            console.log('[API-CLIENT] Skipping redirect (public page)');
+          }
+          
+          // 公開ページの場合はエラーをスローしない
+          if (isPublicPath) {
+            console.log('[API-CLIENT] Returning empty data for public page');
+            return { data: [] } as T;
           }
         }
       }

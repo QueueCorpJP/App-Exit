@@ -32,20 +32,40 @@ export function middleware(request: NextRequest) {
     '/customer-harassment', // カスタマーハラスメント
     '/seminar',       // セミナー
     '/support-service', // サポートサービス
+    '/projects',      // プロダクト一覧（公開）
     '/_next',
     '/api',
     '/favicon.ico',
     '/icon.png',
   ]
 
+  // 認証が必要なページ（公開ページリストより優先）
+  const protectedPaths = [
+    '/projects/new',  // プロダクト投稿ページ（認証必須）
+  ]
+
+  // 認証が必要なページかチェック
+  const isProtectedPath = protectedPaths.some(path => pathname.startsWith(path))
+
   // 公開ページへのアクセスは常に許可
-  const isPublicPath = publicPaths.some(path => pathname.startsWith(path))
+  const isPublicPath = publicPaths.some(path => {
+    // ルートパス（/）の場合は完全一致のみ
+    if (path === '/') {
+      return pathname === '/'
+    }
+    // /projectsの場合は、/projects/newで始まるパスを除外
+    if (path === '/projects') {
+      return pathname.startsWith('/projects') && !pathname.startsWith('/projects/new')
+    }
+    // その他のパスは前方一致
+    return pathname.startsWith(path)
+  })
   if (isPublicPath) {
     return NextResponse.next()
   }
 
   // 認証が必要なページへのアクセス
-  if (!authToken) {
+  if (!authToken && (isProtectedPath || !isPublicPath)) {
     // 未認証の場合、ログインページにリダイレクト
     const loginUrl = new URL('/login', request.url)
     loginUrl.searchParams.set('redirect', pathname)
