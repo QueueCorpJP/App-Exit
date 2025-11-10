@@ -208,6 +208,12 @@ class ApiClient {
       }
 
       const data = await response.json();
+
+      // バックエンドのレスポンス形式 { success: true, data: ... } から data を取り出す
+      if (data && typeof data === 'object' && 'success' in data && 'data' in data) {
+        return data.data as T;
+      }
+
       return data;
     } catch (error) {
       console.error('[API-CLIENT] Request error:', error);
@@ -391,22 +397,14 @@ export const postApi = {
     const queryParams = new URLSearchParams();
     postIds.forEach(id => queryParams.append('post_ids[]', id));
 
-    const response = await fetch(`${API_URL}/api/posts/metadata?${queryParams.toString()}`, {
-      headers: getAuthHeader(),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to fetch batch metadata: ${response.statusText}`);
-    }
-
-    return response.json() as Promise<Array<{
+    return apiClient.get<Array<{
       post_id: string;
       like_count: number;
       is_liked: boolean;
       dislike_count: number;
       is_disliked: boolean;
       comment_count: number;
-    }>>;
+    }>>(`/api/posts/metadata?${queryParams.toString()}`);
   },
 };
 

@@ -177,7 +177,13 @@ func (s *Server) HandlePostsRoute(w http.ResponseWriter, r *http.Request) {
 func (s *Server) HandlePostByIDRoute(w http.ResponseWriter, r *http.Request) {
 	// Check if path matches /api/posts/:id/comments
 	parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
-	
+
+	// Check for /api/posts/metadata (should not be handled here)
+	if len(parts) >= 3 && parts[2] == "metadata" {
+		s.HandlePostsMetadataRoute(w, r)
+		return
+	}
+
 	// Check for /api/posts/:id/active-views
 	if len(parts) >= 4 && parts[3] == "active-views" {
 		auth := middleware.AuthWithSupabase(s.config.SupabaseJWTSecret, s.supabase)
