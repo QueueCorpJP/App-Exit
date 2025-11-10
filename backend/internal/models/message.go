@@ -19,6 +19,7 @@ type Thread struct {
 	CreatedBy     string    `json:"created_by"`
 	RelatedPostID *string   `json:"related_post_id,omitempty"`
 	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
 }
 
 // Message represents a message in a thread
@@ -27,6 +28,7 @@ type Message struct {
 	ThreadID     string      `json:"thread_id"`
 	SenderUserID string      `json:"sender_user_id"`
 	Type         MessageType `json:"type"`
+	Content      *string     `json:"content,omitempty"`
 	Text         *string     `json:"text,omitempty"`
 	ImageURL     *string     `json:"image_url,omitempty"`
 	CreatedAt    time.Time   `json:"created_at"`

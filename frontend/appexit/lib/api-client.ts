@@ -440,7 +440,7 @@ export const messageApi = {
   createThread: (data: CreateThreadRequest) =>
     apiClient.post<{ success: boolean; data: ThreadDetail }>('/api/threads', data),
   getMessages: (threadId: string) =>
-    apiClient.get<{ success: boolean; data: MessageWithSender[] }>(`/api/threads/${threadId}/messages`),
+    apiClient.get<{ success: boolean; data: MessageWithSender[] }>('/api/messages', { params: { thread_id: threadId } }),
   sendMessage: (data: SendMessageRequest) =>
     apiClient.post<{ success: boolean; data: MessageWithSender }>('/api/messages', data),
   uploadMessageImage: async (file: File) => {

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
-import { ArrowLeft, ArrowUp, ArrowDown, MessageCircle, Share2, MoreHorizontal, Award, Flame, Image as ImageIcon, X, ChevronDown, Calendar, Globe, Send } from 'lucide-react';
+import { ArrowLeft, ArrowUp, ArrowDown, MessageCircle, Share2, MoreHorizontal, Award, Flame, Image as ImageIcon, X, ChevronDown, Calendar, Globe, Send, Twitter, Facebook, Linkedin } from 'lucide-react';
 import { postApi, commentApi, PostCommentWithDetails } from '@/lib/api-client';
 import { uploadImage, getImageUrls } from '@/lib/storage';
 import Image from 'next/image';
@@ -41,6 +41,7 @@ export default function PostBoardPage({ initialPosts = [] }: PostBoardPageProps)
   const [commentCounts, setCommentCounts] = useState<Record<string, number>>({});
   const [commentSectionsOpen, setCommentSectionsOpen] = useState<Record<string, boolean>>({});
   const [postComments, setPostComments] = useState<Record<string, PostCommentWithDetails[]>>({});
+  const [shareMenuOpen, setShareMenuOpen] = useState<Record<string, boolean>>({});
 
   const [formData, setFormData] = useState({
     title: '',
@@ -206,16 +207,25 @@ export default function PostBoardPage({ initialPosts = [] }: PostBoardPageProps)
     // 開く場合はコメントを取得
     if (!isCurrentlyOpen && !postComments[postId]) {
       try {
+        console.log('[BOARD] Fetching comments for post:', postId);
         const comments = await commentApi.getPostComments(postId);
+        console.log('[BOARD] Received comments:', comments);
+        console.log('[BOARD] Comments type:', typeof comments);
+        console.log('[BOARD] Is array:', Array.isArray(comments));
+
         if (Array.isArray(comments)) {
+          console.log('[BOARD] Comment count:', comments.length);
           // 古い順にソート（created_atの昇順）
           const sortedComments = comments.sort((a, b) =>
             new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
           );
+          console.log('[BOARD] Sorted comments:', sortedComments);
           setPostComments(prev => ({ ...prev, [postId]: sortedComments }));
+        } else {
+          console.error('[BOARD] Comments is not an array:', comments);
         }
       } catch (e) {
-        console.error('Failed to load comments', e);
+        console.error('[BOARD] Failed to load comments:', e);
       }
     }
   };
@@ -242,46 +252,71 @@ export default function PostBoardPage({ initialPosts = [] }: PostBoardPageProps)
     }
   };
 
+  // 共有メニューの開閉
+  const toggleShareMenu = (postId: string) => {
+    setShareMenuOpen(prev => ({ ...prev, [postId]: !prev[postId] }));
+  };
+
+  // SNS共有関数
+  const handleShare = (platform: 'twitter' | 'facebook' | 'linkedin', post: PostWithImageUrl) => {
+    const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+    const postUrl = `${baseUrl}/projects/new/board?post=${post.id}`;
+    const text = post.title;
+    const description = post.body || '';
+
+    let shareUrl = '';
+
+    switch (platform) {
+      case 'twitter':
+        shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(postUrl)}`;
+        break;
+      case 'facebook':
+        shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(postUrl)}`;
+        break;
+      case 'linkedin':
+        shareUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(postUrl)}`;
+        break;
+    }
+
+    // 新しいウィンドウで共有URLを開く
+    window.open(shareUrl, '_blank', 'width=600,height=400');
+
+    // 共有メニューを閉じる
+    setShareMenuOpen(prev => ({ ...prev, [post.id]: false }));
+  };
+
   const CommentItem = ({ comment }: { comment: PostCommentWithDetails }) => {
     const displayName = comment.author_profile?.display_name || `User ${comment.user_id.substring(0, 8)}`;
     const timeAgo = formatTimeAgo(new Date(comment.created_at));
 
     return (
-      <div className="flex gap-3">
+      <div className="flex gap-3 py-3">
         <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex-shrink-0 flex items-center justify-center text-white text-xs font-bold">
           {displayName[0].toUpperCase()}
         </div>
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-1">
-            <span className="font-semibold text-sm">{displayName}</span>
+            <span className="font-semibold text-sm text-gray-900">{displayName}</span>
             <span className="text-xs text-gray-500">• {timeAgo}</span>
           </div>
-          <p className="text-sm text-gray-800 mb-2">{comment.content}</p>
+          <p className="text-sm text-gray-800 mb-2 whitespace-pre-wrap">{comment.content}</p>
           <div className="flex items-center gap-4 text-sm text-gray-600">
             <div className="flex items-center gap-1">
-              <button className="hover:text-orange-500">
+              <button className="hover:text-orange-500 transition-colors">
                 <ArrowUp className="w-4 h-4" />
               </button>
-              <span>{comment.like_count}</span>
-              <button className="hover:text-blue-500">
+              <span className="font-medium">{comment.like_count || 0}</span>
+              <button className="hover:text-blue-500 transition-colors">
                 <ArrowDown className="w-4 h-4" />
               </button>
             </div>
             <button
-              className="flex items-center gap-1 hover:text-blue-600"
+              className="flex items-center gap-1 hover:text-blue-600 transition-colors"
               onClick={() => setReplyToUser(displayName)}
             >
               <MessageCircle className="w-4 h-4" />
-              返信
+              <span>返信</span>
             </button>
-            <button className="flex items-center gap-1 hover:text-blue-600">
-              <Award className="w-4 h-4" />
-              アワードを贈る
-            </button>
-            <button className="hover:text-blue-600">
-              <Share2 className="w-4 h-4 inline" /> 共有
-            </button>
-            <button><MoreHorizontal className="w-4 h-4" /></button>
           </div>
         </div>
       </div>
@@ -301,6 +336,22 @@ export default function PostBoardPage({ initialPosts = [] }: PostBoardPageProps)
     if (diffHours < 24) return `${diffHours}時間前`;
     return `${diffDays}日前`;
   };
+
+  // 外側のクリックで共有メニューを閉じる
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      // クリックされた要素が共有ボタンまたはメニュー内でない場合、すべてのメニューを閉じる
+      if (!target.closest('.share-menu-container')) {
+        setShareMenuOpen({});
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#F9F8F7' }}>
@@ -452,9 +503,12 @@ export default function PostBoardPage({ initialPosts = [] }: PostBoardPageProps)
                   </div>
                   <span className="text-sm font-medium">@{post.author_user_id.substring(0, 8)}</span>
                   <span className="text-sm text-gray-500">• {new Date(post.created_at).toLocaleDateString('ja-JP')}</span>
-                  <button className="ml-auto">
-                    <MoreHorizontal className="w-5 h-5 text-gray-400" />
-                  </button>
+                  {/* 自分の投稿にのみ三点マークを表示 */}
+                  {user?.id === post.author_user_id && (
+                    <button className="ml-auto">
+                      <MoreHorizontal className="w-5 h-5 text-gray-400" />
+                    </button>
+                  )}
                 </div>
 
                 {/* Title */}
@@ -502,10 +556,42 @@ export default function PostBoardPage({ initialPosts = [] }: PostBoardPageProps)
                   <span className="text-sm font-bold">{commentCounts[post.id] ?? 0}</span>
                   </button>
 
-                  <button className="flex items-center gap-2 bg-gray-100 rounded-full px-3 py-1.5 hover:bg-gray-200 transition-colors">
-                    <Share2 className="w-5 h-5" />
-                    <span className="text-sm font-bold">共有</span>
-                  </button>
+                  <div className="relative share-menu-container">
+                    <button
+                      className="flex items-center gap-2 bg-gray-100 rounded-full px-3 py-1.5 hover:bg-gray-200 transition-colors"
+                      onClick={() => toggleShareMenu(post.id)}
+                    >
+                      <Share2 className="w-5 h-5" />
+                      <span className="text-sm font-bold">共有</span>
+                    </button>
+
+                    {/* 共有メニュードロップダウン */}
+                    {shareMenuOpen[post.id] && (
+                      <div className="absolute bottom-full mb-2 left-0 bg-white border border-gray-200 rounded-lg shadow-lg py-2 z-10 min-w-[200px]">
+                        <button
+                          onClick={() => handleShare('twitter', post)}
+                          className="w-full flex items-center gap-3 px-4 py-2 hover:bg-gray-100 transition-colors text-left"
+                        >
+                          <Twitter className="w-5 h-5 text-blue-400" />
+                          <span className="text-sm font-medium">Twitter で共有</span>
+                        </button>
+                        <button
+                          onClick={() => handleShare('facebook', post)}
+                          className="w-full flex items-center gap-3 px-4 py-2 hover:bg-gray-100 transition-colors text-left"
+                        >
+                          <Facebook className="w-5 h-5 text-blue-600" />
+                          <span className="text-sm font-medium">Facebook で共有</span>
+                        </button>
+                        <button
+                          onClick={() => handleShare('linkedin', post)}
+                          className="w-full flex items-center gap-3 px-4 py-2 hover:bg-gray-100 transition-colors text-left"
+                        >
+                          <Linkedin className="w-5 h-5 text-blue-700" />
+                          <span className="text-sm font-medium">LinkedIn で共有</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -555,16 +641,20 @@ export default function PostBoardPage({ initialPosts = [] }: PostBoardPageProps)
                 </div>
 
                 {/* Comments Section */}
-                <div className="p-6 space-y-6">
-                  {postComments[post.id] && postComments[post.id].length > 0 ? (
-                    postComments[post.id].map((comment) => (
-                      <CommentItem key={comment.id} comment={comment} />
-                    ))
-                  ) : (
-                    <div className="text-center text-gray-500 text-sm py-4">
-                      まだコメントがありません。最初のコメントを投稿しましょう！
-                    </div>
-                  )}
+                <div className="p-6">
+                  <div className="space-y-2 divide-y divide-gray-100">
+                    {postComments[post.id] && postComments[post.id].length > 0 ? (
+                      postComments[post.id].map((comment) => (
+                        <CommentItem key={comment.id} comment={comment} />
+                      ))
+                    ) : (
+                      <div className="text-center text-gray-500 text-sm py-8">
+                        <MessageCircle className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+                        <p>まだコメントがありません</p>
+                        <p className="text-xs mt-1">最初のコメントを投稿しましょう！</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
