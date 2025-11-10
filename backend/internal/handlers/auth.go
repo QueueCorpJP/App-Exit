@@ -104,6 +104,23 @@ func (s *Server) Register(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) Login(w http.ResponseWriter, r *http.Request) {
+	fmt.Printf("\n========== LOGIN START ==========\n")
+	fmt.Printf("[LOGIN] Request received from %s\n", r.RemoteAddr)
+	
+	// 設定の確認
+	if s.config.SupabaseURL == "" {
+		fmt.Printf("[LOGIN] ❌ ERROR: SUPABASE_URL is not set\n")
+		response.Error(w, http.StatusInternalServerError, "Server configuration error")
+		return
+	}
+	if s.config.SupabaseAnonKey == "" {
+		fmt.Printf("[LOGIN] ❌ ERROR: SUPABASE_ANON_KEY is not set\n")
+		response.Error(w, http.StatusInternalServerError, "Server configuration error")
+		return
+	}
+	fmt.Printf("[LOGIN] Supabase URL: %s\n", s.config.SupabaseURL)
+	fmt.Printf("[LOGIN] Supabase Anon Key length: %d\n", len(s.config.SupabaseAnonKey))
+
 	if r.Method != http.MethodPost {
 		response.Error(w, http.StatusMethodNotAllowed, "Method not allowed")
 		return
@@ -111,28 +128,56 @@ func (s *Server) Login(w http.ResponseWriter, r *http.Request) {
 
 	var req models.LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		fmt.Printf("[LOGIN] ❌ ERROR: Failed to decode request body: %v\n", err)
 		response.Error(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
+	fmt.Printf("[LOGIN] ✓ Request decoded successfully for email: %s\n", req.Email)
 
 	// バリデーション
 	if err := utils.ValidateStruct(req); err != nil {
+		fmt.Printf("[LOGIN] ❌ ERROR: Validation failed: %v\n", err)
 		response.Error(w, http.StatusBadRequest, fmt.Sprintf("Validation error: %v", err))
 		return
 	}
+	fmt.Printf("[LOGIN] ✓ Validation passed\n")
 
 	// 1. anon keyで認証（メール・パスワード検証）
+	fmt.Printf("[LOGIN] Attempting Supabase authentication...\n")
+	fmt.Printf("[LOGIN] Email: %s\n", req.Email)
 	anonClient := s.supabase.GetAnonClient()
 	authResp, err := anonClient.Auth.SignInWithEmailPassword(req.Email, req.Password)
 	if err != nil {
-		response.Error(w, http.StatusUnauthorized, "Invalid credentials")
+		fmt.Printf("[LOGIN] ❌ ERROR: Supabase authentication failed: %v\n", err)
+		fmt.Printf("[LOGIN] Error type: %T\n", err)
+		fmt.Printf("[LOGIN] Error details: %+v\n", err)
+		
+		// エラーメッセージを解析してより詳細な情報を提供
+		errMsg := err.Error()
+		var errorMessage string
+		if strings.Contains(errMsg, "Invalid login credentials") || strings.Contains(errMsg, "invalid_credentials") {
+			errorMessage = "メールアドレスまたはパスワードが正しくありません"
+		} else if strings.Contains(errMsg, "Email not confirmed") {
+			errorMessage = "メールアドレスの確認が完了していません"
+		} else if strings.Contains(errMsg, "User not found") {
+			errorMessage = "ユーザーが見つかりません"
+		} else {
+			errorMessage = fmt.Sprintf("ログインに失敗しました: %s", errMsg)
+		}
+		
+		fmt.Printf("[LOGIN] Returning error message: %s\n", errorMessage)
+		response.Error(w, http.StatusUnauthorized, errorMessage)
 		return
 	}
+	fmt.Printf("[LOGIN] ✓ Supabase authentication successful\n")
 
 	if authResp.User.ID == [16]byte{} {
+		fmt.Printf("[LOGIN] ❌ ERROR: User ID is empty\n")
+		fmt.Printf("========== LOGIN END (FAILED) ==========\n\n")
 		response.Error(w, http.StatusUnauthorized, "Authentication failed")
 		return
 	}
+	fmt.Printf("[LOGIN] ✓ User ID validated: %x\n", authResp.User.ID)
 
 	// UUIDを文字列に変換
 	userID := fmt.Sprintf("%x-%x-%x-%x-%x",
@@ -143,6 +188,7 @@ func (s *Server) Login(w http.ResponseWriter, r *http.Request) {
 		authResp.User.ID[10:16])
 
 	// 2. ユーザー自身のトークンでプロフィール情報を取得（RLSが自動的にチェック）
+	fmt.Printf("[LOGIN] Fetching user profile...\n")
 	userClient := s.supabase.GetAuthenticatedClient(authResp.AccessToken)
 	var profiles []models.Profile
 	_, err = userClient.From("profiles").Select("*", "", false).Eq("id", userID).ExecuteTo(&profiles)
@@ -151,6 +197,13 @@ func (s *Server) Login(w http.ResponseWriter, r *http.Request) {
 	var profilePtr *models.Profile
 	if err == nil && len(profiles) > 0 {
 		profilePtr = &profiles[0]
+		fmt.Printf("[LOGIN] ✓ Profile found for user: %s\n", userID)
+	} else {
+		if err != nil {
+			fmt.Printf("[LOGIN] ⚠️ WARNING: Failed to fetch profile: %v\n", err)
+		} else {
+			fmt.Printf("[LOGIN] ⚠️ No profile found for user (new user?): %s\n", userID)
+		}
 	}
 
 	// レスポンス用のユーザー情報を作成
@@ -184,6 +237,8 @@ func (s *Server) Login(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("[LOGIN] Setting auth cookies\n")
 
 	response.Success(w, http.StatusOK, loginResponse)
+	fmt.Printf("[LOGIN] ✅ Login completed successfully for user: %s\n", user.ID)
+	fmt.Printf("========== LOGIN END (SUCCESS) ==========\n\n")
 }
 
 // CreateProfile はJWT認証後にプロフィールを作成する
@@ -512,6 +567,9 @@ func (s *Server) Logout(w http.ResponseWriter, r *http.Request) {
 
 // CheckSession セッション確認用のエンドポイント
 func (s *Server) CheckSession(w http.ResponseWriter, r *http.Request) {
+	fmt.Printf("\n========== CHECK SESSION START ==========\n")
+	fmt.Printf("[SESSION] Request received from %s\n", r.RemoteAddr)
+	
 	if r.Method != http.MethodGet {
 		response.Error(w, http.StatusMethodNotAllowed, "Method not allowed")
 		return
@@ -524,12 +582,14 @@ func (s *Server) CheckSession(w http.ResponseWriter, r *http.Request) {
 	authHeader := r.Header.Get("Authorization")
 	if authHeader != "" && len(authHeader) > 7 && authHeader[:7] == "Bearer " {
 		tokenString = authHeader[7:]
+		fmt.Printf("[SESSION] ✓ Token found in Authorization header (length: %d)\n", len(tokenString))
 	}
 
 	// 2. access_token cookieをチェック
 	if tokenString == "" {
 		if cookie, err := r.Cookie("access_token"); err == nil && cookie.Value != "" {
 			tokenString = cookie.Value
+			fmt.Printf("[SESSION] ✓ Token found in access_token cookie (length: %d)\n", len(tokenString))
 		}
 	}
 
@@ -537,15 +597,28 @@ func (s *Server) CheckSession(w http.ResponseWriter, r *http.Request) {
 	if tokenString == "" {
 		if cookie, err := r.Cookie("auth_token"); err == nil && cookie.Value != "" {
 			tokenString = cookie.Value
+			fmt.Printf("[SESSION] ✓ Token found in auth_token cookie (length: %d)\n", len(tokenString))
 		}
 	}
 
 	if tokenString == "" {
+		fmt.Printf("[SESSION] ❌ No token found in request\n")
+		fmt.Printf("========== CHECK SESSION END (NO TOKEN) ==========\n\n")
 		response.Error(w, http.StatusUnauthorized, "No session found")
 		return
 	}
 
+	// JWT Secretの確認
+	if s.config.SupabaseJWTSecret == "" {
+		fmt.Printf("[SESSION] ❌ ERROR: SUPABASE_JWT_SECRET is not set\n")
+		fmt.Printf("========== CHECK SESSION END (CONFIG ERROR) ==========\n\n")
+		response.Error(w, http.StatusInternalServerError, "Server configuration error")
+		return
+	}
+	fmt.Printf("[SESSION] JWT Secret length: %d\n", len(s.config.SupabaseJWTSecret))
+
 	// トークンを検証してユーザー情報を取得
+	fmt.Printf("[SESSION] Parsing JWT token...\n")
 	token, err := jwt.ParseWithClaims(tokenString, &middleware.SupabaseJWTClaims{}, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
@@ -554,15 +627,27 @@ func (s *Server) CheckSession(w http.ResponseWriter, r *http.Request) {
 	})
 
 	if err != nil {
+		fmt.Printf("[SESSION] ❌ ERROR: Token parsing failed: %v\n", err)
+		tokenPreview := tokenString
+		if len(tokenPreview) > 100 {
+			tokenPreview = tokenPreview[:100]
+		}
+		fmt.Printf("[SESSION] Token string (first 100 chars): %s...\n", tokenPreview)
+		fmt.Printf("========== CHECK SESSION END (INVALID TOKEN) ==========\n\n")
 		response.Error(w, http.StatusUnauthorized, "Invalid session")
 		return
 	}
 
 	claims, ok := token.Claims.(*middleware.SupabaseJWTClaims)
 	if !ok || !token.Valid {
+		fmt.Printf("[SESSION] ❌ ERROR: Invalid claims or token not valid\n")
+		fmt.Printf("[SESSION] Claims OK: %v, Token Valid: %v\n", ok, token.Valid)
+		fmt.Printf("========== CHECK SESSION END (INVALID CLAIMS) ==========\n\n")
 		response.Error(w, http.StatusUnauthorized, "Invalid session")
 		return
 	}
+
+	fmt.Printf("[SESSION] ✓ Token validated for user: %s\n", claims.Sub)
 
 	// プロフィール情報を取得
 	userClient := s.supabase.GetAuthenticatedClient(tokenString)
@@ -577,6 +662,9 @@ func (s *Server) CheckSession(w http.ResponseWriter, r *http.Request) {
 	displayName := claims.Email
 	if profilePtr != nil {
 		displayName = profilePtr.DisplayName
+		fmt.Printf("[SESSION] ✓ Profile found for user: %s\n", claims.Sub)
+	} else {
+		fmt.Printf("[SESSION] ⚠️ No profile found for user: %s\n", claims.Sub)
 	}
 
 	userInfo := map[string]interface{}{
@@ -586,6 +674,8 @@ func (s *Server) CheckSession(w http.ResponseWriter, r *http.Request) {
 		"profile": profilePtr,
 	}
 
+	fmt.Printf("[SESSION] ✅ Session check completed successfully\n")
+	fmt.Printf("========== CHECK SESSION END (SUCCESS) ==========\n\n")
 	response.Success(w, http.StatusOK, userInfo)
 }
 
