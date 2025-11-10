@@ -7,14 +7,31 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Supabase環境変数が設定されていません。.env.localファイルを確認してください。');
 }
 
+// Cookieベースのセッション管理用のカスタムストレージ
+const cookieStorage = {
+  getItem: (key: string): string | null => {
+    if (typeof document === 'undefined') return null;
+    const cookies = document.cookie.split('; ');
+    const cookie = cookies.find(row => row.startsWith(`${key}=`));
+    return cookie ? cookie.split('=')[1] : null;
+  },
+  setItem: (key: string, value: string): void => {
+    if (typeof document === 'undefined') return;
+    // SupabaseセッションはCookieに保存しない（バックエンドが管理）
+    // このストレージは使用しない
+  },
+  removeItem: (key: string): void => {
+    if (typeof document === 'undefined') return;
+    document.cookie = `${key}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+  },
+};
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    persistSession: true, // Supabaseがセッションを管理（LocalStorageを使用）
-    autoRefreshToken: true, // 自動でトークンをリフレッシュ
+    persistSession: false, // LocalStorageを使用しない（Cookieベースのセッション管理）
+    autoRefreshToken: false, // 自動リフレッシュは無効（手動で管理）
     detectSessionInUrl: true,
-    storageKey: 'appexit-auth', // セッションストレージのキー
-    // トークンの有効期限が切れる前にリフレッシュする（デフォルトは60秒前）
-    // より積極的にリフレッシュするために300秒（5分）前に設定
+    storage: cookieStorage, // カスタムストレージ（実際には使用しない）
   },
 });
 
@@ -42,17 +59,17 @@ if (typeof window !== 'undefined') {
     if (event === 'TOKEN_REFRESHED') {
       console.log(`[SUPABASE ${now}] ✓ Token refreshed successfully`);
       // リフレッシュされたトークンをCookieに保存
-      // JWT有効期限（60分）に合わせてCookie有効期限も60分（3600秒）に設定
+      // JWT有効期限（30分）に合わせてCookie有効期限も30分（1800秒）に設定
       if (session?.access_token) {
-        document.cookie = `access_token=${session.access_token}; path=/; max-age=3600; SameSite=Lax`;
+        document.cookie = `access_token=${session.access_token}; path=/; max-age=1800; SameSite=Lax`;
         console.log(`[SUPABASE ${now}] ✓ Updated access_token cookie (length: ${session.access_token.length})`);
       }
     }
 
     if (event === 'SIGNED_IN' && session?.access_token) {
       console.log(`[SUPABASE ${now}] ✓ User signed in, saving access_token to cookie`);
-      // JWT有効期限（60分）に合わせてCookie有効期限も60分（3600秒）に設定
-      document.cookie = `access_token=${session.access_token}; path=/; max-age=3600; SameSite=Lax`;
+      // JWT有効期限（30分）に合わせてCookie有効期限も30分（1800秒）に設定
+      document.cookie = `access_token=${session.access_token}; path=/; max-age=1800; SameSite=Lax`;
     }
 
     if (event === 'SIGNED_OUT') {
@@ -61,21 +78,6 @@ if (typeof window !== 'undefined') {
     }
   });
 
-  // 5分ごとにセッション状態をチェック（デバッグ用）
-  setInterval(async () => {
-    const { data: { session }, error } = await supabase.auth.getSession();
-    const now = new Date().toISOString();
-    if (session) {
-      const expiresAt = session.expires_at ? new Date(session.expires_at * 1000).toISOString() : 'unknown';
-      const remainingSeconds = session.expires_at ? session.expires_at - Math.floor(Date.now() / 1000) : 0;
-      console.log(`[SUPABASE ${now}] 🔍 Session check:`, {
-        hasSession: true,
-        expiresAt,
-        remainingSeconds: `${remainingSeconds} seconds (${Math.floor(remainingSeconds / 60)} minutes)`,
-        willExpireSoon: remainingSeconds < 600 // 10分以内
-      });
-    } else {
-      console.log(`[SUPABASE ${now}] ⚠️ Session check: NO SESSION${error ? ` (error: ${error.message})` : ''}`);
-    }
-  }, 5 * 60 * 1000); // 5分ごと
+  // Cookieベースのセッション管理のため、定期的なチェックは不要
+  // セッションはバックエンドのCookieから復元される
 }

@@ -1,5 +1,4 @@
 import { getAuthHeader, getAuthToken } from './cookie-utils';
-import { supabase } from './supabase';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 
@@ -34,7 +33,7 @@ class ApiClient {
   }
 
   /**
-   * Supabaseトークンをリフレッシュ
+   * バックエンドトークンをリフレッシュ（Cookieベースのセッション管理）
    */
   private async refreshToken(): Promise<boolean> {
     // 既にリフレッシュ中の場合は、同じPromiseを返す（複数リクエストが同時に来た場合の対策）
@@ -46,16 +45,38 @@ class ApiClient {
     this.isRefreshing = true;
     this.refreshPromise = (async () => {
       try {
-        console.log('[API-CLIENT] Refreshing Supabase session...');
-        const { data, error } = await supabase.auth.refreshSession();
-
-        if (error || !data.session) {
-          console.error('[API-CLIENT] Failed to refresh token:', error);
+        console.log('[API-CLIENT] Refreshing backend token (Cookie-based)...');
+        
+        // Cookieからaccess_tokenを取得
+        const accessTokenCookie = typeof document !== 'undefined' 
+          ? document.cookie.split('; ').find(row => row.startsWith('access_token='))
+          : null;
+        
+        if (!accessTokenCookie) {
+          console.error('[API-CLIENT] No access_token cookie found');
           return false;
         }
 
-        console.log('[API-CLIENT] ✓ Token refreshed successfully');
-        return true;
+        const accessToken = accessTokenCookie.split('=')[1];
+        
+        // バックエンドのリフレッシュエンドポイントを使用（Cookieベース）
+        const response = await fetch(`${this.baseUrl}/api/auth/refresh`, {
+          method: 'POST',
+          credentials: 'include', // refresh_token Cookieを送信
+          cache: 'no-store',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+          },
+        });
+
+        if (response.ok) {
+          console.log('[API-CLIENT] ✓ Token refreshed successfully');
+          return true;
+        } else {
+          const errorText = await response.text();
+          console.error('[API-CLIENT] Failed to refresh token:', response.status, errorText);
+          return false;
+        }
       } catch (error) {
         console.error('[API-CLIENT] Error during token refresh:', error);
         return false;
@@ -76,6 +97,49 @@ class ApiClient {
     options: RequestOptions = {}
   ): Promise<T> {
     const { params, _isRetry, ...fetchOptions } = options;
+
+    // リクエスト前にトークンの有効期限をチェック（Cookieベースのセッション管理）
+    try {
+      // Cookieからaccess_tokenを取得
+      const accessTokenCookie = typeof document !== 'undefined' 
+        ? document.cookie.split('; ').find(row => row.startsWith('access_token='))
+        : null;
+      
+      if (accessTokenCookie) {
+        const accessToken = accessTokenCookie.split('=')[1];
+        
+        // JWTトークンをデコードして有効期限を確認（簡易版）
+        try {
+          const payload = JSON.parse(atob(accessToken.split('.')[1]));
+          const expiresAt = payload.exp * 1000; // ミリ秒に変換
+          const now = Date.now();
+          const timeUntilExpiry = expiresAt - now;
+          const twentyMinutes = 20 * 60 * 1000; // 20分（ミリ秒）
+
+          // 残り20分以下の場合は自動的にリフレッシュ（セッションを2日間維持）
+          if (timeUntilExpiry < twentyMinutes && timeUntilExpiry > 0) {
+            const minutesUntilExpiry = Math.round(timeUntilExpiry / 1000 / 60);
+            console.log(`[API-CLIENT] Token expires in ${minutesUntilExpiry} minutes, refreshing before request to maintain 2-day session...`);
+            
+            const refreshed = await this.refreshToken();
+            if (refreshed) {
+              console.log('[API-CLIENT] ✓ Token refreshed before request');
+            } else {
+              console.warn('[API-CLIENT] ⚠️ Token refresh failed before request, retrying...');
+              // リトライ
+              await new Promise(resolve => setTimeout(resolve, 1000));
+              await this.refreshToken();
+            }
+          }
+        } catch (decodeError) {
+          console.warn('[API-CLIENT] Error decoding token:', decodeError);
+          // デコードに失敗してもリクエストは続行
+        }
+      }
+    } catch (error) {
+      console.warn('[API-CLIENT] Error checking token expiry:', error);
+      // エラーが発生してもリクエストは続行
+    }
 
     // URLを構築
     let url = `${this.baseUrl}${endpoint}`;
@@ -121,7 +185,9 @@ class ApiClient {
         // 公開APIエンドポイントの場合は、401エラーを無視して空のデータを返す
         if (isPublicApi) {
           console.log('[API-CLIENT] 401 on public API endpoint, returning empty data');
-          return { data: [] } as T;
+          // getPostsの戻り値の型に合わせて { data: [] } を返す
+          // ただし、実際のrequestメソッドでdata.dataを返すので、空配列を返す
+          return [] as T;
         }
         
         console.log('[API-CLIENT] 401 Unauthorized, attempting token refresh...');
@@ -178,7 +244,8 @@ class ApiClient {
           // 公開ページの場合はエラーをスローしない
           if (isPublicPath) {
             console.log('[API-CLIENT] Returning empty data for public page');
-            return { data: [] } as T;
+            // getPostsの戻り値の型に合わせて空配列を返す
+            return [] as T;
           }
         }
       }
@@ -376,7 +443,7 @@ export const postApi = {
         }
       });
     }
-    return apiClient.get<{ data: Post[] }>('/api/posts', { params: queryParams });
+    return apiClient.get<Post[]>('/api/posts', { params: queryParams });
   },
   createPost: (data: Partial<Post>) => apiClient.post<Post>('/api/posts', data),
   getPost: (id: string) => apiClient.get<Post>(`/api/posts/${id}`),

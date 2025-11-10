@@ -115,9 +115,19 @@ export default function ProjectsListPage() {
     try {
       // 初回は全データを取得
       const response = await postApi.getPosts({});
-      const data = response.data;
+      // レスポンスはPost[]型（api-client.tsのrequestメソッドでdata.dataを返すため）
+      const data = Array.isArray(response) ? response : [];
 
-      // 技術スタックのリストを収集
+      // データが配列でない場合は早期リターン
+      if (!Array.isArray(data)) {
+        console.warn('Invalid data format received:', response);
+        setProjects([]);
+        setFilteredProjects([]);
+        setAvailableTechStacks([]);
+        return;
+      }
+
+      // 技術スタックのリストを収集（データが空でも実行）
       const techStackSet = new Set<string>();
       data.forEach(post => {
         if (post.tech_stack && Array.isArray(post.tech_stack)) {
@@ -126,10 +136,13 @@ export default function ProjectsListPage() {
       });
       setAvailableTechStacks(Array.from(techStackSet).sort());
 
-      // データを表示用に変換
+      // データを表示用に変換（空の場合は空配列を設定）
       await processPostsData(data);
     } catch (error) {
       console.error('Failed to fetch initial data:', error);
+      setProjects([]);
+      setFilteredProjects([]);
+      setAvailableTechStacks([]);
     } finally {
       setLoading(false);
     }
@@ -226,7 +239,15 @@ export default function ProjectsListPage() {
       }
 
       const response = await postApi.getPosts(params);
-      const data = response.data;
+      // レスポンスはPost[]型（api-client.tsのrequestメソッドでdata.dataを返すため）
+      const data = Array.isArray(response) ? response : [];
+
+      // データが配列でない場合は空配列を使用
+      if (!Array.isArray(data)) {
+        console.warn('Invalid data format received:', response);
+        await processPostsData([]);
+        return;
+      }
 
       await processPostsData(data);
     } catch (error) {
