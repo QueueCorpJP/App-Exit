@@ -315,8 +315,12 @@ func (s *Server) CreatePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	fmt.Printf("[POST /api/posts] ✓ Request decoded successfully\n")
+	bodyLength := 0
+	if req.Body != nil {
+		bodyLength = len(*req.Body)
+	}
 	fmt.Printf("[POST /api/posts] Request payload: type=%s, title=%s, body_length=%d\n",
-		req.Type, req.Title, len(*req.Body))
+		req.Type, req.Title, bodyLength)
 
 	// Validate request
 	fmt.Printf("[POST /api/posts] Validating request...\n")
@@ -460,7 +464,11 @@ func (s *Server) CreatePost(w http.ResponseWriter, r *http.Request) {
 		"marketing_channels":       req.MarketingChannels,
 		"media_mentions":           req.MediaMentions,
 		"extra_image_urls":         req.ExtraImageURLs,
-		"subscribe":                req.Subscribe,
+	}
+
+	// Add subscribe field only if it's not nil
+	if req.Subscribe != nil {
+		postData["subscribe"] = req.Subscribe
 	}
 
 	// Insert post with impersonate JWT (RLS will automatically check permissions)

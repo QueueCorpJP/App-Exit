@@ -166,7 +166,7 @@ export default function PostBoardPage({ initialPosts = [] }: PostBoardPageProps)
       const payload = {
         type: 'board' as const,
         title: formData.title,
-        body: formData.body,
+        body: formData.body.trim() || undefined,
         eyecatch_url: coverImagePath || undefined,
         is_active: true,
       };
