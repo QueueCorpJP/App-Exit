@@ -41,13 +41,12 @@ if (typeof window !== 'undefined') {
     const now = new Date().toISOString();
     console.log(`[SUPABASE ${now}] Auth state changed:`, event);
 
-    // セッション情報をデバッグ出力
+    // セッション情報をデバッグ出力（セキュリティ: リフレッシュトークンの存在確認は出力しない）
     if (session) {
       const expiresAt = session.expires_at ? new Date(session.expires_at * 1000).toISOString() : 'unknown';
       const expiresIn = session.expires_in || 'unknown';
       console.log(`[SUPABASE ${now}] Session info:`, {
         hasAccessToken: !!session.access_token,
-        hasRefreshToken: !!session.refresh_token,
         expiresIn: `${expiresIn} seconds`,
         expiresAt,
         tokenLength: session.access_token?.length || 0

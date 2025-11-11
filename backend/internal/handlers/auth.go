@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -223,11 +224,11 @@ func (s *Server) Login(w http.ResponseWriter, r *http.Request) {
 	// 3. Cookieにトークンを設定（setAuthCookies関数を使用）
 	setAuthCookies(w, authResp.AccessToken, authResp.RefreshToken, &user, profilePtr)
 
-	// 4. SupabaseのAccessTokenとRefreshTokenを返す
-	// トークンはフロントエンドのSupabaseセッション（LocalStorage）で管理される
+	// 4. SupabaseのAccessTokenを返す（RefreshTokenはHttpOnly Cookieにのみ保存）
+	// セキュリティ: RefreshTokenはフロントエンドのJavaScriptからアクセスできないようにする
 	loginResponse := models.LoginResponse{
 		Token:        authResp.AccessToken,  // SupabaseのJWTトークンを返す
-		RefreshToken: authResp.RefreshToken, // リフレッシュトークンも返す
+		RefreshToken: authResp.RefreshToken, // HttpOnly Cookieにのみ保存（JSONレスポンスには含まれない）
 		User:         user,
 		Profile:      profilePtr, // profileが存在しない場合はnil
 	}
@@ -521,6 +522,20 @@ func setAuthCookies(w http.ResponseWriter, accessToken, refreshToken string, use
 		MaxAge:   60 * 60 * 24 * 2, // 2日間
 	})
 
+	// 3. refresh_token_issued_at (HttpOnly) - リフレッシュトークンの発行時刻（有効期限判定用）
+	// セキュリティ: 発行時刻を記録して、2日経過を判定できるようにする
+	issuedAt := time.Now().Unix()
+	http.SetCookie(w, &http.Cookie{
+		Name:     "refresh_token_issued_at",
+		Value:    fmt.Sprintf("%d", issuedAt),
+		Path:     "/",
+		Domain:   cookieDomain,
+		HttpOnly: true,
+		Secure:   false,
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   60 * 60 * 24 * 2, // 2日間（refresh_tokenと同じ）
+	})
+
 	fmt.Printf("[DEBUG] setAuthCookies: Set HttpOnly auth cookies for user: %s\n", user.ID)
 }
 
@@ -601,11 +616,90 @@ func (s *Server) CheckSession(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// 4. アクセストークンがない場合、リフレッシュトークンを使って自動的にリフレッシュを試みる
 	if tokenString == "" {
-		fmt.Printf("[SESSION] ❌ No token found in request\n")
-		fmt.Printf("========== CHECK SESSION END (NO TOKEN) ==========\n\n")
-		response.Error(w, http.StatusUnauthorized, "No session found")
-		return
+		fmt.Printf("[SESSION] ⚠️ No access token found, attempting to refresh using refresh_token cookie...\n")
+		
+		refreshCookie, err := r.Cookie("refresh_token")
+		if err != nil || refreshCookie.Value == "" {
+			fmt.Printf("[SESSION] ❌ No refresh token found either\n")
+			fmt.Printf("========== CHECK SESSION END (NO TOKEN) ==========\n\n")
+			response.Error(w, http.StatusUnauthorized, "No session found")
+			return
+		}
+
+		// リフレッシュトークンの発行時刻を確認（2日以内かどうか）
+		// セキュリティ: 発行時刻Cookieがない場合は、リフレッシュトークンが古い可能性があるため、
+		// Supabaseにリクエストを送って有効性を確認する（Supabaseが最終的な判定を行う）
+		issuedAtCookie, err := r.Cookie("refresh_token_issued_at")
+		if err == nil && issuedAtCookie.Value != "" {
+			issuedAt, parseErr := strconv.ParseInt(issuedAtCookie.Value, 10, 64)
+			if parseErr == nil {
+				elapsed := time.Now().Unix() - issuedAt
+				twoDaysInSeconds := int64(60 * 60 * 24 * 2)
+				if elapsed > twoDaysInSeconds {
+					fmt.Printf("[SESSION] ❌ Refresh token expired (issued %d seconds ago, limit is %d seconds)\n", elapsed, twoDaysInSeconds)
+					fmt.Printf("========== CHECK SESSION END (REFRESH TOKEN EXPIRED) ==========\n\n")
+					response.Error(w, http.StatusUnauthorized, "Session expired")
+					return
+				}
+				fmt.Printf("[SESSION] ✓ Refresh token is still valid (issued %d seconds ago, %d seconds remaining)\n", elapsed, twoDaysInSeconds-elapsed)
+			} else {
+				fmt.Printf("[SESSION] ⚠️ Failed to parse refresh_token_issued_at cookie, will attempt refresh anyway\n")
+			}
+		} else {
+			// 発行時刻Cookieがない場合（古いセッションやCookieが削除された場合）
+			// Supabaseにリクエストを送って有効性を確認する
+			fmt.Printf("[SESSION] ⚠️ refresh_token_issued_at cookie not found, will attempt refresh (Supabase will validate)\n")
+		}
+
+		// リフレッシュトークンを使って新しいアクセストークンを取得
+		anonClient := s.supabase.GetAnonClient()
+		authResp, err := anonClient.Auth.RefreshToken(refreshCookie.Value)
+		if err != nil {
+			fmt.Printf("[SESSION] ❌ Failed to refresh token: %v\n", err)
+			fmt.Printf("========== CHECK SESSION END (REFRESH FAILED) ==========\n\n")
+			response.Error(w, http.StatusUnauthorized, "Session expired")
+			return
+		}
+
+		fmt.Printf("[SESSION] ✓ Successfully refreshed token using refresh_token cookie\n")
+		
+		// 新しいトークンでセッションを検証
+		tokenString = authResp.AccessToken
+		
+		// 新しいCookieを設定
+		userID := fmt.Sprintf("%x-%x-%x-%x-%x",
+			authResp.User.ID[0:4],
+			authResp.User.ID[4:6],
+			authResp.User.ID[6:8],
+			authResp.User.ID[8:10],
+			authResp.User.ID[10:16])
+
+		// プロフィール情報を取得
+		userClient := s.supabase.GetAuthenticatedClient(authResp.AccessToken)
+		var profiles []models.Profile
+		_, err = userClient.From("profiles").Select("*", "", false).Eq("id", userID).ExecuteTo(&profiles)
+
+		var profilePtr *models.Profile
+		if err == nil && len(profiles) > 0 {
+			profilePtr = &profiles[0]
+		}
+
+		user := models.User{
+			ID:        userID,
+			Email:     authResp.User.Email,
+			Name:      authResp.User.Email,
+			CreatedAt: authResp.User.CreatedAt,
+			UpdatedAt: authResp.User.UpdatedAt,
+		}
+		if profilePtr != nil {
+			user.Name = profilePtr.DisplayName
+		}
+
+		// 新しいCookieを設定
+		setAuthCookies(w, authResp.AccessToken, authResp.RefreshToken, &user, profilePtr)
+		fmt.Printf("[SESSION] ✓ Set new auth cookies after refresh\n")
 	}
 
 	// JWT Secretの確認
@@ -627,15 +721,72 @@ func (s *Server) CheckSession(w http.ResponseWriter, r *http.Request) {
 	})
 
 	if err != nil {
-		fmt.Printf("[SESSION] ❌ ERROR: Token parsing failed: %v\n", err)
-		tokenPreview := tokenString
-		if len(tokenPreview) > 100 {
-			tokenPreview = tokenPreview[:100]
+		fmt.Printf("[SESSION] ⚠️ Token parsing failed (may be expired): %v\n", err)
+		// トークンが期限切れの場合、リフレッシュトークンを使って自動的にリフレッシュを試みる
+		refreshCookie, refreshErr := r.Cookie("refresh_token")
+		if refreshErr == nil && refreshCookie.Value != "" {
+			fmt.Printf("[SESSION] Attempting to refresh using refresh_token cookie...\n")
+			anonClient := s.supabase.GetAnonClient()
+			authResp, refreshErr := anonClient.Auth.RefreshToken(refreshCookie.Value)
+			if refreshErr == nil {
+				fmt.Printf("[SESSION] ✓ Successfully refreshed expired token\n")
+				tokenString = authResp.AccessToken
+				
+				// 新しいトークンで再検証
+				token, err = jwt.ParseWithClaims(tokenString, &middleware.SupabaseJWTClaims{}, func(token *jwt.Token) (interface{}, error) {
+					if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+						return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+					}
+					return []byte(s.config.SupabaseJWTSecret), nil
+				})
+				
+				if err == nil {
+					// 新しいCookieを設定
+					userID := fmt.Sprintf("%x-%x-%x-%x-%x",
+						authResp.User.ID[0:4],
+						authResp.User.ID[4:6],
+						authResp.User.ID[6:8],
+						authResp.User.ID[8:10],
+						authResp.User.ID[10:16])
+
+					userClient := s.supabase.GetAuthenticatedClient(authResp.AccessToken)
+					var profiles []models.Profile
+					_, err = userClient.From("profiles").Select("*", "", false).Eq("id", userID).ExecuteTo(&profiles)
+
+					var profilePtr *models.Profile
+					if err == nil && len(profiles) > 0 {
+						profilePtr = &profiles[0]
+					}
+
+					user := models.User{
+						ID:        userID,
+						Email:     authResp.User.Email,
+						Name:      authResp.User.Email,
+						CreatedAt: authResp.User.CreatedAt,
+						UpdatedAt: authResp.User.UpdatedAt,
+					}
+					if profilePtr != nil {
+						user.Name = profilePtr.DisplayName
+					}
+
+					setAuthCookies(w, authResp.AccessToken, authResp.RefreshToken, &user, profilePtr)
+					fmt.Printf("[SESSION] ✓ Set new auth cookies after refresh\n")
+				}
+			}
 		}
-		fmt.Printf("[SESSION] Token string (first 100 chars): %s...\n", tokenPreview)
-		fmt.Printf("========== CHECK SESSION END (INVALID TOKEN) ==========\n\n")
-		response.Error(w, http.StatusUnauthorized, "Invalid session")
-		return
+		
+		// リフレッシュに失敗した場合、エラーを返す
+		if err != nil {
+			fmt.Printf("[SESSION] ❌ ERROR: Token parsing failed and refresh failed: %v\n", err)
+			tokenPreview := tokenString
+			if len(tokenPreview) > 100 {
+				tokenPreview = tokenPreview[:100]
+			}
+			fmt.Printf("[SESSION] Token string (first 100 chars): %s...\n", tokenPreview)
+			fmt.Printf("========== CHECK SESSION END (INVALID TOKEN) ==========\n\n")
+			response.Error(w, http.StatusUnauthorized, "Invalid session")
+			return
+		}
 	}
 
 	claims, ok := token.Claims.(*middleware.SupabaseJWTClaims)

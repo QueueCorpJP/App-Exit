@@ -104,15 +104,16 @@ type OAuthLoginResponse struct {
 }
 
 // Register時のレスポンス（認証情報のみ）
+// セキュリティ: RefreshTokenはHttpOnly Cookieにのみ保存され、JSONレスポンスには含めない
 type AuthResponse struct {
 	AccessToken  string `json:"access_token"`
-	RefreshToken string `json:"refresh_token"`
+	RefreshToken string `json:"-"` // セキュリティ: フロントエンドに送信しない（HttpOnly Cookieのみ）
 	User         User   `json:"user"`
 }
 
 type LoginResponse struct {
 	Token        string   `json:"token"`
-	RefreshToken string   `json:"refresh_token"`
+	RefreshToken string   `json:"-"` // セキュリティ: フロントエンドに送信しない（HttpOnly Cookieのみ）
 	User         User     `json:"user"`
 	Profile      *Profile `json:"profile,omitempty"` // プロフィール未作成時はnil
 }

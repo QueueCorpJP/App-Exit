@@ -116,15 +116,16 @@ export interface CreateProfileRequest {
 }
 
 // Register時のレスポンス（認証情報のみ）
+// セキュリティ: RefreshTokenはHttpOnly Cookieにのみ保存され、JSONレスポンスには含まれない
 export interface AuthResponse {
   access_token: string;
-  refresh_token: string;
+  refresh_token?: never; // セキュリティ: フロントエンドに送信されない（HttpOnly Cookieのみ）
   user: User;
 }
 
 export interface LoginResponse {
   token: string;
-  refresh_token: string;
+  refresh_token?: never; // セキュリティ: フロントエンドに送信されない（HttpOnly Cookieのみ）
   user: User;
   profile: Profile | null; // プロフィール未作成時はnull
 }
