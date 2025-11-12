@@ -24,8 +24,6 @@ function MessageThreadContainer({ threadId, onBack }: MessageThreadContainerProp
 
   // threadIdが変わった時のみデータを取得
   useEffect(() => {
-    // マウント状態を追跡
-    let isMounted = true;
     const abortController = new AbortController();
     const currentThreadId = threadId; // クロージャでthreadIdを保持
 
@@ -34,11 +32,9 @@ function MessageThreadContainer({ threadId, onBack }: MessageThreadContainerProp
       
       if (!currentThreadId || !user) {
         console.log('[MESSAGE-THREAD] Early return: no threadId or user');
-        if (isMounted) {
-          setThreadDetail(null);
-          setMessages([]);
-          setIsLoadingMessages(false);
-        }
+        setThreadDetail(null);
+        setMessages([]);
+        setIsLoadingMessages(false);
         return;
       }
 
@@ -46,9 +42,7 @@ function MessageThreadContainer({ threadId, onBack }: MessageThreadContainerProp
       if (prevThreadIdRef.current === currentThreadId) {
         console.log('[MESSAGE-THREAD] Early return: same threadId, skipping fetch');
         // 読み込み状態が残っている場合はリセット
-        if (isMounted) {
-          setIsLoadingMessages(false);
-        }
+        setIsLoadingMessages(false);
         return;
       }
 
@@ -56,10 +50,8 @@ function MessageThreadContainer({ threadId, onBack }: MessageThreadContainerProp
 
       try {
         console.log('[MESSAGE-THREAD] Starting fetch, setting isLoadingMessages to true');
-        if (isMounted) {
-          setIsLoadingMessages(true);
-          setError(null);
-        }
+        setIsLoadingMessages(true);
+        setError(null);
 
         // スレッド詳細とメッセージ一覧を並行取得
         console.log('[MESSAGE-THREAD] Starting Promise.all for API calls, threadId:', currentThreadId);
@@ -73,7 +65,6 @@ function MessageThreadContainer({ threadId, onBack }: MessageThreadContainerProp
           messagesResponse: messagesResponse ? 'exists' : 'null',
           messagesResponseType: typeof messagesResponse,
           isArray: Array.isArray(messagesResponse),
-          isMounted,
           aborted: abortController.signal.aborted,
           currentThreadId,
           prevThreadId: prevThreadIdRef.current
@@ -85,12 +76,6 @@ function MessageThreadContainer({ threadId, onBack }: MessageThreadContainerProp
           return;
         }
 
-        // アンマウントされている場合は処理を中断
-        if (!isMounted) {
-          console.log('[MESSAGE-THREAD] Component unmounted after Promise.all, aborting');
-          return;
-        }
-
         // スレッド詳細の処理
         if (detailResponse && typeof detailResponse === 'object' && 'id' in detailResponse) {
           const responseThreadId = (detailResponse as ThreadDetail).id;
@@ -98,11 +83,23 @@ function MessageThreadContainer({ threadId, onBack }: MessageThreadContainerProp
 
           // 取得したスレッドIDが現在のthreadIdと一致するかチェック
           if (responseThreadId !== currentThreadId) {
-            console.log('[MESSAGE-THREAD] Thread ID mismatch, aborting', {
+            console.warn('[MESSAGE-THREAD] Thread ID mismatch, will fetch correct thread', {
               expected: currentThreadId,
               received: responseThreadId
             });
-            return;
+            // バックエンドが別のスレッドIDを返した場合（既存スレッドが見つかった場合）
+            // URLとprevThreadIdRefを更新
+            window.history.replaceState(null, '', `/messages/${responseThreadId}`);
+
+            // カスタムイベントを発火して親コンポーネントに通知
+            const event = new CustomEvent('threadIdChanged', {
+              detail: { oldThreadId: currentThreadId, newThreadId: responseThreadId }
+            });
+            window.dispatchEvent(event);
+
+            // prevThreadIdRefをリセットして、新しいthreadIdで再取得を促す
+            prevThreadIdRef.current = undefined;
+            return; // 現在の処理を中断して再取得
           }
 
           setThreadDetail(detailResponse as ThreadDetail);
@@ -123,6 +120,9 @@ function MessageThreadContainer({ threadId, onBack }: MessageThreadContainerProp
         }
 
         console.log('[MESSAGE-THREAD] Messages received:', messages, 'length:', messages.length);
+        if (messages.length > 0) {
+          console.log('[MESSAGE-THREAD] First message:', messages[0]);
+        }
 
         // threadIdが変更された場合は処理を中断
         if (prevThreadIdRef.current !== currentThreadId) {
@@ -130,14 +130,9 @@ function MessageThreadContainer({ threadId, onBack }: MessageThreadContainerProp
           return;
         }
 
-        // アンマウントされている場合は処理を中断
-        if (!isMounted) {
-          console.log('[MESSAGE-THREAD] Component unmounted before setting messages, aborting');
-          return;
-        }
-
         // まずメッセージを即座に表示（画像URLの取得を待たない）
         // メッセージが空の場合でも空配列として設定し、読み込み状態を解除する
+        // コンポーネントが再マウントされていても、threadIdが一致していれば表示する
         setMessages(messages);
         setError(null);
         console.log('[MESSAGE-THREAD] Messages set (empty array is OK):', messages.length);
@@ -149,13 +144,14 @@ function MessageThreadContainer({ threadId, onBack }: MessageThreadContainerProp
 
         // 画像URLの取得は非同期で実行（読み込み状態をブロックしない）
         if (imagePaths.length > 0) {
-          // タイムアウトを5秒に設定
+          console.log('[MESSAGE-THREAD] Fetching image URLs for paths:', imagePaths);
+          // タイムアウトを10秒に設定
           const imageUrlPromise = getImageUrls(imagePaths);
           const timeoutPromise = new Promise<Map<string, string>>((resolve) => {
             setTimeout(() => {
-              console.warn('[MESSAGE-THREAD] getImageUrls timeout after 5s, using empty map');
+              console.warn('[MESSAGE-THREAD] getImageUrls timeout after 10s, using empty map');
               resolve(new Map());
-            }, 5000);
+            }, 10000);
           });
 
           Promise.race([
@@ -200,12 +196,6 @@ function MessageThreadContainer({ threadId, onBack }: MessageThreadContainerProp
           return;
         }
 
-        // アンマウントされている場合はエラーを無視
-        if (!isMounted) {
-          console.log('[MESSAGE-THREAD] Error but component unmounted, ignoring');
-          return;
-        }
-
         // 404エラーの場合は特別な処理
         if ((err as any)?.status === 404) {
           // URLパラメータから相手のユーザーIDを取得してthreadを作成
@@ -219,10 +209,6 @@ function MessageThreadContainer({ threadId, onBack }: MessageThreadContainerProp
               const createResponse = await messageApi.createThread({
                 participant_ids: [otherUserId],
               });
-
-              if (!isMounted) {
-                return;
-              }
 
               if (createResponse && typeof createResponse === 'object' && 'id' in createResponse) {
                 const newThreadId = createResponse.id;
@@ -250,9 +236,7 @@ function MessageThreadContainer({ threadId, onBack }: MessageThreadContainerProp
           // 2秒後にメッセージ一覧にリダイレクト
           if (onBack) {
             setTimeout(() => {
-              if (isMounted) {
-                onBack();
-              }
+              onBack();
             }, 2000);
           }
         } else {
@@ -263,17 +247,13 @@ function MessageThreadContainer({ threadId, onBack }: MessageThreadContainerProp
         // エラーが発生した場合でも、確実に読み込み状態を解除
         // threadIdが変更されていない場合のみ状態を更新
         console.log('[MESSAGE-THREAD] Fetch complete, setting isLoadingMessages to false', {
-          isMounted,
           currentThreadId,
           prevThreadId: prevThreadIdRef.current
         });
-        if (isMounted && prevThreadIdRef.current === currentThreadId) {
+        if (prevThreadIdRef.current === currentThreadId) {
           setIsLoadingMessages(false);
         } else {
-          console.log('[MESSAGE-THREAD] Skipping isLoadingMessages update', {
-            isMounted,
-            threadIdMatch: prevThreadIdRef.current === currentThreadId
-          });
+          console.log('[MESSAGE-THREAD] Skipping isLoadingMessages update, threadId changed');
         }
       }
     };
@@ -282,7 +262,6 @@ function MessageThreadContainer({ threadId, onBack }: MessageThreadContainerProp
 
     // クリーンアップ: コンポーネントのアンマウント時に実行
     return () => {
-      isMounted = false;
       abortController.abort();
     };
   }, [threadId, user]);
@@ -344,10 +323,18 @@ function MessageThreadContainer({ threadId, onBack }: MessageThreadContainerProp
       }
 
       if (sentMessage) {
+        // バックエンドから既にsigned URLが返されている場合はそのまま使用
+        // signed URLでない場合（ファイルパスの場合）のみ、signed URLを取得
         let signedImageUrl = sentMessage.image_url;
-        if (sentMessage.image_url) {
-          const imageUrlMap = await getImageUrls([sentMessage.image_url]);
-          signedImageUrl = imageUrlMap.get(sentMessage.image_url) || sentMessage.image_url;
+        if (sentMessage.image_url && !sentMessage.image_url.startsWith('http://') && !sentMessage.image_url.startsWith('https://')) {
+          // ファイルパスの場合のみsigned URLを取得
+          try {
+            const imageUrlMap = await getImageUrls([sentMessage.image_url]);
+            signedImageUrl = imageUrlMap.get(sentMessage.image_url) || sentMessage.image_url;
+          } catch (err) {
+            console.error('Failed to get signed URL for image:', err);
+            // エラーが発生しても元のURLを使用
+          }
         }
 
         setMessages(prev =>

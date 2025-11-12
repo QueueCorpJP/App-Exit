@@ -115,6 +115,7 @@ type (
 
 // buildProfilesFromRows converts profileRow slice to models.Profile slice with signed URLs
 func (s *Server) buildProfilesFromRows(rows []profileRow, signedURLMap map[string]string) []models.Profile {
+	log.Printf("[buildProfilesFromRows] Processing %d profiles, signedURLMap has %d entries", len(rows), len(signedURLMap))
 	var profiles []models.Profile
 	for _, row := range rows {
 		var termsAcceptedAt, privacyAcceptedAt *time.Time
@@ -129,9 +130,12 @@ func (s *Server) buildProfilesFromRows(rows []profileRow, signedURLMap map[strin
 
 		var iconURL *string
 		if row.IconURL != nil && *row.IconURL != "" {
+			log.Printf("[buildProfilesFromRows] Profile %s: icon_url in DB = %s", row.ID, *row.IconURL)
 			if signedURL, ok := signedURLMap[*row.IconURL]; ok {
+				log.Printf("[buildProfilesFromRows] Profile %s: Found signed URL = %s", row.ID, signedURL)
 				iconURL = &signedURL
 			} else {
+				log.Printf("[buildProfilesFromRows] Profile %s: No signed URL found, using original path", row.ID)
 				iconURL = row.IconURL
 			}
 		}
@@ -412,7 +416,9 @@ func (s *Server) GetThreads(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 
+			log.Printf("[GetThreads] Fetching signed URLs for %d icon paths: %v", len(iconPaths), iconPaths)
 			signedURLMap := s.supabase.GetBatchSignedURLs("profile-icons", iconPaths, 3600)
+			log.Printf("[GetThreads] GetBatchSignedURLs returned %d URLs", len(signedURLMap))
 			profiles := s.buildProfilesFromRows(profileRows, signedURLMap)
 			for _, profile := range profiles {
 				profilesMap[profile.ID] = profile
@@ -895,9 +901,14 @@ func (s *Server) GetMessages(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if filePath, hasAttachment := attachmentsMap[row.ID]; hasAttachment {
-			signedURL, err := s.supabase.GetSignedURL("message-images", filePath, 3600)
-			if err == nil {
-				msg.ImageURL = &signedURL
+			log.Printf("[GetMessages] Getting image URL for message %s, bucket=message-images, path=%s", row.ID, filePath)
+			imageURL, err := s.supabase.GetImageURL("message-images", filePath, 3600)
+			if err != nil {
+				log.Printf("[GetMessages] ERROR: Failed to get image URL for message %s: %v", row.ID, err)
+				// エラーでもメッセージは返す（画像なしで）
+			} else {
+				log.Printf("[GetMessages] Successfully got image URL for message %s: %s", row.ID, imageURL)
+				msg.ImageURL = &imageURL
 			}
 		}
 
@@ -990,16 +1001,52 @@ func (s *Server) SendMessage(w http.ResponseWriter, r *http.Request) {
 						ExecuteTo(&retryResp)
 
 					if retryErr == nil && len(retryResp) > 0 {
+						// プロフィール情報を取得
+						var profileRows []profileRowSimple
+						_, _ = client.From("profiles").
+							Select("id, display_name, icon_url", "", false).
+							Eq("id", userID).
+							ExecuteTo(&profileRows)
+
+						profile, hasProfile := profileRowSimple{}, false
+						if len(profileRows) > 0 {
+							profile = profileRows[0]
+							hasProfile = true
+						}
+
 						message := models.Message{
 							ID:           retryResp[0].ID,
 							ThreadID:     retryResp[0].ThreadID,
 							SenderUserID: retryResp[0].SenderUserID,
 							Type:         models.MessageType(retryResp[0].Type),
 							Text:         retryResp[0].Text,
-							ImageURL:     req.FileURL,
 							CreatedAt:    parseTime(retryResp[0].CreatedAt),
 						}
-						response.Success(w, http.StatusCreated, message)
+
+						messageWithSender := models.MessageWithSender{
+							Message:      message,
+							SenderName:   "不明なユーザー",
+							SenderIconURL: nil,
+							ImageURL:     nil,
+						}
+
+						if hasProfile {
+							messageWithSender.SenderName = profile.DisplayName
+							messageWithSender.SenderIconURL = profile.IconURL
+						}
+
+						if req.FileURL != nil && *req.FileURL != "" {
+							// 画像URLを取得（publicバケットの場合は直接URL、privateバケットの場合はsigned URL）
+							imageURL, err := s.supabase.GetImageURL("message-images", *req.FileURL, 3600)
+							if err == nil {
+								messageWithSender.ImageURL = &imageURL
+							} else {
+								log.Printf("[SendMessage] Failed to generate image URL: %v", err)
+								messageWithSender.ImageURL = req.FileURL
+							}
+						}
+
+						response.Success(w, http.StatusCreated, messageWithSender)
 						return
 					}
 				}
@@ -1016,6 +1063,19 @@ func (s *Server) SendMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// プロフィール情報を取得
+	var profileRows []profileRowSimple
+	_, err = client.From("profiles").
+		Select("id, display_name, icon_url", "", false).
+		Eq("id", userID).
+		ExecuteTo(&profileRows)
+
+	profile, hasProfile := profileRowSimple{}, false
+	if err == nil && len(profileRows) > 0 {
+		profile = profileRows[0]
+		hasProfile = true
+	}
+
 	message := models.Message{
 		ID:           messageResp[0].ID,
 		ThreadID:     messageResp[0].ThreadID,
@@ -1023,6 +1083,18 @@ func (s *Server) SendMessage(w http.ResponseWriter, r *http.Request) {
 		Type:         models.MessageType(messageResp[0].Type),
 		Text:         messageResp[0].Text,
 		CreatedAt:    parseTime(messageResp[0].CreatedAt),
+	}
+
+	messageWithSender := models.MessageWithSender{
+		Message:      message,
+		SenderName:   "不明なユーザー",
+		SenderIconURL: nil,
+		ImageURL:     nil,
+	}
+
+	if hasProfile {
+		messageWithSender.SenderName = profile.DisplayName
+		messageWithSender.SenderIconURL = profile.IconURL
 	}
 
 	if req.FileURL != nil && *req.FileURL != "" {
@@ -1041,11 +1113,19 @@ func (s *Server) SendMessage(w http.ResponseWriter, r *http.Request) {
 			Execute()
 
 		if err == nil {
-			message.ImageURL = req.FileURL
+			// 画像URLを取得（publicバケットの場合は直接URL、privateバケットの場合はsigned URL）
+			imageURL, err := s.supabase.GetImageURL("message-images", *req.FileURL, 3600)
+			if err == nil {
+				messageWithSender.ImageURL = &imageURL
+			} else {
+				log.Printf("[SendMessage] Failed to generate image URL: %v", err)
+				// エラーが発生してもファイルパスをそのまま設定
+				messageWithSender.ImageURL = req.FileURL
+			}
 		}
 	}
 
-	response.Success(w, http.StatusCreated, message)
+	response.Success(w, http.StatusCreated, messageWithSender)
 }
 
 // UploadMessageImage handles image upload for messages

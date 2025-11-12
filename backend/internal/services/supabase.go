@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -27,6 +28,8 @@ type SupabaseService struct {
 	cfg           *config.Config                  // 設定を保持
 	jwtCache      map[string]*ImpersonateJWTCache // userID -> impersonate JWT cache
 	cacheMutex    sync.RWMutex                    // キャッシュ用のミューテックス
+	bucketCache   map[string]bool                 // bucketName -> isPublic cache
+	bucketCacheMutex sync.RWMutex                 // バケットキャッシュ用のミューテックス
 }
 
 func NewSupabaseService(cfg *config.Config) *SupabaseService {
@@ -43,10 +46,11 @@ func NewSupabaseService(cfg *config.Config) *SupabaseService {
 	}
 
 	return &SupabaseService{
-		anonClient:    anonClient,
-		serviceClient: serviceClient,
-		cfg:           cfg,
-		jwtCache:      make(map[string]*ImpersonateJWTCache),
+		anonClient:      anonClient,
+		serviceClient:   serviceClient,
+		cfg:             cfg,
+		jwtCache:        make(map[string]*ImpersonateJWTCache),
+		bucketCache:     make(map[string]bool),
 	}
 }
 
@@ -290,21 +294,91 @@ func (s *SupabaseService) UploadFile(userID string, bucketName string, filePath 
 	return filePath, nil
 }
 
+// IsBucketPublic checks if a bucket is public (with caching)
+func (s *SupabaseService) IsBucketPublic(bucketName string) (bool, error) {
+	// キャッシュをチェック
+	s.bucketCacheMutex.RLock()
+	if isPublic, exists := s.bucketCache[bucketName]; exists {
+		s.bucketCacheMutex.RUnlock()
+		return isPublic, nil
+	}
+	s.bucketCacheMutex.RUnlock()
+
+	// キャッシュにない場合は既知のバケット設定から取得
+	// 一時的な解決策: 既知のバケット設定をハードコード
+	// 本番環境では、データベースから動的に取得することを推奨
+	knownBuckets := map[string]bool{
+		"avatars":        true,  // public: アバター画像
+		"profile-icons":  true,  // public: プロフィールアイコン
+		"message-images": false, // private: メッセージ添付画像
+		"post-images":    false, // private: 投稿画像
+	}
+	
+	isPublic, exists := knownBuckets[bucketName]
+	if !exists {
+		// 不明なバケットの場合はデフォルトでprivateと仮定
+		isPublic = false
+	}
+	
+	// キャッシュに保存
+	s.bucketCacheMutex.Lock()
+	s.bucketCache[bucketName] = isPublic
+	s.bucketCacheMutex.Unlock()
+	
+	return isPublic, nil
+}
+
+// GetImageURL returns the appropriate URL for a file (public URL for public buckets, signed URL for private buckets)
+func (s *SupabaseService) GetImageURL(bucketName string, filePath string, expiresIn int) (string, error) {
+	// パスの先頭のスラッシュを削除
+	cleanPath := strings.TrimPrefix(filePath, "/")
+
+	fmt.Printf("[GetImageURL] bucket=%s, filePath=%s, cleanPath=%s\n", bucketName, filePath, cleanPath)
+
+	// バケットがpublicかどうかを確認
+	isPublic, err := s.IsBucketPublic(bucketName)
+	if err != nil {
+		return "", fmt.Errorf("failed to check bucket public status: %w", err)
+	}
+
+	fmt.Printf("[GetImageURL] bucket=%s isPublic=%v\n", bucketName, isPublic)
+
+	if isPublic {
+		// publicバケットの場合は直接URLを返す
+		// URL形式: https://{project_ref}.supabase.co/storage/v1/object/public/{bucket_name}/{file_path}
+		publicURL := fmt.Sprintf("%s/storage/v1/object/public/%s/%s", s.cfg.SupabaseURL, bucketName, cleanPath)
+		fmt.Printf("[GetImageURL] Returning public URL: %s\n", publicURL)
+		return publicURL, nil
+	}
+
+	// privateバケットの場合はsigned URLを生成
+	signedURL, err := s.GetSignedURL(bucketName, filePath, expiresIn)
+	if err != nil {
+		fmt.Printf("[GetImageURL] ERROR generating signed URL: %v\n", err)
+		return "", err
+	}
+	fmt.Printf("[GetImageURL] Returning signed URL: %s\n", signedURL)
+	return signedURL, nil
+}
+
 // GetSignedURL generates a signed URL for accessing a private file
 func (s *SupabaseService) GetSignedURL(bucketName string, filePath string, expiresIn int) (string, error) {
 	client := s.GetServiceClient()
 
-	result, err := client.Storage.CreateSignedUrl(bucketName, filePath, expiresIn)
+	// パスの先頭のスラッシュを削除（Supabase Storageは先頭スラッシュを許可しない）
+	cleanPath := strings.TrimPrefix(filePath, "/")
+
+	result, err := client.Storage.CreateSignedUrl(bucketName, cleanPath, expiresIn)
 	if err != nil {
-		return "", fmt.Errorf("failed to create signed URL: %w", err)
+		return "", fmt.Errorf("failed to create signed URL for bucket=%s path=%s: %w", bucketName, cleanPath, err)
 	}
 
 	return result.SignedURL, nil
 }
 
-// GetBatchSignedURLs generates signed URLs for multiple files in parallel
-// Returns a map of filePath -> signedURL
-func (s *SupabaseService) GetBatchSignedURLs(bucketName string, filePaths []string, expiresIn int) map[string]string {
+// GetBatchImageURLs generates URLs for multiple files in parallel (public or signed depending on bucket)
+// Returns a map of filePath -> URL
+func (s *SupabaseService) GetBatchImageURLs(bucketName string, filePaths []string, expiresIn int) map[string]string {
 	result := make(map[string]string)
 	if len(filePaths) == 0 {
 		return result
@@ -323,12 +397,12 @@ func (s *SupabaseService) GetBatchSignedURLs(bucketName string, filePaths []stri
 		wg.Add(1)
 		go func(p string) {
 			defer wg.Done()
-			signedURL, err := s.GetSignedURL(bucketName, p, expiresIn)
+			imageURL, err := s.GetImageURL(bucketName, p, expiresIn)
 			if err != nil {
-				fmt.Printf("[WARN] Failed to generate signed URL for %s: %v\n", p, err)
+				fmt.Printf("[WARN] Failed to generate URL for %s: %v\n", p, err)
 				return
 			}
-			resultCh <- urlResult{path: p, url: signedURL}
+			resultCh <- urlResult{path: p, url: imageURL}
 		}(path)
 	}
 
@@ -344,6 +418,13 @@ func (s *SupabaseService) GetBatchSignedURLs(bucketName string, filePaths []stri
 	}
 
 	return result
+}
+
+// GetBatchSignedURLs generates signed URLs for multiple files in parallel
+// Returns a map of filePath -> signedURL
+// Deprecated: Use GetBatchImageURLs instead
+func (s *SupabaseService) GetBatchSignedURLs(bucketName string, filePaths []string, expiresIn int) map[string]string {
+	return s.GetBatchImageURLs(bucketName, filePaths, expiresIn)
 }
 
 // DeleteFile deletes a file from Supabase Storage

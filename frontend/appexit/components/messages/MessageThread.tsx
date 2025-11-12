@@ -218,11 +218,17 @@ function MessageThread({
                     <p className="text-xs mb-1 opacity-70">{message.sender.display_name}</p>
                   )}
                   {message.type === 'image' && message.image_url && (
-                    <img
-                      src={message.image_url}
-                      alt="送信画像"
-                      className="max-w-full max-h-64 rounded-lg mb-2"
-                    />
+                    <div className="mb-2">
+                      <img
+                        src={message.image_url}
+                        alt="送信画像"
+                        className="max-w-full max-h-64 rounded-lg object-contain"
+                        onError={(e) => {
+                          console.error('Failed to load image:', message.image_url);
+                          (e.target as HTMLImageElement).style.display = 'none';
+                        }}
+                      />
+                    </div>
                   )}
                   {message.text && (
                     <p className="text-sm whitespace-pre-wrap">{message.text}</p>

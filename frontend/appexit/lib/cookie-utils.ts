@@ -22,42 +22,26 @@ export function getCookie(name: string): string | null {
 
 /**
  * Get the auth token from cookie
+ * @deprecated HttpOnly Cookieに移行済みのため、この関数は使用されていません。
+ * HttpOnly CookieはJavaScriptから読み取ることができません。
+ * 認証はバックエンドのCookieで自動的に処理されます。
  * @returns Auth token or null if not found
  */
 export function getAuthToken(): string | null {
-  if (typeof document === 'undefined') {
-    console.warn('[COOKIE-UTILS] Running on server side, document is undefined');
-    return null;
-  }
-
-  // デバッグ: すべてのCookieを表示
-  console.log('[COOKIE-UTILS] All cookies:', document.cookie);
-
-  // access_token（JavaScriptアクセス可能）を優先的に取得
-  const token = getCookie('access_token');
-
-  if (!token) {
-    console.warn('[COOKIE-UTILS] access_token not found in cookies');
-    // すべてのCookie名を表示
-    const cookieNames = document.cookie.split(';').map(c => c.trim().split('=')[0]);
-    console.log('[COOKIE-UTILS] Available cookie names:', cookieNames);
-  } else {
-    console.log('[COOKIE-UTILS] access_token found, length:', token.length);
-  }
-
-  return token;
+  // HttpOnly Cookieに移行済みのため、この関数は常にnullを返します
+  console.warn('[COOKIE-UTILS] getAuthToken() is deprecated. HttpOnly Cookie is used for authentication.');
+  return null;
 }
 
 /**
  * Get Authorization header with Bearer token from cookie
+ * @deprecated HttpOnly Cookieに移行済みのため、この関数は使用されていません。
+ * HttpOnly CookieはJavaScriptから読み取ることができません。
+ * 認証はバックエンドのCookieで自動的に処理されます。
  * @returns Authorization header object or empty object if token not found
  */
 export function getAuthHeader(): { Authorization?: string } {
-  const token = getAuthToken();
-  if (!token) {
-    return {};
-  }
-  return {
-    Authorization: `Bearer ${token}`,
-  };
+  // HttpOnly Cookieに移行済みのため、この関数は常に空のオブジェクトを返します
+  console.warn('[COOKIE-UTILS] getAuthHeader() is deprecated. HttpOnly Cookie is used for authentication.');
+  return {};
 }

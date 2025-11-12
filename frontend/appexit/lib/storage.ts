@@ -76,14 +76,23 @@ export async function getImageUrl(
     if (path.startsWith('avatars/')) {
       actualBucket = 'avatars';
       actualPath = path.substring('avatars/'.length); // バケット名を除去
+    } else if (path.startsWith('profile-icons/')) {
+      actualBucket = 'profile-icons';
+      actualPath = path.substring('profile-icons/'.length);
     } else if (path.startsWith('message-images/')) {
       actualBucket = 'message-images';
       actualPath = path.substring('message-images/'.length);
-    } else {
+    } else if (path.startsWith('post-images/')) {
       actualBucket = 'post-images';
-      // post-imagesの場合はパスをそのまま使用
+      actualPath = path.substring('post-images/'.length);
+    } else {
+      // プレフィックスがない場合はpost-imagesと仮定
+      actualBucket = 'post-images';
+      // パスをそのまま使用
     }
   }
+
+  console.log('[STORAGE] getImageUrl:', { originalPath: path, actualBucket, actualPath });
 
   try {
     const response = await fetch(`${API_URL}/api/storage/signed-url`, {
@@ -137,13 +146,22 @@ export async function getImageUrls(
       if (path.startsWith('avatars/')) {
         actualBucket = 'avatars';
         actualPath = path.substring('avatars/'.length);
+      } else if (path.startsWith('profile-icons/')) {
+        actualBucket = 'profile-icons';
+        actualPath = path.substring('profile-icons/'.length);
       } else if (path.startsWith('message-images/')) {
         actualBucket = 'message-images';
         actualPath = path.substring('message-images/'.length);
+      } else if (path.startsWith('post-images/')) {
+        actualBucket = 'post-images';
+        actualPath = path.substring('post-images/'.length);
       } else {
+        // プレフィックスがない場合はpost-imagesと仮定
         actualBucket = 'post-images';
       }
     }
+
+    console.log('[STORAGE] getImageUrls path:', { originalPath: path, actualBucket, actualPath });
 
     if (!bucketGroups.has(actualBucket)) {
       bucketGroups.set(actualBucket, []);

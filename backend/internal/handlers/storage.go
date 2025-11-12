@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -171,18 +172,19 @@ func (s *Server) GetSignedURL(w http.ResponseWriter, r *http.Request) {
 		req.ExpiresIn = 3600 // 1時間
 	}
 
-	fmt.Printf("[STORAGE] Getting signed URL: bucket=%s, path=%s, expiresIn=%d\n", req.Bucket, req.Path, req.ExpiresIn)
+	fmt.Printf("[STORAGE] Getting image URL: bucket=%s, path=%s, expiresIn=%d\n", req.Bucket, req.Path, req.ExpiresIn)
 
-	// Supabase Storageから署名付きURLを取得
-	signedURL, err := s.supabase.GetSignedURL(req.Bucket, req.Path, req.ExpiresIn)
+	// Supabase Storageから適切なURLを取得（publicバケットの場合は直接URL、privateバケットの場合はsigned URL）
+	imageURL, err := s.supabase.GetImageURL(req.Bucket, req.Path, req.ExpiresIn)
 	if err != nil {
-		fmt.Printf("[STORAGE] Failed to create signed URL: %v\n", err)
-		response.Error(w, http.StatusInternalServerError, fmt.Sprintf("Failed to create signed URL: %v", err))
+		log.Printf("[STORAGE] Failed to get image URL: bucket=%s, path=%s, error=%v\n", req.Bucket, req.Path, err)
+		// エラーの詳細を返す（本番環境では詳細を隠すことも検討）
+		response.Error(w, http.StatusInternalServerError, fmt.Sprintf("Failed to get image URL for %s/%s: %v", req.Bucket, req.Path, err))
 		return
 	}
 
 	response.Success(w, http.StatusOK, GetSignedURLResponse{
-		SignedURL: signedURL,
+		SignedURL: imageURL,
 	})
 }
 
@@ -236,14 +238,14 @@ func (s *Server) GetSignedURLs(w http.ResponseWriter, r *http.Request) {
 		go func(p string) {
 			defer wg.Done()
 
-			signedURL, err := s.supabase.GetSignedURL(req.Bucket, p, req.ExpiresIn)
+			imageURL, err := s.supabase.GetImageURL(req.Bucket, p, req.ExpiresIn)
 			if err != nil {
-				fmt.Printf("[STORAGE] Warning: Failed to create signed URL for %s: %v\n", p, err)
+				fmt.Printf("[STORAGE] Warning: Failed to get image URL for %s: %v\n", p, err)
 				return
 			}
 
 			mu.Lock()
-			urls[p] = signedURL
+			urls[p] = imageURL
 			mu.Unlock()
 		}(path)
 	}

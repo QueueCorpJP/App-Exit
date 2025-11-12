@@ -484,9 +484,20 @@ export default function MessagePage({ threadId: initialThreadId }: MessagePagePr
       setIsResolvingThreadId(false);
     };
 
+    const handleThreadIdChanged = (event: CustomEvent<{ oldThreadId: string; newThreadId: string }>) => {
+      const { oldThreadId, newThreadId } = event.detail;
+      console.log('[MESSAGE-PAGE] Thread ID changed event received:', { oldThreadId, newThreadId });
+      processedThreadIdRef.current = newThreadId;
+      setSelectedThreadId(newThreadId);
+      setResolvedThreadId(newThreadId);
+      setIsResolvingThreadId(false);
+    };
+
     window.addEventListener('threadCreated', handleThreadCreated as EventListener);
+    window.addEventListener('threadIdChanged', handleThreadIdChanged as EventListener);
     return () => {
       window.removeEventListener('threadCreated', handleThreadCreated as EventListener);
+      window.removeEventListener('threadIdChanged', handleThreadIdChanged as EventListener);
     };
   }, []);
 
