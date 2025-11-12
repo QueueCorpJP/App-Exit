@@ -12,7 +12,7 @@ import { mockCarouselData } from '@/data/mock-carousel';
 interface ProjectWithImage {
   id: string;
   title: string;
-  category: string;
+  category: string | string[];
   image: string;
   imagePath: string | null; // Storage内のパス
   price: number; // 希望価格
@@ -38,7 +38,7 @@ export default function TopPage({ initialPosts = [], useMockCarousel = true }: T
   const [projects, setProjects] = useState<ProjectWithImage[]>([]);
   const [latestProjects, setLatestProjects] = useState<ProjectWithImage[]>([]);
   const [subscribedProjects, setSubscribedProjects] = useState<ProjectWithImage[]>([]);
-  const [loading, setLoading] = useState(initialPosts.length === 0);
+  const [loading, setLoading] = useState(false); // Server Componentから初期データが渡されるためfalse
 
   // モックデータをカルーセル用にフォーマット
   const mockCarouselProjects: ProjectWithImage[] = useMockCarousel
@@ -64,35 +64,22 @@ export default function TopPage({ initialPosts = [], useMockCarousel = true }: T
 
     const fetchPostsAndImages = async () => {
       try {
-        // 初期データがある場合は、それを使用してAPIコールをスキップ
-        let data = posts;
+        // Server Componentから渡された初期データを使用（ISR対応）
+        const data = posts;
 
-        if (data.length === 0) {
-          setLoading(true);
-          // 初期データがない場合のみAPIから取得
-          const response = await postApi.getPosts({ type: 'transaction' });
-
-          if (!isMounted) return;
-
-          // バックエンドレスポンスから data を取り出す
-          data = response?.data || [];
-
-          if (!data || data.length === 0) {
-            console.log('No posts found');
-            setProjects([]);
-            setLoading(false);
-            return;
-          }
-
-          setPosts(data);
+        if (!data || data.length === 0) {
+          console.log('No posts found');
+          setProjects([]);
+          setLoading(false);
+          return;
         }
 
         // まず、画像なしでプロジェクトデータを作成して即座に表示
         const projectsWithoutImages: ProjectWithImage[] = data.map(post => {
-          // カテゴリの取得（app_categoriesの最初の項目、なければbody）
-          const category = post.app_categories && post.app_categories.length > 0
-            ? post.app_categories[0]
-            : (post.body || 'プロジェクト');
+          // カテゴリの取得（app_categoriesの配列、なければbody）
+          const categories = post.app_categories && post.app_categories.length > 0
+            ? post.app_categories
+            : [post.body || 'プロジェクト'];
 
           // 利益率の計算
           const profitMargin = post.monthly_revenue && post.monthly_cost !== undefined && post.monthly_revenue > 0
@@ -105,7 +92,7 @@ export default function TopPage({ initialPosts = [], useMockCarousel = true }: T
           return {
             id: post.id,
             title: post.title,
-            category,
+            category: categories,
             image: 'https://placehold.co/600x400/e2e8f0/64748b?text=No+Image',
             imagePath: post.eyecatch_url || null,
             price: post.price || 0,
@@ -183,10 +170,10 @@ export default function TopPage({ initialPosts = [], useMockCarousel = true }: T
               ? (imageUrlMap.get(post.eyecatch_url) || 'https://placehold.co/600x400/e2e8f0/64748b?text=No+Image')
               : 'https://placehold.co/600x400/e2e8f0/64748b?text=No+Image';
 
-            // カテゴリの取得（app_categoriesの最初の項目、なければbody）
-            const category = post.app_categories && post.app_categories.length > 0
-              ? post.app_categories[0]
-              : (post.body || 'プロジェクト');
+            // カテゴリの取得（app_categoriesの配列、なければbody）
+            const categories = post.app_categories && post.app_categories.length > 0
+              ? post.app_categories
+              : [post.body || 'プロジェクト'];
 
             // 利益率の計算
             const profitMargin = post.monthly_revenue && post.monthly_cost !== undefined && post.monthly_revenue > 0
@@ -199,7 +186,7 @@ export default function TopPage({ initialPosts = [], useMockCarousel = true }: T
             return {
               id: post.id,
               title: post.title,
-              category,
+              category: categories,
               image: imageUrl,
               imagePath: post.eyecatch_url || null,
               price: post.price || 0,

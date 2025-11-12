@@ -1,14 +1,11 @@
 import TopPage from '@/components/pages/TopPage';
 import { Post } from '@/lib/api-client';
 
-// キャッシュ設定: 60秒ごとに再検証
-export const revalidate = 60;
-
 async function getPosts(): Promise<Post[]> {
   try {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
     const response = await fetch(`${apiUrl}/api/posts?type=transaction`, {
-      next: { revalidate: 60 }, // 60秒キャッシュ
+      next: { revalidate: 600 }, // 600秒（10分）キャッシュ
     });
 
     if (!response.ok) {

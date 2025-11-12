@@ -16,7 +16,8 @@ export default async function LoginPage() {
           // サーバー側からAPIへCookieを明示転送
           Cookie: `auth_token=${authToken.value}`,
         },
-        cache: 'no-store',
+        // セッションチェックは30秒キャッシュ
+        next: { revalidate: 30 },
       });
 
       if (res.ok) {

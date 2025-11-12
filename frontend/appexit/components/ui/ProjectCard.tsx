@@ -18,7 +18,7 @@ interface AuthorProfile {
 interface ProjectCardProps {
   id: number | string;
   title: string;
-  category: string;
+  category: string | string[]; // 文字列または配列に対応
   image: string; // 署名付きURL（表示用）
   imagePath?: string | null; // Storageのパス（詳細ページに渡す用）
   price: number; // 希望価格
@@ -179,10 +179,28 @@ export default function ProjectCard({
         </div>
         <div className="py-4 px-4">
           {/* カテゴリとステータスを横並び */}
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-xs font-semibold" style={{ color: '#E65D65' }}>
-              #{category}
-            </span>
+          <div className="flex items-center gap-2 mb-2 flex-wrap">
+            {/* カテゴリ表示（最大3つまで） */}
+            {(() => {
+              const categories = Array.isArray(category) ? category : [category];
+              const displayCategories = categories.slice(0, 3);
+              const hasMore = categories.length > 3;
+
+              return (
+                <>
+                  {displayCategories.map((cat, index) => (
+                    <span key={index} className="text-xs font-semibold" style={{ color: '#E65D65' }}>
+                      #{cat}
+                    </span>
+                  ))}
+                  {hasMore && (
+                    <span className="text-xs font-semibold" style={{ color: '#E65D65' }}>
+                      ...
+                    </span>
+                  )}
+                </>
+              );
+            })()}
             {tag && (
               <span className="text-xs font-semibold" style={{ color: '#E65D65' }}>
                 {tag}
@@ -194,7 +212,7 @@ export default function ProjectCard({
           </div>
 
           {/* タイトル */}
-          <h3 className={`font-bold mb-3 line-clamp-2 ${isLarge ? 'text-lg' : 'text-base'}`} style={{ color: '#323232' }}>
+          <h3 className={`font-bold mb-3 line-clamp-1 ${isLarge ? 'text-lg' : 'text-base'}`} style={{ color: '#323232' }}>
             {title}
           </h3>
 

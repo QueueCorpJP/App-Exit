@@ -20,6 +20,8 @@ export function middleware(request: NextRequest) {
     '/login',
     '/register',
     '/reset-password',
+    '/about',         // APPEXITについて
+    '/help',          // ヘルプ
     '/privacy',       // プライバシーポリシー
     '/terms',         // 利用規約
     '/tokusho',       // 特定商取引法

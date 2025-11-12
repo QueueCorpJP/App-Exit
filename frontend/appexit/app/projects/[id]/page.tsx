@@ -28,7 +28,8 @@ export default async function ProjectDetail({ params, searchParams }: PageProps)
 
   try {
     const response = await fetch(`${API_URL}/api/posts/${id}`, {
-      cache: 'no-store',
+      // プロジェクト詳細は60秒キャッシュ（頻繁に変更されない）
+      next: { revalidate: 60 },
     });
 
     if (response.ok) {

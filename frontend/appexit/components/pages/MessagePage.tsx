@@ -542,17 +542,18 @@ export default function MessagePage({ threadId: initialThreadId }: MessagePagePr
   }
 
   return (
-    <div className="h-[calc(100vh-4rem)] flex overflow-hidden bg-white">
-      {/* スレッド一覧: スマホではselectedThreadIdがない時のみ表示、デスクトップでは常に表示 */}
-      <div className={`w-full h-full ${showThreadList ? 'block' : 'hidden'} md:block md:w-auto`}>
-        <ThreadListContainer
-          onThreadSelect={handleThreadSelect}
-          currentThreadId={selectedThreadId}
-        />
-      </div>
+    <div className="h-[calc(100vh-4rem)] flex justify-center overflow-hidden" style={{ backgroundColor: '#F9F8F7' }}>
+      <div className="w-full max-w-7xl flex overflow-hidden border-l border-r border-gray-200 bg-white">
+        {/* スレッド一覧: スマホではselectedThreadIdがない時のみ表示、デスクトップでは常に表示 */}
+        <div className={`w-full h-full ${showThreadList ? 'block' : 'hidden'} md:block md:w-auto`}>
+          <ThreadListContainer
+            onThreadSelect={handleThreadSelect}
+            currentThreadId={selectedThreadId}
+          />
+        </div>
 
-      {/* メッセージスレッド: スマホではselectedThreadIdがある時のみ表示、デスクトップでは常に表示 */}
-      <div className={`w-full h-full ${showMessageThread ? 'block' : 'hidden'} md:block md:flex-1`}>
+        {/* メッセージスレッド: スマホではselectedThreadIdがある時のみ表示、デスクトップでは常に表示 */}
+        <div className={`w-full h-full ${showMessageThread ? 'block' : 'hidden'} md:block md:flex-1`}>
         {isResolvingThreadId && !resolvedThreadId ? (
           <div className="h-full flex items-center justify-center bg-white">
             <div className="text-center">
@@ -572,6 +573,7 @@ export default function MessagePage({ threadId: initialThreadId }: MessagePagePr
             </div>
           </div>
         )}
+        </div>
       </div>
     </div>
   );

@@ -7,246 +7,51 @@ export default function Footer() {
     <footer className="bg-gray-800 text-white">
       {/* メインフッターコンテンツ */}
       <div className="max-w-7xl mx-auto px-4 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-          {/* カテゴリ */}
-          <div>
-            <h3 className="text-lg font-semibold mb-6">カテゴリ</h3>
-            <ul className="space-y-3">
-              <li>
-                <Link href="/category/technology" className="text-gray-300 hover:text-white transition-colors text-sm">
-                  テクノロジー・ガジェット
-                </Link>
-              </li>
-              <li>
-                <Link href="/category/product" className="text-gray-300 hover:text-white transition-colors text-sm">
-                  プロダクト
-                </Link>
-              </li>
-              <li>
-                <Link href="/category/food" className="text-gray-300 hover:text-white transition-colors text-sm">
-                  フード・飲食店
-                </Link>
-              </li>
-              <li>
-                <Link href="/category/anime" className="text-gray-300 hover:text-white transition-colors text-sm">
-                  アニメ・漫画
-                </Link>
-              </li>
-              <li>
-                <Link href="/category/fashion" className="text-gray-300 hover:text-white transition-colors text-sm">
-                  ファッション
-                </Link>
-              </li>
-              <li>
-                <Link href="/category/game" className="text-gray-300 hover:text-white transition-colors text-sm">
-                  ゲーム・サービス開発
-                </Link>
-              </li>
-              <li>
-                <Link href="/category/business" className="text-gray-300 hover:text-white transition-colors text-sm">
-                  ビジネス・起業
-                </Link>
-              </li>
-              <li>
-                <Link href="/category/art" className="text-gray-300 hover:text-white transition-colors text-sm">
-                  アート・写真
-                </Link>
-              </li>
-              <li>
-                <Link href="/category/social" className="text-gray-300 hover:text-white transition-colors text-sm">
-                  ソーシャルグッド
-                </Link>
-              </li>
-            </ul>
-          </div>
-
-          {/* 起業サポート */}
-          <div>
-            <h3 className="text-lg font-semibold mb-6">起業サポート</h3>
-            <ul className="space-y-3">
-              <li>
-                <Link href="/support/project" className="text-gray-300 hover:text-white transition-colors text-sm">
-                  プロジェクトを作る
-                </Link>
-              </li>
-              <li>
-                <Link href="/support/materials" className="text-gray-300 hover:text-white transition-colors text-sm">
-                  資料請求
-                </Link>
-              </li>
-              <li>
-                <Link href="/academy" className="text-gray-300 hover:text-white transition-colors text-sm">
-                  🎓 APPEXITアカデミー
-                </Link>
-              </li>
-              <li className="mt-4">
-                <div className="text-sm text-gray-400 mb-2">APPEXITアカデミーとは</div>
-                <Link href="/academy/marketplace" className="text-gray-300 hover:text-white transition-colors text-sm block mb-2">
-                  アプリ売買とは
-                </Link>
-                <Link href="/academy/how-to-sell" className="text-gray-300 hover:text-white transition-colors text-sm block mb-2">
-                  アプリを売る方法
-                </Link>
-                <Link href="/academy/how-to-buy" className="text-gray-300 hover:text-white transition-colors text-sm block">
-                  アプリを買う方法
-                </Link>
-              </li>
-            </ul>
-            
-            {/* 右側のカラム */}
-            <div className="mt-8">
-              <ul className="space-y-3">
-                <li>
-                  <Link href="/lifestyle" className="text-gray-300 hover:text-white transition-colors text-sm">
-                    まちづくり・地域活性化
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/music" className="text-gray-300 hover:text-white transition-colors text-sm">
-                    音楽
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/challenge" className="text-gray-300 hover:text-white transition-colors text-sm">
-                    チャレンジ
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/sports" className="text-gray-300 hover:text-white transition-colors text-sm">
-                    スポーツ
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/movie" className="text-gray-300 hover:text-white transition-colors text-sm">
-                    映像・映画
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/book" className="text-gray-300 hover:text-white transition-colors text-sm">
-                    書籍・雑誌出版
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/beauty" className="text-gray-300 hover:text-white transition-colors text-sm">
-                    ビューティー・ヘルスケア
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/dance" className="text-gray-300 hover:text-white transition-colors text-sm">
-                    舞台・パフォーマンス
-                  </Link>
-                </li>
-              </ul>
-
-              <div className="mt-8">
-                <div className="text-sm text-gray-400 mb-2">アプリ・サービス売買のノウハウを無料で学ぼう</div>
-                <div className="flex items-center space-x-4 mt-4">
-                  <Link href="/seminar" className="text-gray-300 hover:text-white transition-colors text-sm">
-                    説明会・相談会
-                  </Link>
-                  <Link href="/support-service" className="text-gray-300 hover:text-white transition-colors text-sm">
-                    サポートサービス
-                  </Link>
-                </div>
-                <div className="flex items-center space-x-4 mt-2">
-                  <Link href="/case-studies" className="text-gray-300 hover:text-white transition-colors text-sm">
-                    取引事例
-                  </Link>
-                  <Link href="/data" className="text-gray-300 hover:text-white transition-colors text-sm">
-                    統計データ
-                  </Link>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* サービス */}
-          <div>
-            <h3 className="text-lg font-semibold mb-6">サービス</h3>
-            <ul className="space-y-3">
-              <li>
-                <Link href="/appexit" className="text-gray-300 hover:text-white transition-colors text-sm">
-                  APPEXIT
-                </Link>
-              </li>
-            </ul>
-          </div>
-
-          {/* APPEXITについて */}
-          <div>
-            <h3 className="text-lg font-semibold mb-6">APPEXITについて</h3>
-            <ul className="space-y-3">
-              <li>
-                <Link href="/about" className="text-gray-300 hover:text-white transition-colors text-sm">
-                  APPEXITとは
-                </Link>
-              </li>
-              <li>
-                <Link href="/safety" className="text-gray-300 hover:text-white transition-colors text-sm">
-                  あんしん・安全への取り組み
-                </Link>
-              </li>
-              <li>
-                <Link href="/help" className="text-gray-300 hover:text-white transition-colors text-sm">
-                  ヘルプ
-                </Link>
-              </li>
-              <li>
-                <Link href="/faq" className="text-gray-300 hover:text-white transition-colors text-sm">
-                  よくある質問（FAQ）
-                </Link>
-              </li>
-              <li>
-                <Link href="/contact" className="text-gray-300 hover:text-white transition-colors text-sm">
-                  お問い合わせ
-                </Link>
-              </li>
-              <li>
-                <span className="text-gray-300 text-sm">
-                  各種設定
-                </span>
-              </li>
-              <li>
-                <Link href="/terms" className="text-gray-300 hover:text-white transition-colors text-sm">
-                  利用規約
-                </Link>
-              </li>
-              <li>
-                <Link href="/report" className="text-gray-300 hover:text-white transition-colors text-sm">
-                  報告
-                </Link>
-              </li>
-              <li>
-                <Link href="/privacy" className="text-gray-300 hover:text-white transition-colors text-sm">
-                  プライバシーポリシー
-                </Link>
-              </li>
-              <li>
-                <Link href="/tokusho" className="text-gray-300 hover:text-white transition-colors text-sm">
-                  特定商取引法に基づく表記
-                </Link>
-              </li>
-              <li>
-                <Link href="/security" className="text-gray-300 hover:text-white transition-colors text-sm">
-                  情報セキュリティ方針
-                </Link>
-              </li>
-              <li>
-                <Link href="/compliance" className="text-gray-300 hover:text-white transition-colors text-sm">
-                  反社基本方針
-                </Link>
-              </li>
-              <li>
-                <Link href="/customer-harassment" className="text-gray-300 hover:text-white transition-colors text-sm">
-                  カスタマーハラスメントに対する考え方
-                </Link>
-              </li>
-              <li>
-                <Link href="/cookie-policy" className="text-gray-300 hover:text-white transition-colors text-sm">
-                  クッキーポリシー
-                </Link>
-              </li>
-            </ul>
+        <div>
+          <h3 className="text-lg font-semibold mb-6">APPEXITについて</h3>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-8 gap-y-6 items-center">
+            <Link href="/about" className="text-gray-300 hover:text-white transition-colors text-sm flex items-center">
+              APPEXITとは
+            </Link>
+            <Link href="/safety" className="text-gray-300 hover:text-white transition-colors text-sm flex items-center">
+              あんしん・安全への取り組み
+            </Link>
+            <Link href="/help" className="text-gray-300 hover:text-white transition-colors text-sm flex items-center">
+              ヘルプ
+            </Link>
+            <Link href="/faq" className="text-gray-300 hover:text-white transition-colors text-sm flex items-center">
+              よくある質問（FAQ）
+            </Link>
+            <Link href="/contact" className="text-gray-300 hover:text-white transition-colors text-sm flex items-center">
+              お問い合わせ
+            </Link>
+            <Link href="/settings" className="text-gray-300 hover:text-white transition-colors text-sm flex items-center">
+              各種設定
+            </Link>
+            <Link href="/terms" className="text-gray-300 hover:text-white transition-colors text-sm flex items-center">
+              利用規約
+            </Link>
+            <Link href="/report" className="text-gray-300 hover:text-white transition-colors text-sm flex items-center">
+              報告
+            </Link>
+            <Link href="/privacy" className="text-gray-300 hover:text-white transition-colors text-sm flex items-center">
+              プライバシーポリシー
+            </Link>
+            <Link href="/tokusho" className="text-gray-300 hover:text-white transition-colors text-sm flex items-center">
+              特定商取引法に基づく表記
+            </Link>
+            <Link href="/security" className="text-gray-300 hover:text-white transition-colors text-sm flex items-center">
+              情報セキュリティ方針
+            </Link>
+            <Link href="/compliance" className="text-gray-300 hover:text-white transition-colors text-sm flex items-center">
+              反社基本方針
+            </Link>
+            <Link href="/customer-harassment" className="text-gray-300 hover:text-white transition-colors text-sm flex items-center">
+              カスタマーハラスメントに対する考え方
+            </Link>
+            <Link href="/cookie-policy" className="text-gray-300 hover:text-white transition-colors text-sm flex items-center">
+              クッキーポリシー
+            </Link>
           </div>
         </div>
       </div>

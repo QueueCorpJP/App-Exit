@@ -10,7 +10,7 @@ import { postApi, Post, AuthorProfile } from '@/lib/api-client';
 interface ProjectWithImage {
   id: string;
   title: string;
-  category: string;
+  category: string | string[];
   image: string;
   imagePath: string | null;
   price: number;
@@ -171,9 +171,9 @@ export default function ProjectsListPage() {
       else if (post.type === 'secret') badge = 'シークレット';
       else if (post.type === 'transaction') badge = '取引';
 
-      const category = post.app_categories && post.app_categories.length > 0
-        ? post.app_categories[0]
-        : 'カテゴリ不明';
+      const categories = post.app_categories && post.app_categories.length > 0
+        ? post.app_categories
+        : ['カテゴリ不明'];
 
       const profitMargin = post.monthly_revenue && post.monthly_cost !== undefined && post.monthly_revenue > 0
         ? ((post.monthly_revenue - post.monthly_cost) / post.monthly_revenue) * 100
@@ -184,7 +184,7 @@ export default function ProjectsListPage() {
       return {
         id: post.id,
         title: post.title,
-        category,
+        category: categories,
         image: imageUrl,
         imagePath: post.eyecatch_url || null,
         price: post.price || 0,

@@ -1253,7 +1253,7 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
               type="button"
               variant="ghost"
               size="sm"
-              onClick={() => window.location.assign('/login')}
+              onClick={() => router.push('/login')}
               className="p-0 h-auto font-medium"
             >
               ログイン

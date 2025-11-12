@@ -91,9 +91,9 @@ export default function PostBoardPage({ initialPosts = [] }: PostBoardPageProps)
     }
   };
 
-  // 投稿のメタ情報（いいね/バット、コメント数）を一括取得
+  // 投稿のメタ情報（いいね/バット、コメント数）とコメントを一括取得
   useEffect(() => {
-    const fetchMeta = async () => {
+    const fetchMetaAndComments = async () => {
       if (initialPosts.length === 0) return;
       try {
         const postIds = initialPosts.map(p => p.id);
@@ -121,11 +121,36 @@ export default function PostBoardPage({ initialPosts = [] }: PostBoardPageProps)
         setLikeStates(updatesLike);
         setDislikeStates(updatesDislike);
         setCommentCounts(updatesCommentCount);
+
+        // 全投稿のコメントを一括取得
+        const commentsPromises = postIds.map(async (postId) => {
+          try {
+            const comments = await commentApi.getPostComments(postId);
+            if (Array.isArray(comments)) {
+              // 古い順にソート（created_atの昇順）
+              const sortedComments = comments.sort((a, b) =>
+                new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+              );
+              return { postId, comments: sortedComments };
+            }
+            return { postId, comments: [] };
+          } catch (e) {
+            console.error(`[BOARD] Failed to load comments for post ${postId}:`, e);
+            return { postId, comments: [] };
+          }
+        });
+
+        const commentsResults = await Promise.all(commentsPromises);
+        const commentsMap: Record<string, PostCommentWithDetails[]> = {};
+        commentsResults.forEach(({ postId, comments }) => {
+          commentsMap[postId] = comments;
+        });
+        setPostComments(commentsMap);
       } catch (e) {
         console.warn('[BOARD] Failed to load meta:', e);
       }
     };
-    fetchMeta();
+    fetchMetaAndComments();
     // initialPostsが変わったら再取得
   }, [initialPosts]);
 
@@ -206,35 +231,9 @@ export default function PostBoardPage({ initialPosts = [] }: PostBoardPageProps)
     }
   };
 
-  // コメントセクションの開閉
-  const toggleCommentSection = async (postId: string) => {
-    const isCurrentlyOpen = commentSectionsOpen[postId];
-    setCommentSectionsOpen(prev => ({ ...prev, [postId]: !isCurrentlyOpen }));
-
-    // 開く場合はコメントを取得
-    if (!isCurrentlyOpen && !postComments[postId]) {
-      try {
-        console.log('[BOARD] Fetching comments for post:', postId);
-        const comments = await commentApi.getPostComments(postId);
-        console.log('[BOARD] Received comments:', comments);
-        console.log('[BOARD] Comments type:', typeof comments);
-        console.log('[BOARD] Is array:', Array.isArray(comments));
-
-        if (Array.isArray(comments)) {
-          console.log('[BOARD] Comment count:', comments.length);
-          // 古い順にソート（created_atの昇順）
-          const sortedComments = comments.sort((a, b) =>
-            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-          );
-          console.log('[BOARD] Sorted comments:', sortedComments);
-          setPostComments(prev => ({ ...prev, [postId]: sortedComments }));
-        } else {
-          console.error('[BOARD] Comments is not an array:', comments);
-        }
-      } catch (e) {
-        console.error('[BOARD] Failed to load comments:', e);
-      }
-    }
+  // コメントセクションの開閉（コメントは既に取得済みなので開閉のみ）
+  const toggleCommentSection = (postId: string) => {
+    setCommentSectionsOpen(prev => ({ ...prev, [postId]: !prev[postId] }));
   };
 
   // コメント送信（Enterで送信）
@@ -298,12 +297,20 @@ export default function PostBoardPage({ initialPosts = [] }: PostBoardPageProps)
 
     return (
       <div className="flex gap-3 py-3">
-        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex-shrink-0 flex items-center justify-center text-white text-xs font-bold">
+        <button
+          onClick={() => router.push(`/profile/${comment.user_id}`)}
+          className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex-shrink-0 flex items-center justify-center text-white text-xs font-bold cursor-pointer hover:opacity-80 transition-opacity"
+        >
           {displayName[0].toUpperCase()}
-        </div>
+        </button>
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-1">
-            <span className="font-semibold text-sm text-gray-900">{displayName}</span>
+            <button
+              onClick={() => router.push(`/profile/${comment.user_id}`)}
+              className="font-semibold text-sm text-gray-900 hover:underline"
+            >
+              {displayName}
+            </button>
             <span className="text-xs text-gray-500">• {timeAgo}</span>
           </div>
           <p className="text-sm text-gray-800 mb-2 whitespace-pre-wrap">{comment.content}</p>
@@ -430,9 +437,13 @@ export default function PostBoardPage({ initialPosts = [] }: PostBoardPageProps)
         <div className="mb-6 bg-white rounded-lg p-6" style={{ border: '1px solid #E9EEF2' }}>
           <form onSubmit={handleSubmit}>
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-red-500 to-pink-500 flex items-center justify-center text-white font-bold">
+              <button
+                type="button"
+                onClick={() => user?.id && router.push(`/profile/${user.id}`)}
+                className="w-10 h-10 rounded-full bg-gradient-to-br from-red-500 to-pink-500 flex items-center justify-center text-white font-bold cursor-pointer hover:opacity-80 transition-opacity"
+              >
                 {profile?.display_name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'U'}
-              </div>
+              </button>
               <input
                 type="text"
                 required
@@ -505,10 +516,18 @@ export default function PostBoardPage({ initialPosts = [] }: PostBoardPageProps)
               {/* Post Header */}
               <div className="p-6 border-b border-gray-100">
                 <div className="flex items-center gap-2 mb-3">
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white text-xs font-bold">
+                  <button
+                    onClick={() => router.push(`/profile/${post.author_user_id}`)}
+                    className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white text-xs font-bold cursor-pointer hover:opacity-80 transition-opacity"
+                  >
                     {post.author_user_id[0].toUpperCase()}
-                  </div>
-                  <span className="text-sm font-medium">@{post.author_user_id.substring(0, 8)}</span>
+                  </button>
+                  <button
+                    onClick={() => router.push(`/profile/${post.author_user_id}`)}
+                    className="text-sm font-medium hover:underline"
+                  >
+                    @{post.author_user_id.substring(0, 8)}
+                  </button>
                   <span className="text-sm text-gray-500">• {new Date(post.created_at).toLocaleDateString('ja-JP')}</span>
                   {/* 自分の投稿にのみ三点マークを表示 */}
                   {user?.id === post.author_user_id && (

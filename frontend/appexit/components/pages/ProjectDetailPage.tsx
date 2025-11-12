@@ -417,29 +417,31 @@ export default function ProjectDetailPage({
                 <nav className="flex space-x-8 px-6 border-b border-gray-200" aria-label="Tabs">
                   <button
                     onClick={() => setActiveTab('overview')}
-                    className={`py-4 px-4 text-sm font-medium transition-colors ${
+                    className={`py-4 px-4 text-sm font-bold transition-colors ${
                       activeTab === 'overview'
                         ? 'border-b-2'
                         : 'text-gray-500 hover:text-gray-700'
                     }`}
                     style={activeTab === 'overview' ? { color: '#E65D65', borderColor: '#E65D65' } : {}}
                   >
-                    プロジェクト概要
+                    <span className="sm:hidden">概要</span>
+                    <span className="hidden sm:inline">プロジェクト概要</span>
                   </button>
                   <button
                     onClick={() => setActiveTab('activity')}
-                    className={`py-4 px-4 text-sm font-medium transition-colors ${
+                    className={`py-4 px-4 text-sm font-bold transition-colors ${
                       activeTab === 'activity'
                         ? 'border-b-2'
                         : 'text-gray-500 hover:text-gray-700'
                     }`}
                     style={activeTab === 'activity' ? { color: '#E65D65', borderColor: '#E65D65' } : {}}
                   >
-                    詳細情報
+                    <span className="sm:hidden">詳細</span>
+                    <span className="hidden sm:inline">詳細情報</span>
                   </button>
                   <button
                     onClick={() => setActiveTab('comments')}
-                    className={`py-4 px-4 text-sm font-medium transition-colors ${
+                    className={`py-4 px-4 text-sm font-bold transition-colors ${
                       activeTab === 'comments'
                         ? 'border-b-2'
                         : 'text-gray-500 hover:text-gray-700'

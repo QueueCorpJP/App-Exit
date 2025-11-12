@@ -47,7 +47,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const response = await fetch(`${apiUrl}/api/auth/session`, {
         method: 'GET',
         credentials: 'include',
-        cache: 'no-store',
+        // セッションチェックは30秒キャッシュ（頻繁なチェックを避ける）
+        next: { revalidate: 30 },
         headers: {
           'Content-Type': 'application/json',
         },
@@ -105,6 +106,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const response = await fetch(`${apiUrl}/api/auth/refresh`, {
         method: 'POST',
         credentials: 'include',
+        // トークンリフレッシュは常に最新を取得
         cache: 'no-store',
       });
 
@@ -168,6 +170,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await fetch(`${apiUrl}/api/auth/logout`, {
         method: 'POST',
         credentials: 'include',
+        // ログアウトは常に最新を取得
         cache: 'no-store',
       }).catch(() => {});
 
@@ -186,6 +189,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
 
       if (hasSession) {
+        // セッションチェック間隔を30秒から5分に延長（パフォーマンス改善）
         sessionCheckIntervalRef.current = setInterval(async () => {
           const stillValid = await checkBackendSession();
           if (!stillValid) {
@@ -198,10 +202,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               tokenRefreshIntervalRef.current = null;
             }
           }
-        }, 30 * 1000);
+        }, 5 * 60 * 1000); // 5分間隔
 
+        // トークンリフレッシュ間隔を10分から30分に延長（パフォーマンス改善）
         tokenRefreshIntervalRef.current = setInterval(async () => {
-          console.log('[AUTH-CONTEXT] Proactively refreshing tokens (10min interval) to maintain 2-day session...');
+          console.log('[AUTH-CONTEXT] Proactively refreshing tokens (30min interval) to maintain 2-day session...');
           try {
             const backendRefreshed = await refreshBackendToken();
             if (backendRefreshed) {
@@ -223,7 +228,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               
               console.error('[AUTH-CONTEXT] ❌ Backend token refresh failed, retrying...');
               let retryCount = 0;
-              const maxRetries = 3;
+              const maxRetries = 2; // リトライ回数を3回から2回に削減
               let retrySuccess = false;
               while (retryCount < maxRetries && !retrySuccess) {
                 retryCount++;
@@ -243,30 +248,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           } catch (err) {
             console.error('[AUTH-CONTEXT] ❌ Error refreshing tokens:', err);
           }
-        }, 10 * 60 * 1000);
+        }, 30 * 60 * 1000); // 30分間隔
       }
     });
 
-    const handleFocus = async () => {
-      console.log('[AUTH-CONTEXT] Page focused, checking session and refreshing tokens...');
-      await checkBackendSession();
-
-      try {
-        const backendRefreshed = await refreshBackendToken();
-        if (backendRefreshed) {
-          console.log('[AUTH-CONTEXT] ✓ Backend token refreshed on focus');
-        } else {
-          console.warn('[AUTH-CONTEXT] ⚠️ Backend token refresh failed on focus');
-        }
-      } catch (err) {
-        console.error('[AUTH-CONTEXT] Error refreshing tokens on focus:', err);
-      }
-    };
-    window.addEventListener('focus', handleFocus);
+    // フォーカス時のチェックを削除（パフォーマンス改善）
+    // 定期的なチェックとトークンリフレッシュで十分
 
     return () => {
       console.log('[AUTH-CONTEXT] Cleaning up auth context');
-      window.removeEventListener('focus', handleFocus);
       if (sessionCheckIntervalRef.current) {
         clearInterval(sessionCheckIntervalRef.current);
       }

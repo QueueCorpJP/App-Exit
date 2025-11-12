@@ -48,6 +48,7 @@ class ApiClient {
         const response = await fetch(`${this.baseUrl}/api/auth/refresh`, {
           method: 'POST',
           credentials: 'include',
+          // トークンリフレッシュは常に最新を取得
           cache: 'no-store',
         });
 
@@ -111,7 +112,8 @@ class ApiClient {
         ...fetchOptions,
         headers,
         credentials: 'include',
-        cache: 'no-store',
+        // デフォルトのキャッシュ設定を使用（Next.jsが適切に処理）
+        next: { revalidate: 60 }, // 60秒キャッシュ
       });
 
       if (response.status === 401 && !_isRetry) {

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 import { useState, useRef, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 export default function Header() {
   const { user, profile, loading, signOut } = useAuth();
@@ -11,6 +11,7 @@ export default function Header() {
   const [isPostMenuOpen, setIsPostMenuOpen] = useState(false);
   const [isMobilePostMenuOpen, setIsMobilePostMenuOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [searchKeyword, setSearchKeyword] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
   const postMenuRef = useRef<HTMLDivElement>(null);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
@@ -55,8 +56,8 @@ export default function Header() {
     await signOut();
     setIsDropdownOpen(false);
     setIsMobileMenuOpen(false);
-    // ハードリロードして状態を完全にリセット
-    window.location.href = '/';
+    router.push('/');
+    router.refresh();
   };
 
   return (
@@ -71,20 +72,21 @@ export default function Header() {
               <input
                 type="text"
                 placeholder="キーワード検索"
+                value={searchKeyword}
+                onChange={(e) => setSearchKeyword(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-400 rounded-l-full rounded-r-none text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     const keyword = (e.target as HTMLInputElement).value;
-                    window.location.href = `/projects?search=${encodeURIComponent(keyword)}`;
+                    router.push(`/projects?search=${encodeURIComponent(keyword)}`);
                   }
                 }}
               />
               <button
                 className="px-4 bg-red-600 text-white rounded-l-none rounded-r-full text-sm font-semibold hover:bg-red-700 transition-colors border border-red-600 flex items-center whitespace-nowrap"
                 onClick={(e) => {
-                  const input = (e.currentTarget.previousElementSibling as HTMLInputElement);
-                  const keyword = input?.value || '';
-                  window.location.href = `/projects?search=${encodeURIComponent(keyword)}`;
+                  const keyword = searchKeyword;
+                  router.push(`/projects?search=${encodeURIComponent(keyword)}`);
                 }}
               >
                 検索
@@ -191,14 +193,21 @@ export default function Header() {
                   <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-10">
                     <Link
                       href="/profile"
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 font-semibold"
                       onClick={() => setIsDropdownOpen(false)}
                     >
                       プロフィール設定
                     </Link>
+                    <Link
+                      href="/messages"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 font-semibold"
+                      onClick={() => setIsDropdownOpen(false)}
+                    >
+                      メッセージ
+                    </Link>
                     <button
                       onClick={handleSignOut}
-                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 font-semibold"
                     >
                       ログアウト
                     </button>
@@ -277,11 +286,13 @@ export default function Header() {
             <input
               type="text"
               placeholder="キーワード検索"
+              value={searchKeyword}
+              onChange={(e) => setSearchKeyword(e.target.value)}
               className="flex-1 px-4 py-2 border border-gray-400 rounded-l-full rounded-r-none text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
-                  const keyword = (e.target as HTMLInputElement).value;
-                  window.location.href = `/projects?search=${encodeURIComponent(keyword)}`;
+                  const keyword = searchKeyword;
+                  router.push(`/projects?search=${encodeURIComponent(keyword)}`);
                   setIsMobileMenuOpen(false);
                 }
               }}
@@ -289,9 +300,8 @@ export default function Header() {
             <button
               className="px-4 bg-red-600 text-white rounded-l-none rounded-r-full text-sm font-semibold hover:bg-red-700 transition-colors border border-red-600 flex items-center whitespace-nowrap"
               onClick={(e) => {
-                const input = (e.currentTarget.previousElementSibling as HTMLInputElement);
-                const keyword = input?.value || '';
-                window.location.href = `/projects?search=${encodeURIComponent(keyword)}`;
+                const keyword = searchKeyword;
+                router.push(`/projects?search=${encodeURIComponent(keyword)}`);
                 setIsMobileMenuOpen(false);
               }}
             >
@@ -400,6 +410,13 @@ export default function Header() {
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
                     プロフィール設定
+                  </Link>
+                  <Link
+                    href="/messages"
+                    className="block text-gray-700 hover:text-gray-900 text-sm font-semibold py-2"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    メッセージ
                   </Link>
                   <button
                     onClick={handleSignOut}
