@@ -124,7 +124,7 @@ function ThreadList({
       {/* ヘッダー */}
       <div className="p-4 border-b border-gray-200 flex-shrink-0 bg-white">
         <div className="flex items-center justify-between">
-          <h1 className="text-xl font-bold">メッセージ</h1>
+          <h1 className="text-lg font-extrabold" style={{ color: '#323232' }}>メッセージ</h1>
           <div className="flex gap-2">
             <button className="p-2 hover:bg-gray-100 rounded-full">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

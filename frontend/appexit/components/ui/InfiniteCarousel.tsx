@@ -8,7 +8,7 @@ interface CarouselItem {
   id: string;
   title: string;
   image: string;
-  category?: string;
+  category?: string | string[];
   price?: number;
 }
 
@@ -89,7 +89,7 @@ export default function InfiniteCarousel({ items }: InfiniteCarouselProps) {
               <div className="text-white max-w-2xl">
                 {currentItem.category && (
                   <p className="text-sm md:text-base font-medium mb-2 opacity-90">
-                    {currentItem.category}
+                    {Array.isArray(currentItem.category) ? currentItem.category[0] : currentItem.category}
                   </p>
                 )}
                 <h3 className="text-2xl md:text-4xl font-bold mb-3 line-clamp-2">
@@ -131,7 +131,7 @@ export default function InfiniteCarousel({ items }: InfiniteCarouselProps) {
               <div className="text-white max-w-2xl">
                 {nextItem.category && (
                   <p className="text-sm md:text-base font-medium mb-2 opacity-90">
-                    {nextItem.category}
+                    {Array.isArray(nextItem.category) ? nextItem.category[0] : nextItem.category}
                   </p>
                 )}
                 <h3 className="text-2xl md:text-4xl font-bold mb-3 line-clamp-2">

@@ -148,8 +148,8 @@ export default function MessagePage({ threadId: initialThreadId }: MessagePagePr
           if (threadDetailResponse && typeof threadDetailResponse === 'object') {
             if ('id' in threadDetailResponse) {
               threadData = threadDetailResponse;
-            } else if ('success' in threadDetailResponse && 'data' in threadDetailResponse && threadDetailResponse.success) {
-              threadData = threadDetailResponse.data;
+            } else if ('success' in threadDetailResponse && 'data' in threadDetailResponse && (threadDetailResponse as any).success) {
+              threadData = (threadDetailResponse as any).data;
             }
           }
           console.log('[MESSAGE-PAGE] Extracted threadData:', threadData);
@@ -213,8 +213,8 @@ export default function MessagePage({ threadId: initialThreadId }: MessagePagePr
               if (retryResponse && typeof retryResponse === 'object') {
                 if ('id' in retryResponse) {
                   threadData = retryResponse;
-                } else if ('success' in retryResponse && 'data' in retryResponse && retryResponse.success) {
-                  threadData = retryResponse.data;
+                } else if ('success' in retryResponse && 'data' in retryResponse && (retryResponse as any).success) {
+                  threadData = (retryResponse as any).data;
                 }
               }
 
@@ -258,8 +258,8 @@ export default function MessagePage({ threadId: initialThreadId }: MessagePagePr
                   if (createResponse && typeof createResponse === 'object') {
                     if ('id' in createResponse) {
                       threadData = createResponse;
-                    } else if ('success' in createResponse && 'data' in createResponse && createResponse.success) {
-                      threadData = createResponse.data;
+                    } else if ('success' in createResponse && 'data' in createResponse && (createResponse as any).success) {
+                      threadData = (createResponse as any).data;
                     }
                   }
 
@@ -345,8 +345,8 @@ export default function MessagePage({ threadId: initialThreadId }: MessagePagePr
         let threads: any[] = [];
         if (Array.isArray(threadsResponse)) {
           threads = threadsResponse;
-        } else if (threadsResponse && typeof threadsResponse === 'object' && 'success' in threadsResponse && 'data' in threadsResponse && threadsResponse.success) {
-          threads = Array.isArray(threadsResponse.data) ? threadsResponse.data : [];
+        } else if (threadsResponse && typeof threadsResponse === 'object' && 'success' in threadsResponse && 'data' in threadsResponse && (threadsResponse as any).success) {
+          threads = Array.isArray((threadsResponse as any).data) ? (threadsResponse as any).data : [];
         }
 
         // 同じユーザーとの既存スレッドを検索
@@ -396,8 +396,8 @@ export default function MessagePage({ threadId: initialThreadId }: MessagePagePr
         if (createResponse && typeof createResponse === 'object') {
           if ('id' in createResponse) {
             threadData = createResponse;
-          } else if ('success' in createResponse && 'data' in createResponse && createResponse.success) {
-            threadData = createResponse.data;
+          } else if ('success' in createResponse && 'data' in createResponse && (createResponse as any).success) {
+            threadData = (createResponse as any).data;
           }
         }
 

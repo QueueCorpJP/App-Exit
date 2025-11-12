@@ -86,9 +86,10 @@ export default function ProjectCard({
   }, [id]);
 
   // カード情報をクエリパラメータとして渡す（初期表示用の最小限の情報）
+  const categoryString = Array.isArray(category) ? category[0] : category;
   const queryParams = new URLSearchParams({
     title,
-    category,
+    category: categoryString,
     imagePath: imagePath || '',
     price: price.toString(),
     status: status || '',

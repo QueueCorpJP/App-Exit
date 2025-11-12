@@ -46,11 +46,11 @@ function ThreadListContainer({ onThreadSelect, currentThreadId }: ThreadListCont
           });
         });
         setThreads(response);
-      } else if (response && typeof response === 'object' && 'success' in response && 'data' in response && response.success) {
+      } else if (response && typeof response === 'object' && 'success' in response && 'data' in response && (response as any).success) {
         // バックエンドが { success: true, data: [...] } 形式で返す場合
-        console.log('[THREAD-LIST] Threads data (wrapped):', response.data);
-        if (Array.isArray(response.data)) {
-          response.data.forEach((thread, index) => {
+        console.log('[THREAD-LIST] Threads data (wrapped):', (response as any).data);
+        if (Array.isArray((response as any).data)) {
+          (response as any).data.forEach((thread: any, index: number) => {
             console.log(`[THREAD-LIST] Thread ${index}:`, {
               id: thread.id,
               participant_ids: thread.participant_ids,
@@ -58,7 +58,7 @@ function ThreadListContainer({ onThreadSelect, currentThreadId }: ThreadListCont
               participantsCount: thread.participants?.length || 0
             });
           });
-          setThreads(response.data);
+          setThreads((response as any).data);
         }
       }
     } catch (err: any) {

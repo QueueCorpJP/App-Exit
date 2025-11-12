@@ -112,8 +112,8 @@ function MessageThreadContainer({ threadId, onBack }: MessageThreadContainerProp
         if (messagesResponse && Array.isArray(messagesResponse)) {
           messages = messagesResponse;
           console.log('[MESSAGE-THREAD] Messages is array, length:', messages.length);
-        } else if (messagesResponse && typeof messagesResponse === 'object' && 'data' in messagesResponse && Array.isArray(messagesResponse.data)) {
-          messages = messagesResponse.data;
+        } else if (messagesResponse && typeof messagesResponse === 'object' && 'data' in messagesResponse && Array.isArray((messagesResponse as any).data)) {
+          messages = (messagesResponse as any).data;
           console.log('[MESSAGE-THREAD] Messages in data property, length:', messages.length);
         } else {
           console.log('[MESSAGE-THREAD] Messages response format not recognized:', messagesResponse);
