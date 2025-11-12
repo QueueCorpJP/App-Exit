@@ -2,6 +2,7 @@
 
 import { memo, useCallback } from 'react';
 import { ThreadWithLastMessage } from '@/lib/api-client';
+import { truncateDisplayName } from '@/lib/text-utils';
 
 interface ThreadListProps {
   threads: ThreadWithLastMessage[];
@@ -53,7 +54,7 @@ const ThreadItem = memo(({ thread, isSelected, currentUserId, onSelect }: Thread
   const otherParticipant = thread.participants?.find(p => p.id !== currentUserId);
   console.log('[THREAD-ITEM] Other participant:', otherParticipant);
 
-  const displayName = otherParticipant?.display_name || 'ユーザー';
+  const displayName = otherParticipant?.display_name ? truncateDisplayName(otherParticipant.display_name, 'post') : 'ユーザー';
   const iconUrl = otherParticipant?.icon_url;
 
   const lastMessageText = thread.last_message?.text || 'メッセージを開始';
@@ -89,7 +90,7 @@ const ThreadItem = memo(({ thread, isSelected, currentUserId, onSelect }: Thread
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1">
-            <span className="font-semibold text-sm truncate">
+            <span className="font-semibold text-sm truncate" title={otherParticipant?.display_name || 'ユーザー'}>
               {displayName}
             </span>
           </div>

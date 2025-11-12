@@ -8,6 +8,7 @@ import { CreditCard, CheckCircle2, AlertCircle } from 'lucide-react';
 import { profileApi, Profile } from '@/lib/api-client';
 import { useAuth } from '@/lib/auth-context';
 import { postApi, Post } from '@/lib/api-client';
+import { truncateDisplayName } from '@/lib/text-utils';
 
 export default function ProfilePage() {
   const { user: currentUser, loading: authLoading } = useAuth();
@@ -159,7 +160,7 @@ export default function ProfilePage() {
               </svg>
             </button>
             <div className="flex-1">
-              <h1 className="text-xl font-bold text-gray-900">{profile.display_name}</h1>
+              <h1 className="text-xl font-bold text-gray-900" title={profile.display_name}>{truncateDisplayName(profile.display_name, 'header')}</h1>
               <p className="text-sm text-gray-500">{posts.length} 件の投稿</p>
             </div>
             <div className="flex items-center space-x-2">
@@ -261,7 +262,7 @@ export default function ProfilePage() {
         {/* プロフィール詳細 */}
         <div className="pb-4 border-b border-gray-200">
           <div className="flex items-center space-x-2 mb-1">
-            <h2 className="text-2xl font-bold text-gray-900">{profile.display_name}</h2>
+            <h2 className="text-2xl font-bold text-gray-900" title={profile.display_name}>{truncateDisplayName(profile.display_name, 'profile')}</h2>
             {profile.role === 'seller' && (
               <svg className="w-5 h-5 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
@@ -363,16 +364,35 @@ export default function ProfilePage() {
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between mb-1">
-                        <div className="flex items-center space-x-2">
-                          <span className="font-semibold text-gray-900">{profile.display_name}</span>
-                          <span className="text-gray-500 text-sm">@{profile.id.substring(0, 8)}</span>
-                          <span className="text-gray-500 text-sm">·</span>
-                          <span className="text-gray-500 text-sm">{formatDate(post.created_at)}</span>
+                      <div className="mb-1">
+                        {/* デスクトップ: 横並び */}
+                        <div className="hidden sm:flex items-center justify-between">
+                          <div className="flex items-center space-x-2">
+                            <span className="font-semibold text-gray-900" title={profile.display_name}>{truncateDisplayName(profile.display_name, 'post')}</span>
+                            <span className="text-gray-500 text-sm">@{profile.id.substring(0, 8)}</span>
+                            <span className="text-gray-500 text-sm">·</span>
+                            <span className="text-gray-500 text-sm">{formatDate(post.created_at)}</span>
+                          </div>
+                          <span className={`px-2 py-1 text-xs font-semibold rounded ${getPostTypeBadgeColor(post.type)}`}>
+                            {getPostTypeLabel(post.type)}
+                          </span>
                         </div>
-                        <span className={`px-2 py-1 text-xs font-semibold rounded ${getPostTypeBadgeColor(post.type)}`}>
-                          {getPostTypeLabel(post.type)}
-                        </span>
+                        
+                        {/* モバイル: 縦並び */}
+                        <div className="sm:hidden">
+                          <div className="flex items-center justify-between mb-1">
+                            <div className="flex items-center space-x-2">
+                              <span className="font-semibold text-gray-900" title={profile.display_name}>{truncateDisplayName(profile.display_name, 'post')}</span>
+                              <span className="text-gray-500 text-sm">@{profile.id.substring(0, 8)}</span>
+                            </div>
+                            <span className={`px-2 py-1 text-xs font-semibold rounded ${getPostTypeBadgeColor(post.type)}`}>
+                              {getPostTypeLabel(post.type)}
+                            </span>
+                          </div>
+                          <div className="text-gray-500 text-sm">
+                            {formatDate(post.created_at)}
+                          </div>
+                        </div>
                       </div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-2">{post.title}</h3>
                       {post.body && (

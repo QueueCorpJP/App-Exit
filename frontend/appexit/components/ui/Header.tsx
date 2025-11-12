@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 import { useState, useRef, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { truncateDisplayName } from '@/lib/text-utils';
 
 export default function Header() {
   const { user, profile, loading, signOut } = useAuth();
@@ -176,8 +177,9 @@ export default function Header() {
                   <Link
                     href="/profile"
                     className="text-sm font-semibold text-gray-700 hover:text-gray-900"
+                    title={profile?.display_name || user.email?.split('@')[0] || 'ユーザー'}
                   >
-                    {profile?.display_name || user.email?.split('@')[0] || 'ユーザー'}
+                    {profile?.display_name ? truncateDisplayName(profile.display_name, 'header') : (user.email?.split('@')[0] || 'ユーザー')}
                   </Link>
                   <button
                     onClick={() => setIsDropdownOpen(!isDropdownOpen)}

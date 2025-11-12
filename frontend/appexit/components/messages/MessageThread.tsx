@@ -4,6 +4,7 @@ import { useState, memo } from 'react';
 import { MessageWithSender, ThreadDetail } from '@/lib/api-client';
 import { Image as ImageIcon, X } from 'lucide-react';
 import Button from '@/components/ui/Button';
+import { truncateDisplayName } from '@/lib/text-utils';
 
 interface MessageThreadProps {
   threadDetail: ThreadDetail | null;
@@ -128,8 +129,8 @@ function MessageThread({
               </div>
             </div>
             <div>
-              <h2 className="font-semibold">
-                {otherParticipant?.display_name || 'ユーザー'}
+              <h2 className="font-semibold" title={otherParticipant?.display_name || 'ユーザー'}>
+                {otherParticipant?.display_name ? truncateDisplayName(otherParticipant.display_name, 'header') : 'ユーザー'}
               </h2>
             </div>
           </div>
@@ -215,7 +216,7 @@ function MessageThread({
                   }`}
                 >
                   {!isOwnMessage && message.sender && (
-                    <p className="text-xs mb-1 opacity-70">{message.sender.display_name}</p>
+                    <p className="text-xs mb-1 opacity-70" title={message.sender.display_name}>{truncateDisplayName(message.sender.display_name, 'post')}</p>
                   )}
                   {message.type === 'image' && message.image_url && (
                     <div className="mb-2">

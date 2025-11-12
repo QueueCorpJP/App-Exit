@@ -11,6 +11,7 @@ import ImageModal from '@/components/ui/ImageModal';
 import CommentSection from '@/components/comments/CommentSection';
 import { Post } from '@/lib/api-client';
 import { getImageUrls } from '@/lib/storage';
+import { truncateDisplayName } from '@/lib/text-utils';
 
 interface AuthorProfile {
   id: string;
@@ -675,10 +676,28 @@ export default function ProjectDetailPage({
           <div className="lg:col-span-1">
             <div className="bg-white rounded-sm p-6 sticky top-4">
               {/* カテゴリとステータス */}
-              <div className="flex items-center gap-2 mb-4">
-                <span className="text-xs font-semibold" style={{ color: '#E65D65' }}>
-                  #{displayCategory}
-                </span>
+              <div className="flex items-center gap-2 mb-4 flex-wrap">
+                {/* すべてのカテゴリを表示（最大3つ + ... ） */}
+                {(() => {
+                  const categories = postDetails?.app_categories || [displayCategory];
+                  const displayCategories = categories.slice(0, 3);
+                  const hasMore = categories.length > 3;
+
+                  return (
+                    <>
+                      {displayCategories.map((cat, index) => (
+                        <span key={index} className="text-xs font-semibold" style={{ color: '#E65D65' }}>
+                          #{cat}
+                        </span>
+                      ))}
+                      {hasMore && (
+                        <span className="text-xs font-semibold" style={{ color: '#E65D65' }}>
+                          ...
+                        </span>
+                      )}
+                    </>
+                  );
+                })()}
                 <span className={`px-2 py-1 rounded font-semibold text-xs ${getStatusBadgeColor(displayStatus)}`}>
                   {displayStatus}
                 </span>
@@ -688,17 +707,6 @@ export default function ProjectDetailPage({
               <h1 className="text-2xl font-bold mb-4 line-clamp-3" style={{ color: '#323232' }}>
                 {displayTitle}
               </h1>
-
-              {/* すべてのカテゴリ */}
-              {postDetails?.app_categories && postDetails.app_categories.length > 1 && (
-                <div className="flex flex-wrap gap-2 mb-4">
-                  {postDetails.app_categories.slice(1).map((cat, index) => (
-                    <span key={index} className="text-xs font-semibold" style={{ color: '#E65D65' }}>
-                      #{cat}
-                    </span>
-                  ))}
-                </div>
-              )}
 
               {/* 価格情報 */}
               <div className="mb-6">
@@ -789,8 +797,8 @@ export default function ProjectDetailPage({
                         </div>
                       )}
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold" style={{ color: '#323232' }}>
-                          {authorProfile.display_name}
+                        <p className="font-semibold" style={{ color: '#323232' }} title={authorProfile.display_name}>
+                          {truncateDisplayName(authorProfile.display_name, 'profile')}
                         </p>
                         <p className="text-sm text-gray-500">
                           @{authorProfile.id.substring(0, 8)}

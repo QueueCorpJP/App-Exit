@@ -1,6 +1,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { UserProfile } from '@/types';
+import { truncateDisplayName } from '@/lib/text-utils';
 
 interface ProfileCardProps {
   profile: UserProfile;
@@ -27,7 +28,7 @@ export default function ProfileCard({ profile, showActions = false }: ProfileCar
           )}
         </div>
         <div className="flex-1">
-          <h1 className="text-2xl font-bold text-gray-900">{profile.display_name}</h1>
+          <h1 className="text-2xl font-bold text-gray-900" title={profile.display_name}>{truncateDisplayName(profile.display_name, 'card')}</h1>
           <div className="flex items-center space-x-4 mt-2 text-sm text-gray-600">
             <span className={`px-2 py-1 rounded-full text-xs ${
               profile.user_type === 'seller' 

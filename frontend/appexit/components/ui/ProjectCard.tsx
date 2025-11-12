@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react';
 import { Eye } from 'lucide-react';
 import StorageImage from './StorageImage';
 import { activeViewApi } from '@/lib/api-client';
+import { truncateDisplayName } from '@/lib/text-utils';
 
 interface AuthorProfile {
   id: string;
@@ -180,7 +181,7 @@ export default function ProjectCard({
         <div className="py-4 px-4">
           {/* カテゴリとステータスを横並び */}
           <div className="flex items-center gap-2 mb-2 flex-wrap">
-            {/* カテゴリ表示（最大3つまで） */}
+            {/* カテゴリ表示（最大3つまで、各カテゴリに#をつける） */}
             {(() => {
               const categories = Array.isArray(category) ? category : [category];
               const displayCategories = categories.slice(0, 3);
@@ -276,7 +277,7 @@ export default function ProjectCard({
                     </span>
                   </div>
                 )}
-                <span className="text-xs truncate" style={{ color: '#323232' }}>{authorProfile.display_name}</span>
+                <span className="text-xs truncate" style={{ color: '#323232' }} title={authorProfile.display_name}>{truncateDisplayName(authorProfile.display_name, 'card')}</span>
               </div>
             </div>
           )}
