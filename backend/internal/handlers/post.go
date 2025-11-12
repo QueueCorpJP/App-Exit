@@ -90,6 +90,9 @@ func (s *Server) ListPosts(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Check for sort parameter
+	sortBy := urlQuery.Get("sort")
+
 	// Use Supabase service client for querying posts
 	client := s.supabase.GetServiceClient()
 	query := client.From("posts").
@@ -190,6 +193,21 @@ func (s *Server) ListPosts(w http.ResponseWriter, r *http.Request) {
 		})
 		if activeCount > 0 {
 			fmt.Printf("[ListPosts] Post %s (%s) has %d active views\n", post.ID, post.Title, activeCount)
+		}
+	}
+
+	// Sort by active view count if sort=recommended
+	if sortBy == "recommended" {
+		fmt.Printf("[ListPosts] Sorting by active view count (recommended)\n")
+		// ソート: ActiveViewCount降順、同数の場合はCreatedAt降順
+		for i := 0; i < len(result)-1; i++ {
+			for j := i + 1; j < len(result); j++ {
+				if result[i].ActiveViewCount < result[j].ActiveViewCount ||
+					(result[i].ActiveViewCount == result[j].ActiveViewCount &&
+						result[i].CreatedAt.Before(result[j].CreatedAt)) {
+					result[i], result[j] = result[j], result[i]
+				}
+			}
 		}
 	}
 

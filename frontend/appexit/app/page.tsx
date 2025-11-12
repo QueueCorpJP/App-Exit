@@ -4,7 +4,7 @@ import { Post } from '@/lib/api-client';
 async function getPosts(): Promise<Post[]> {
   try {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
-    const response = await fetch(`${apiUrl}/api/posts?type=transaction`, {
+    const response = await fetch(`${apiUrl}/api/posts?type=transaction&sort=recommended&limit=6`, {
       next: { revalidate: 600 }, // 600秒（10分）キャッシュ
     });
 
