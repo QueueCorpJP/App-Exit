@@ -31,16 +31,18 @@ export default function ProfileSettingsPage() {
       setIsLoading(true)
       setError('')
 
-      const response = await profileApi.getProfile()
+      const profile = await profileApi.getProfile()
 
-      if (response.success && response.data) {
-        console.log('[ProfileSettings] Loaded profile:', response.data)
-        console.log('[ProfileSettings] stripe_account_id:', response.data.stripe_account_id)
-        console.log('[ProfileSettings] stripe_onboarding_completed:', response.data.stripe_onboarding_completed)
-        setProfile(response.data)
-        setDisplayName(response.data.display_name)
-        setAge(response.data.age || undefined)
-        setAvatarPreview(response.data.icon_url || '')
+      if (profile) {
+        console.log('[ProfileSettings] Loaded profile:', profile)
+        console.log('[ProfileSettings] stripe_account_id:', profile.stripe_account_id)
+        console.log('[ProfileSettings] stripe_onboarding_completed:', profile.stripe_onboarding_completed)
+        setProfile(profile)
+        setDisplayName(profile.display_name)
+        setAge(profile.age || undefined)
+        setAvatarPreview(profile.icon_url || '')
+      } else {
+        setError('プロフィールが見つかりません')
       }
     } catch (err) {
       console.error('Failed to load profile:', err)
@@ -83,8 +85,8 @@ export default function ProfileSettingsPage() {
       console.log('Avatar uploaded successfully:', publicUrl)
 
       // プロフィールを即座に更新
-      const response = await profileApi.updateProfile({ icon_url: publicUrl })
-      if (response.success) {
+      const updatedProfile = await profileApi.updateProfile({ icon_url: publicUrl })
+      if (updatedProfile) {
         setProfile(prev => prev ? { ...prev, icon_url: publicUrl } : null)
       }
     } catch (err) {
@@ -125,9 +127,9 @@ export default function ProfileSettingsPage() {
 
       // 更新がある場合のみAPIを呼ぶ
       if (Object.keys(updateData).length > 0) {
-        const response = await profileApi.updateProfile(updateData)
+        const updatedProfile = await profileApi.updateProfile(updateData)
 
-        if (response.success) {
+        if (updatedProfile) {
           alert('プロフィールを更新しました')
           // 更新されたプロフィールを再取得
           await loadProfile()
@@ -253,18 +255,18 @@ export default function ProfileSettingsPage() {
               <label className="block text-sm font-semibold text-gray-700 mb-2">
                 アカウントタイプ
               </label>
-              <div className="flex items-center space-x-4">
-                <span className={`px-4 py-2 rounded-sm font-medium ${
+              <div className="flex items-center space-x-3">
+                <span className={`px-4 py-2.5 rounded-sm font-semibold text-sm border transition-all ${
                   profile.role === 'seller'
-                    ? 'bg-green-100 text-green-700'
-                    : 'bg-blue-100 text-blue-700'
+                    ? 'bg-white text-gray-800 border-gray-800'
+                    : 'bg-white text-gray-600 border-gray-300'
                 }`}>
                   {profile.role === 'seller' ? '売り手' : '買い手'}
                 </span>
-                <span className={`px-4 py-2 rounded-sm font-medium ${
+                <span className={`px-4 py-2.5 rounded-sm font-semibold text-sm border transition-all ${
                   profile.party === 'organization'
-                    ? 'bg-purple-100 text-purple-700'
-                    : 'bg-orange-100 text-orange-700'
+                    ? 'bg-white text-gray-800 border-gray-800'
+                    : 'bg-white text-gray-600 border-gray-300'
                 }`}>
                   {profile.party === 'organization' ? '法人' : '個人'}
                 </span>

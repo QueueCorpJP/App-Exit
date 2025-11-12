@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useAuth } from '@/lib/auth-context'
 
 interface Transaction {
   id: string
@@ -16,15 +17,15 @@ interface Transaction {
 }
 
 export default function TransactionHistoryPage() {
+  const { profile } = useAuth()
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [filter, setFilter] = useState<'all' | 'completed' | 'pending' | 'failed'>('all')
   const [isLoading, setIsLoading] = useState(true)
-  const [userType, setUserType] = useState<'buyer' | 'seller' | null>(null)
+  
+  // プロフィールからユーザータイプを取得（Cookieベースの認証）
+  const userType: 'buyer' | 'seller' | null = profile?.role === 'seller' ? 'seller' : profile?.role === 'buyer' ? 'buyer' : null
 
   useEffect(() => {
-    // LocalStorageからユーザータイプを取得
-    const storedUserType = localStorage.getItem('userType') as 'buyer' | 'seller'
-    setUserType(storedUserType)
 
     // TODO: APIから取引履歴を取得
     // 仮のデータ

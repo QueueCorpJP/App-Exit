@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { uploadImage } from '@/lib/storage';
-import { getAuthToken } from '@/lib/cookie-utils';
 
 export default function PostSecretPage() {
   const router = useRouter();
@@ -120,17 +119,13 @@ export default function PostSecretPage() {
         }
       };
 
-      const token = getAuthToken();
-      if (!token) {
-        throw new Error('認証トークンが見つかりません。再度ログインしてください。');
-      }
-
+      // HttpOnly Cookieで認証されるため、手動でトークンを取得する必要なし
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
         },
+        credentials: 'include', // HttpOnly Cookieを自動送信
         body: JSON.stringify(payload),
       });
 

@@ -56,6 +56,7 @@ export default function RegisterFormPage() {
           password: formData.password,
           display_name: formData.displayName,
         }),
+        credentials: 'include', // HTTPOnly Cookieを送受信するために必要
       });
 
       const data = await response.json();
@@ -64,8 +65,9 @@ export default function RegisterFormPage() {
         throw new Error(data.error || '登録に失敗しました');
       }
 
-      // 登録成功
-      router.push('/login');
+      // 登録成功 - セッションがCookieに設定されているので、そのままホームページへ
+      router.push('/');
+      router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : '登録に失敗しました');
     } finally {

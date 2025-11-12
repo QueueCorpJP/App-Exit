@@ -278,6 +278,7 @@ export async function registerStep1(data: RegistrationStep1Request): Promise<Reg
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(data),
+    credentials: 'include', // HTTPOnly Cookieを送受信するために必要
     cache: 'no-store',
   });
 
@@ -296,9 +297,9 @@ export async function registerStep2(data: RegistrationStep2Request, token: strin
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify(data),
+    credentials: 'include', // HttpOnly Cookieが自動で送信される
     cache: 'no-store',
   });
 
@@ -317,9 +318,9 @@ export async function registerStep3(data: RegistrationStep3Request, token: strin
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify(data),
+    credentials: 'include', // HttpOnly Cookieが自動で送信される
     cache: 'no-store',
   });
 
@@ -338,9 +339,9 @@ export async function registerStep4(data: RegistrationStep4Request, token: strin
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify(data),
+    credentials: 'include', // HttpOnly Cookieが自動で送信される
     cache: 'no-store',
   });
 
@@ -359,9 +360,9 @@ export async function registerStep5(data: RegistrationStep5Request, token: strin
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify(data),
+    credentials: 'include', // HttpOnly Cookieが自動で送信される
     cache: 'no-store',
   });
 
@@ -425,9 +426,9 @@ export async function createUserLink(data: UserLinkInput, token: string): Promis
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify(data),
+    credentials: 'include', // HttpOnly Cookieが自動で送信される
     cache: 'no-store',
   });
 
@@ -449,9 +450,9 @@ export async function updateUserLink(linkId: string, data: UserLinkInput, token:
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify(data),
+    credentials: 'include', // HttpOnly Cookieが自動で送信される
     cache: 'no-store',
   });
 
@@ -471,9 +472,7 @@ export async function deleteUserLink(linkId: string, token: string): Promise<voi
   const apiUrl = typeof window !== 'undefined' ? getApiUrlWithCache() : API_URL;
   const response = await fetch(`${apiUrl}/api/user-links?id=${linkId}`, {
     method: 'DELETE',
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
+    credentials: 'include', // HttpOnly Cookieが自動で送信される
     cache: 'no-store',
   });
 
@@ -492,9 +491,9 @@ export async function createProfile(data: CreateProfileRequest, token: string): 
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
     },
     body: JSON.stringify(data),
+    credentials: 'include', // HttpOnly Cookieが自動で送信される
     cache: 'no-store',
   });
 

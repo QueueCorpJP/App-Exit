@@ -37,22 +37,22 @@ export default function ProfilePage() {
           setLoading(true);
         }
 
-        const response = await profileApi.getProfile();
-        if (isMounted && response.success && response.data) {
-          console.log('[ProfilePage] Loaded profile:', response.data);
-          console.log('[ProfilePage] stripe_account_id:', response.data.stripe_account_id);
-          console.log('[ProfilePage] stripe_onboarding_completed:', response.data.stripe_onboarding_completed);
-          setProfile(response.data);
+        const profile = await profileApi.getProfile();
+        if (isMounted && profile) {
+          console.log('[ProfilePage] Loaded profile:', profile);
+          console.log('[ProfilePage] stripe_account_id:', profile.stripe_account_id);
+          console.log('[ProfilePage] stripe_onboarding_completed:', profile.stripe_onboarding_completed);
+          setProfile(profile);
         }
 
         // ユーザーの投稿を取得（エラーが発生してもプロフィールは表示する）
         try {
-          const postsResponse = await postApi.getPosts({
+          const posts = await postApi.getPosts({
             author_user_id: currentUser.id,
             limit: 50
           });
           if (isMounted) {
-            setPosts(postsResponse.data);
+            setPosts(Array.isArray(posts) ? posts : []);
           }
         } catch (postError) {
           console.error('投稿の取得に失敗しました:', postError);

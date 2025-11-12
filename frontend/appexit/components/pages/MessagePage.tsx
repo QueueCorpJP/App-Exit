@@ -88,11 +88,16 @@ export default function MessagePage({ threadId: initialThreadId }: MessagePagePr
     let isMounted = true;
 
     const handleThreadId = async () => {
-      if (!selectedThreadId || !user || authLoading) {
+      if (!selectedThreadId || !user) {
         if (isMounted) {
           setIsResolvingThreadId(false);
           setResolvedThreadId(undefined);
         }
+        return;
+      }
+
+      // authLoading中は処理をスキップ（ただしresolvedThreadIdはリセットしない）
+      if (authLoading) {
         return;
       }
 
@@ -101,10 +106,16 @@ export default function MessagePage({ threadId: initialThreadId }: MessagePagePr
         return;
       }
 
-      // 既に処理済みのthreadIdの場合はスキップ
-      if (processedThreadIdRef.current === selectedThreadId) {
-        // 既に解決済みの場合は、resolvedThreadIdも設定されているはずだが、念のため確認
-        if (isMounted && !resolvedThreadId && isUUID(selectedThreadId)) {
+      // 既に解決済みで、selectedThreadIdとresolvedThreadIdが一致している場合はスキップ
+      if (processedThreadIdRef.current === selectedThreadId && resolvedThreadId === selectedThreadId) {
+        console.log('[MESSAGE-PAGE] Already resolved, skipping');
+        return;
+      }
+
+      // processedだがresolvedThreadIdが未設定の場合は復元
+      if (processedThreadIdRef.current === selectedThreadId && !resolvedThreadId && isUUID(selectedThreadId)) {
+        console.log('[MESSAGE-PAGE] Restoring resolvedThreadId for already processed threadId');
+        if (isMounted) {
           setResolvedThreadId(selectedThreadId);
           setIsResolvingThreadId(false);
         }
@@ -119,10 +130,12 @@ export default function MessagePage({ threadId: initialThreadId }: MessagePagePr
         
         if (isMounted) {
           setIsResolvingThreadId(true);
+          console.log('[MESSAGE-PAGE] Setting isResolvingThreadId to true for UUID:', selectedThreadId);
         }
 
         try {
           const threadDetailResponse = await messageApi.getThread(selectedThreadId);
+          console.log('[MESSAGE-PAGE] getThread response:', threadDetailResponse);
 
           // アンマウントされている場合は処理を中断
           if (!isMounted) {
@@ -130,10 +143,34 @@ export default function MessagePage({ threadId: initialThreadId }: MessagePagePr
             return;
           }
 
-          if (threadDetailResponse.success && threadDetailResponse.data) {
-            // 有効なスレッドIDが見つかった
+          // レスポンス形式を統一
+          let threadData: any = null;
+          if (threadDetailResponse && typeof threadDetailResponse === 'object') {
+            if ('id' in threadDetailResponse) {
+              threadData = threadDetailResponse;
+            } else if ('success' in threadDetailResponse && 'data' in threadDetailResponse && threadDetailResponse.success) {
+              threadData = threadDetailResponse.data;
+            }
+          }
+          console.log('[MESSAGE-PAGE] Extracted threadData:', threadData);
+
+          if (threadData && 'id' in threadData) {
+            // 有効なスレッドIDが見つかった（バックエンドが作成した可能性もある）
+            console.log('[MESSAGE-PAGE] Thread found/created, thread ID:', threadData.id);
+            console.log('[MESSAGE-PAGE] Current selectedThreadId:', selectedThreadId);
+            console.log('[MESSAGE-PAGE] Setting resolvedThreadId to:', threadData.id);
             if (isMounted) {
-              setResolvedThreadId(selectedThreadId);
+              const newThreadId = threadData.id;
+              // processedThreadIdRefを先に更新して無限ループを防ぐ
+              processedThreadIdRef.current = newThreadId;
+              // URLも更新（バックエンドが作成した場合は新しいthread IDに更新）
+              if (newThreadId !== selectedThreadId) {
+                console.log('[MESSAGE-PAGE] Updating selectedThreadId from', selectedThreadId, 'to', newThreadId);
+                window.history.replaceState(null, '', `/messages/${newThreadId}`);
+                setSelectedThreadId(newThreadId);
+              }
+              console.log('[MESSAGE-PAGE] Setting resolvedThreadId and isResolvingThreadId to false');
+              setResolvedThreadId(newThreadId);
               setIsResolvingThreadId(false);
             }
             isHandlingThreadIdRef.current = false;
@@ -155,7 +192,101 @@ export default function MessagePage({ threadId: initialThreadId }: MessagePagePr
           }
 
           if ((threadErr as any)?.status === 404) {
-            // 404エラーの場合
+            // 404エラーの場合、バックエンドが自動的にthreadを作成してくれる可能性がある
+            // selectedThreadIdがユーザーIDである可能性があるので、再取得を試みる
+            console.log('[MESSAGE-PAGE] Thread not found (404), retrying - backend may create thread automatically');
+            
+            // 少し待ってから再取得を試みる（バックエンドがthreadを作成する時間を確保）
+            await new Promise(resolve => setTimeout(resolve, 200));
+            
+            try {
+              // バックエンドが自動的にthreadを作成してくれるので、再取得を試みる
+              const retryResponse = await messageApi.getThread(selectedThreadId);
+
+              if (!isMounted) {
+                isHandlingThreadIdRef.current = false;
+                return;
+              }
+
+              // レスポンス形式を統一
+              let threadData: any = null;
+              if (retryResponse && typeof retryResponse === 'object') {
+                if ('id' in retryResponse) {
+                  threadData = retryResponse;
+                } else if ('success' in retryResponse && 'data' in retryResponse && retryResponse.success) {
+                  threadData = retryResponse.data;
+                }
+              }
+
+              if (threadData && 'id' in threadData) {
+                // バックエンドがthreadを作成してくれた
+                console.log('[MESSAGE-PAGE] Thread created by backend, thread ID:', threadData.id);
+                const newThreadId = threadData.id;
+                // processedThreadIdRefを更新して無限ループを防ぐ
+                processedThreadIdRef.current = newThreadId;
+                setSelectedThreadId(newThreadId);
+                setResolvedThreadId(newThreadId);
+                setIsResolvingThreadId(false);
+                window.history.replaceState(null, '', `/messages/${newThreadId}`);
+                
+                // スレッド一覧を再取得するイベントを発火
+                console.log('[MESSAGE-PAGE] Dispatching refreshThreads event');
+                const refreshEvent = new CustomEvent('refreshThreads');
+                window.dispatchEvent(refreshEvent);
+                
+                isHandlingThreadIdRef.current = false;
+                return;
+              }
+            } catch (retryErr: any) {
+              // 再取得も失敗した場合
+              console.error('[MESSAGE-PAGE] Retry failed:', retryErr);
+              
+              // selectedThreadIdが自分自身でない場合、ユーザーIDとして扱ってthreadを作成を試みる
+              if (selectedThreadId !== user.id) {
+                try {
+                  const createResponse = await messageApi.createThread({
+                    participant_ids: [selectedThreadId],
+                  });
+
+                  if (!isMounted) {
+                    isHandlingThreadIdRef.current = false;
+                    return;
+                  }
+
+                  // レスポンス形式を統一
+                  let threadData: any = null;
+                  if (createResponse && typeof createResponse === 'object') {
+                    if ('id' in createResponse) {
+                      threadData = createResponse;
+                    } else if ('success' in createResponse && 'data' in createResponse && createResponse.success) {
+                      threadData = createResponse.data;
+                    }
+                  }
+
+                  if (threadData && 'id' in threadData) {
+                    const newThreadId = threadData.id;
+                    // processedThreadIdRefを更新して無限ループを防ぐ
+                    processedThreadIdRef.current = newThreadId;
+                    setSelectedThreadId(newThreadId);
+                    setResolvedThreadId(newThreadId);
+                    setIsResolvingThreadId(false);
+                    window.history.replaceState(null, '', `/messages/${newThreadId}`);
+                    
+                    // スレッド一覧を再取得するイベントを発火
+                    console.log('[MESSAGE-PAGE] Dispatching refreshThreads event');
+                    const refreshEvent = new CustomEvent('refreshThreads');
+                    window.dispatchEvent(refreshEvent);
+                    
+                    isHandlingThreadIdRef.current = false;
+                    return;
+                  }
+                } catch (createErr) {
+                  console.error('[MESSAGE-PAGE] Failed to create thread:', createErr);
+                }
+              }
+            }
+            
+            // threadを作成できない場合、エラーメッセージを表示
             if (isMounted) {
               setError('このスレッドは存在しないか、削除されました');
               setIsResolvingThreadId(false);
@@ -171,6 +302,12 @@ export default function MessagePage({ threadId: initialThreadId }: MessagePagePr
           }
           isHandlingThreadIdRef.current = false;
           return;
+        } finally {
+          // 確実にisHandlingThreadIdRefをfalseにする
+          isHandlingThreadIdRef.current = false;
+          // ただし、resolvedThreadIdが設定されている場合は、isResolvingThreadIdは既にfalseになっているはずなので、
+          // ここでは設定しない（成功した場合は既にfalseに設定されている）
+          console.log('[MESSAGE-PAGE] Finally block: isHandlingThreadIdRef set to false, resolvedThreadId:', resolvedThreadId);
         }
       }
 
@@ -204,32 +341,42 @@ export default function MessagePage({ threadId: initialThreadId }: MessagePagePr
           return;
         }
 
-        if (threadsResponse.success && threadsResponse.data) {
-          // 同じユーザーとの既存スレッドを検索
-          const existingThread = threadsResponse.data.find(thread => {
-            // participant_idsに指定されたユーザーIDが含まれているかチェック
-            // スレッドは通常2人の参加者（自分と相手）を持つ
-            return thread.participant_ids.includes(selectedThreadId) &&
-                   thread.participant_ids.length === 2;
-          });
+        // レスポンス形式を統一（配列または { success: true, data: [...] } 形式に対応）
+        let threads: any[] = [];
+        if (Array.isArray(threadsResponse)) {
+          threads = threadsResponse;
+        } else if (threadsResponse && typeof threadsResponse === 'object' && 'success' in threadsResponse && 'data' in threadsResponse && threadsResponse.success) {
+          threads = Array.isArray(threadsResponse.data) ? threadsResponse.data : [];
+        }
 
-          if (existingThread) {
-            console.log('[MESSAGE-PAGE] Found existing thread:', existingThread.id);
+        // 同じユーザーとの既存スレッドを検索
+        const existingThread = threads.find(thread => {
+          // participant_idsに指定されたユーザーIDが含まれているかチェック
+          // スレッドは通常2人の参加者（自分と相手）を持つ
+          return thread.participant_ids && 
+                 thread.participant_ids.includes(selectedThreadId) &&
+                 thread.participant_ids.length === 2 &&
+                 thread.participant_ids.includes(user.id);
+        });
 
-            // アンマウントされている場合は処理を中断
-            if (!isMounted) {
-              isHandlingThreadIdRef.current = false;
-              return;
-            }
+        if (existingThread) {
+          console.log('[MESSAGE-PAGE] Found existing thread:', existingThread.id);
 
-            // 既存スレッドが見つかった場合、状態を更新（ページ遷移なし）
-            setSelectedThreadId(existingThread.id);
-            setResolvedThreadId(existingThread.id);
-            setIsResolvingThreadId(false);
-            window.history.replaceState(null, '', `/messages/${existingThread.id}`);
+          // アンマウントされている場合は処理を中断
+          if (!isMounted) {
             isHandlingThreadIdRef.current = false;
             return;
           }
+
+          // 既存スレッドが見つかった場合、状態を更新（ページ遷移なし）
+          // processedThreadIdRefを更新して無限ループを防ぐ
+          processedThreadIdRef.current = existingThread.id;
+          setSelectedThreadId(existingThread.id);
+          setResolvedThreadId(existingThread.id);
+          setIsResolvingThreadId(false);
+          window.history.replaceState(null, '', `/messages/${existingThread.id}`);
+          isHandlingThreadIdRef.current = false;
+          return;
         }
 
         // 既存スレッドがない場合のみ新規作成
@@ -244,16 +391,34 @@ export default function MessagePage({ threadId: initialThreadId }: MessagePagePr
           return;
         }
 
-        if (!createResponse.success || !createResponse.data) {
+        // レスポンス形式を統一（オブジェクトまたは { success: true, data: {...} } 形式に対応）
+        let threadData: any = null;
+        if (createResponse && typeof createResponse === 'object') {
+          if ('id' in createResponse) {
+            threadData = createResponse;
+          } else if ('success' in createResponse && 'data' in createResponse && createResponse.success) {
+            threadData = createResponse.data;
+          }
+        }
+
+        if (!threadData || !('id' in threadData)) {
           throw new Error('スレッドの作成に失敗しました');
         }
 
         // 状態を更新してURLを変更（ページ遷移なし）
-        const newThreadId = createResponse.data.id;
+        const newThreadId = threadData.id;
+        // processedThreadIdRefを更新して無限ループを防ぐ
+        processedThreadIdRef.current = newThreadId;
         setSelectedThreadId(newThreadId);
         setResolvedThreadId(newThreadId);
         setIsResolvingThreadId(false);
         window.history.replaceState(null, '', `/messages/${newThreadId}`);
+        
+        // スレッド一覧を再取得するイベントを発火
+        console.log('[MESSAGE-PAGE] Dispatching refreshThreads event');
+        const refreshEvent = new CustomEvent('refreshThreads');
+        window.dispatchEvent(refreshEvent);
+        
         isHandlingThreadIdRef.current = false;
       } catch (err: any) {
         // アンマウントされている場合はエラーを無視
@@ -277,7 +442,7 @@ export default function MessagePage({ threadId: initialThreadId }: MessagePagePr
       isMounted = false;
       isHandlingThreadIdRef.current = false;
     };
-  }, [selectedThreadId, user, authLoading]);
+  }, [selectedThreadId, user, authLoading, resolvedThreadId]);
 
   const handleThreadSelect = useCallback((newThreadId: string) => {
     userInitiatedSelectionRef.current = true;
@@ -307,6 +472,33 @@ export default function MessagePage({ threadId: initialThreadId }: MessagePagePr
       window.history.pushState(null, '', '/messages');
     }
   }, []);
+
+  // MessageThreadContainerからthreadCreatedイベントをリッスン
+  useEffect(() => {
+    const handleThreadCreated = (event: CustomEvent<{ threadId: string }>) => {
+      const newThreadId = event.detail.threadId;
+      console.log('[MESSAGE-PAGE] Thread created event received:', newThreadId);
+      processedThreadIdRef.current = newThreadId;
+      setSelectedThreadId(newThreadId);
+      setResolvedThreadId(newThreadId);
+      setIsResolvingThreadId(false);
+    };
+
+    window.addEventListener('threadCreated', handleThreadCreated as EventListener);
+    return () => {
+      window.removeEventListener('threadCreated', handleThreadCreated as EventListener);
+    };
+  }, []);
+
+  // デバッグ用: resolvedThreadIdとisResolvingThreadIdの状態をログ出力
+  useEffect(() => {
+    console.log('[MESSAGE-PAGE] State update:', {
+      selectedThreadId,
+      resolvedThreadId,
+      isResolvingThreadId,
+      processedThreadIdRef: processedThreadIdRef.current
+    });
+  }, [selectedThreadId, resolvedThreadId, isResolvingThreadId]);
 
   // スマホ画面ではselectedThreadIdでレンダリングを制御、デスクトップでは常に表示
   const isMobileView = useMemo(() => typeof window !== 'undefined' && window.innerWidth < 768, []);
@@ -350,18 +542,24 @@ export default function MessagePage({ threadId: initialThreadId }: MessagePagePr
 
       {/* メッセージスレッド: スマホではselectedThreadIdがある時のみ表示、デスクトップでは常に表示 */}
       <div className={`w-full h-full ${showMessageThread ? 'block' : 'hidden'} md:block md:flex-1`}>
-        {isResolvingThreadId ? (
+        {isResolvingThreadId && !resolvedThreadId ? (
           <div className="h-full flex items-center justify-center bg-white">
             <div className="text-center">
               <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
               <p className="mt-4 text-gray-600">スレッドを読み込み中...</p>
             </div>
           </div>
-        ) : (
+        ) : resolvedThreadId ? (
           <MessageThreadContainer
             threadId={resolvedThreadId}
             onBack={handleBackToThreads}
           />
+        ) : (
+          <div className="h-full flex items-center justify-center bg-white">
+            <div className="text-center">
+              <p className="text-gray-600">スレッドを選択してください</p>
+            </div>
+          </div>
         )}
       </div>
     </div>

@@ -10,6 +10,7 @@ import StorageImage from '@/components/ui/StorageImage';
 import ImageModal from '@/components/ui/ImageModal';
 import CommentSection from '@/components/comments/CommentSection';
 import { Post } from '@/lib/api-client';
+import { getImageUrls } from '@/lib/storage';
 
 interface AuthorProfile {
   id: string;
@@ -47,6 +48,7 @@ export default function ProjectDetailPage({
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedImagePath, setSelectedImagePath] = useState<string>('');
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [imageUrls, setImageUrls] = useState<Map<string, string>>(new Map());
 
   // カードからの初期データを使用（APIレスポンスがあればそちらを優先）
   const displayTitle = postDetails?.title || initialData?.title || 'プロジェクト';
@@ -91,6 +93,49 @@ export default function ProjectDetailPage({
     );
   }
 
+  // 画像URLを一括取得（パフォーマンス最適化）
+  useEffect(() => {
+    if (!postDetails) return;
+
+    const imagePaths: string[] = [];
+
+    // メイン画像
+    if (postDetails.eyecatch_url) {
+      imagePaths.push(postDetails.eyecatch_url);
+    }
+
+    // 追加画像
+    if (postDetails.extra_image_urls && Array.isArray(postDetails.extra_image_urls)) {
+      imagePaths.push(...postDetails.extra_image_urls);
+    }
+
+    // スクリーンショット画像
+    if (postDetails.dashboard_url) {
+      imagePaths.push(postDetails.dashboard_url);
+    }
+    if (postDetails.user_ui_url) {
+      imagePaths.push(postDetails.user_ui_url);
+    }
+    if (postDetails.performance_url) {
+      imagePaths.push(postDetails.performance_url);
+    }
+
+    // アバター画像
+    if (postDetails.author_profile?.icon_url) {
+      imagePaths.push(postDetails.author_profile.icon_url);
+    }
+
+    // 画像がない場合はスキップ
+    if (imagePaths.length === 0) return;
+
+    // 一括取得
+    getImageUrls(imagePaths).then(urlMap => {
+      setImageUrls(urlMap);
+    }).catch(error => {
+      console.error('[PROJECT-DETAIL] Failed to fetch image URLs:', error);
+    });
+  }, [postDetails]);
+
   const handleMessageClick = () => {
     if (!postDetails?.author_user_id) {
       console.error('Author user ID not found');
@@ -120,16 +165,20 @@ export default function ProjectDetailPage({
         onClose={() => setModalOpen(false)}
         imagePath={selectedImagePath}
         imageIndex={selectedImageIndex}
-        totalImages={postDetails?.extra_image_urls?.length || 0}
+        totalImages={
+          selectedImageIndex >= 0 && postDetails?.extra_image_urls
+            ? postDetails.extra_image_urls.length + 1
+            : 1
+        }
       />
       <div className="min-h-screen" style={{ backgroundColor: '#F9F8F7' }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* 左側: 画像と詳細情報 */}
           <div className="lg:col-span-2 relative">
-            {/* サムネイル一覧（カードの外、絶対配置） */}
+            {/* サムネイル一覧（デスクトップ: 左側に絶対配置） */}
             {postDetails?.extra_image_urls && postDetails.extra_image_urls.length > 0 && (
-              <div className="absolute left-0 top-0 flex flex-col gap-2 z-10" style={{ marginLeft: '-88px' }}>
+              <div className="hidden lg:flex absolute left-0 top-0 flex-col gap-2 z-10" style={{ marginLeft: '-88px' }}>
                 {/* メイン画像のサムネイル */}
                 <button
                   onClick={() => {
@@ -151,6 +200,7 @@ export default function ProjectDetailPage({
                     width={80}
                     height={80}
                     className="w-full h-full object-cover"
+                    signedUrl={displayImagePath ? imageUrls.get(displayImagePath) : undefined}
                   />
                 </button>
 
@@ -177,6 +227,7 @@ export default function ProjectDetailPage({
                       width={80}
                       height={80}
                       className="w-full h-full object-cover"
+                      signedUrl={imageUrls.get(url)}
                     />
                   </button>
                 ))}
@@ -188,6 +239,7 @@ export default function ProjectDetailPage({
               <StorageImage
                 path={selectedImagePath || displayImagePath}
                 alt={displayTitle}
+                signedUrl={(selectedImagePath || displayImagePath) ? imageUrls.get(selectedImagePath || displayImagePath || '') : undefined}
                 width={1600}
                 height={900}
                 className="w-full h-full object-cover"
@@ -214,6 +266,64 @@ export default function ProjectDetailPage({
               </button>
             </div>
 
+            {/* サムネイル一覧（スマホ: メイン画像の下部に配置） */}
+            {postDetails?.extra_image_urls && postDetails.extra_image_urls.length > 0 && (
+              <div className="lg:hidden flex flex-row gap-2 mb-6 overflow-x-auto pb-2">
+                {/* メイン画像のサムネイル */}
+                <button
+                  onClick={() => {
+                    setSelectedImagePath(displayImagePath || '');
+                    setSelectedImageIndex(-1);
+                  }}
+                  className={`relative bg-gray-100 rounded-sm overflow-hidden cursor-pointer hover:opacity-80 transition-opacity border-2 flex-shrink-0 ${
+                    selectedImagePath === displayImagePath || selectedImageIndex === -1 ? 'border-dashed' : 'border-gray-300'
+                  }`}
+                  style={{
+                    width: '80px',
+                    height: '80px',
+                    borderColor: selectedImagePath === displayImagePath || selectedImageIndex === -1 ? '#323232' : undefined
+                  }}
+                >
+                  <StorageImage
+                    path={displayImagePath}
+                    alt={displayTitle}
+                    width={80}
+                    height={80}
+                    className="w-full h-full object-cover"
+                    signedUrl={displayImagePath ? imageUrls.get(displayImagePath) : undefined}
+                  />
+                </button>
+
+                {/* 追加画像のサムネイル */}
+                {postDetails.extra_image_urls.map((url, index) => (
+                  <button
+                    key={index}
+                    onClick={() => {
+                      setSelectedImagePath(url);
+                      setSelectedImageIndex(index);
+                    }}
+                    className={`relative bg-gray-100 rounded-sm overflow-hidden cursor-pointer hover:opacity-80 transition-opacity border-2 flex-shrink-0 ${
+                      selectedImagePath === url && selectedImageIndex === index ? 'border-dashed' : 'border-gray-300'
+                    }`}
+                    style={{
+                      width: '80px',
+                      height: '80px',
+                      borderColor: selectedImagePath === url && selectedImageIndex === index ? '#323232' : undefined
+                    }}
+                  >
+                    <StorageImage
+                      path={url}
+                      alt={`追加画像 ${index + 1}`}
+                      width={80}
+                      height={80}
+                      className="w-full h-full object-cover"
+                      signedUrl={imageUrls.get(url)}
+                    />
+                  </button>
+                ))}
+              </div>
+            )}
+
             <div className="space-y-6">
 
             {/* スクリーンショット */}
@@ -226,8 +336,13 @@ export default function ProjectDetailPage({
                         <div className="flex items-center justify-center mb-2">
                           <LayoutDashboard size={20} style={{ color: '#9CA3AF' }} />
                         </div>
-                        <div
-                          className="bg-gray-100 rounded-sm overflow-hidden flex items-center justify-center"
+                        <button
+                          onClick={() => {
+                            setSelectedImagePath(postDetails.dashboard_url!);
+                            setSelectedImageIndex(-1);
+                            setModalOpen(true);
+                          }}
+                          className="bg-gray-100 rounded-sm overflow-hidden flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity"
                           style={{ height: '95px', minWidth: '95px' }}
                         >
                           <StorageImage
@@ -236,8 +351,9 @@ export default function ProjectDetailPage({
                             width={300}
                             height={95}
                             className="max-h-full w-auto object-contain"
+                            signedUrl={postDetails.dashboard_url ? imageUrls.get(postDetails.dashboard_url) : undefined}
                           />
-                        </div>
+                        </button>
                       </div>
                     )}
                     {postDetails.user_ui_url && (
@@ -245,8 +361,13 @@ export default function ProjectDetailPage({
                         <div className="flex items-center justify-center mb-2">
                           <Monitor size={20} style={{ color: '#9CA3AF' }} />
                         </div>
-                        <div
-                          className="bg-gray-100 rounded-sm overflow-hidden flex items-center justify-center"
+                        <button
+                          onClick={() => {
+                            setSelectedImagePath(postDetails.user_ui_url!);
+                            setSelectedImageIndex(-1);
+                            setModalOpen(true);
+                          }}
+                          className="bg-gray-100 rounded-sm overflow-hidden flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity"
                           style={{ height: '95px', minWidth: '95px' }}
                         >
                           <StorageImage
@@ -255,8 +376,9 @@ export default function ProjectDetailPage({
                             width={300}
                             height={95}
                             className="max-h-full w-auto object-contain"
+                            signedUrl={postDetails.user_ui_url ? imageUrls.get(postDetails.user_ui_url) : undefined}
                           />
-                        </div>
+                        </button>
                       </div>
                     )}
                     {postDetails.performance_url && (
@@ -264,8 +386,13 @@ export default function ProjectDetailPage({
                         <div className="flex items-center justify-center mb-2">
                           <Activity size={20} style={{ color: '#9CA3AF' }} />
                         </div>
-                        <div
-                          className="bg-gray-100 rounded-sm overflow-hidden flex items-center justify-center"
+                        <button
+                          onClick={() => {
+                            setSelectedImagePath(postDetails.performance_url!);
+                            setSelectedImageIndex(-1);
+                            setModalOpen(true);
+                          }}
+                          className="bg-gray-100 rounded-sm overflow-hidden flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity"
                           style={{ height: '95px', minWidth: '95px' }}
                         >
                           <StorageImage
@@ -274,8 +401,9 @@ export default function ProjectDetailPage({
                             width={300}
                             height={95}
                             className="max-h-full w-auto object-contain"
+                            signedUrl={postDetails.performance_url ? imageUrls.get(postDetails.performance_url) : undefined}
                           />
-                        </div>
+                        </button>
                       </div>
                     )}
                   </div>
@@ -648,6 +776,7 @@ export default function ProjectDetailPage({
                             width={48}
                             height={48}
                             className="object-cover w-full h-full"
+                            signedUrl={authorProfile.icon_url ? imageUrls.get(authorProfile.icon_url) : undefined}
                           />
                         </div>
                       ) : (

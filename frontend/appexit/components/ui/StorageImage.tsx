@@ -13,11 +13,13 @@ interface StorageImageProps {
   className?: string;
   priority?: boolean;
   sizes?: string;
+  signedUrl?: string; // 事前取得した署名付きURL（パフォーマンス最適化用）
 }
 
 /**
  * Supabase Storageの画像を表示するコンポーネント
- * パスから自動的に署名付きURLを生成して表示します
+ * - signedUrlが渡された場合：そのURLを直接使用（高速）
+ * - signedUrlがない場合：パスから自動的に署名付きURLを生成（後方互換）
  */
 export default function StorageImage({
   path,
@@ -28,11 +30,20 @@ export default function StorageImage({
   className,
   priority,
   sizes,
+  signedUrl,
 }: StorageImageProps) {
-  const [imageUrl, setImageUrl] = useState<string>('https://placehold.co/600x400/e2e8f0/64748b?text=Loading...');
+  const [imageUrl, setImageUrl] = useState<string>(
+    signedUrl || 'https://placehold.co/600x400/e2e8f0/64748b?text=Loading...'
+  );
   const [error, setError] = useState(false);
 
   useEffect(() => {
+    // signedUrlが渡されている場合は個別取得をスキップ（パフォーマンス最適化）
+    if (signedUrl) {
+      setImageUrl(signedUrl);
+      return;
+    }
+
     const loadImage = async () => {
       try {
         const url = await getImageUrl(path);
@@ -45,7 +56,7 @@ export default function StorageImage({
     };
 
     loadImage();
-  }, [path]);
+  }, [path, signedUrl]);
 
   if (fill) {
     return (

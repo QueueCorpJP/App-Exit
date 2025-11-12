@@ -24,6 +24,7 @@ function MessageThread({
   isLoadingMessages,
   onBack,
 }: MessageThreadProps) {
+  console.log('[MESSAGE-THREAD-COMPONENT] Render:', { isLoadingMessages, messagesLength: messages.length });
   const [newMessage, setNewMessage] = useState('');
   const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);

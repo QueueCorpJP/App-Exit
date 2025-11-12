@@ -52,20 +52,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       const accessToken = accessTokenCookie ? accessTokenCookie.split('=')[1] : null;
 
-      const headers: HeadersInit = {
-        'Content-Type': 'application/json',
-      };
-
-      // Cookieから取得したトークンをAuthorizationヘッダーに追加
-      if (accessToken) {
-        headers['Authorization'] = `Bearer ${accessToken}`;
-      }
-
+      // HttpOnly Cookieで認証されるため、Authorizationヘッダーは不要
       const response = await fetch(`${apiUrl}/api/auth/session`, {
         method: 'GET',
-        credentials: 'include', // HTTPOnly Cookieを送信
+        credentials: 'include', // HttpOnly Cookieを自動送信
         cache: 'no-store',
-        headers,
+        headers: {
+          'Content-Type': 'application/json',
+        },
       });
 
       if (response.ok) {
@@ -154,13 +148,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return false;
       }
 
+      // HttpOnly Cookieで認証されるため、Authorizationヘッダーは不要
       const response = await fetch(`${apiUrl}/api/auth/refresh`, {
         method: 'POST',
-        credentials: 'include', // refresh_token Cookieを送信
+        credentials: 'include', // HttpOnly Cookieを自動送信
         cache: 'no-store',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-        },
       });
 
       if (response.ok) {

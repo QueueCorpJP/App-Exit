@@ -462,13 +462,33 @@ func (s *Server) GetProfile(w http.ResponseWriter, r *http.Request) {
 	// impersonate JWTでプロフィールを取得
 	impersonateClient := s.supabase.GetAuthenticatedClient(impersonateJWT)
 	fmt.Printf("[GET PROFILE] Fetching profile from database...\n")
-	var profile models.Profile
-	_, err := impersonateClient.From("profiles").Select("*", "", false).Eq("id", userID).Single().ExecuteTo(&profile)
+	var profiles []models.Profile
+	_, err := impersonateClient.From("profiles").Select("*", "", false).Eq("id", userID).ExecuteTo(&profiles)
 	if err != nil {
 		fmt.Printf("[GET PROFILE] ❌ ERROR: Failed to fetch profile: %v\n", err)
 		fmt.Printf("========== GET PROFILE END (FAILED) ==========\n\n")
 		response.Error(w, http.StatusNotFound, "Profile not found")
 		return
+	}
+
+	if len(profiles) == 0 {
+		fmt.Printf("[GET PROFILE] ❌ ERROR: No profile found for user %s\n", userID)
+		fmt.Printf("========== GET PROFILE END (FAILED) ==========\n\n")
+		response.Error(w, http.StatusNotFound, "Profile not found")
+		return
+	}
+
+	// sellerのプロフィールを優先的に取得（stripe_account_idが設定されている可能性が高い）
+	var profile models.Profile
+	for _, p := range profiles {
+		if p.Role == "seller" {
+			profile = p
+			break
+		}
+	}
+	// sellerが見つからない場合は最初のプロフィールを使用
+	if profile.ID == "" && len(profiles) > 0 {
+		profile = profiles[0]
 	}
 
 	fmt.Printf("[GET PROFILE] ✅ Profile fetched successfully: %s\n", profile.DisplayName)
@@ -498,13 +518,14 @@ func setAuthCookies(w http.ResponseWriter, accessToken, refreshToken string, use
 		MaxAge:   30 * 60, // 30分（Supabase JWTの有効期限と一致）
 	})
 
-	// 1.5. access_token (JavaScriptアクセス可能) - Authorization ヘッダー用（30分有効）
+	// 1.5. access_token (HttpOnly) - バックエンドAPI認証用（30分有効）
+	// セキュリティ: HttpOnly=trueに設定してXSS攻撃から保護
 	http.SetCookie(w, &http.Cookie{
 		Name:     "access_token",
 		Value:    accessToken,
 		Path:     "/",
 		Domain:   cookieDomain,
-		HttpOnly: false, // JavaScriptからアクセス可能
+		HttpOnly: true, // XSS攻撃から保護（JavaScriptからアクセス不可）
 		Secure:   false,
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   30 * 60, // 30分（Supabase JWTの有効期限と一致）
@@ -561,7 +582,7 @@ func (s *Server) Logout(w http.ResponseWriter, r *http.Request) {
 		Name:     "access_token",
 		Value:    "",
 		Path:     "/",
-		HttpOnly: false,
+		HttpOnly: true, // ログイン時と同じ設定にする
 		Secure:   false,
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   -1,

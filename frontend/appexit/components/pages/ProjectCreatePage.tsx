@@ -321,7 +321,7 @@ export default function ProjectCreatePage({ postType, pageTitle, pageSubtitle }:
 
       console.log('[PROJECT-CREATE] Submitting payload:', payload);
 
-      // Use apiClient which automatically gets token from localStorage
+      // apiClientはCookieベースの認証を使用（HttpOnly Cookieが自動送信される）
       const result = await apiClient.post('/api/posts', payload);
 
       console.log('[PROJECT-CREATE] Post created successfully:', result);
@@ -376,7 +376,7 @@ export default function ProjectCreatePage({ postType, pageTitle, pageSubtitle }:
   const stepBorderColor = postType === 'secret' ? '#8a8a8a' : '#4B5563';
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: colors.background }}>
+    <div className="min-h-screen relative" style={{ backgroundColor: colors.background }}>
       <div className="py-8">
         {/* プログレスバー - 幅制限あり */}
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 mb-8">
@@ -426,7 +426,7 @@ export default function ProjectCreatePage({ postType, pageTitle, pageSubtitle }:
         </div>
 
         {/* フォーム - プログレスバーと同じ幅 */}
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 relative">
           <form onSubmit={handleSubmit} className="space-y-2">
           {/* ステップ1: プロダクト名 */}
           <div className="rounded-lg py-8 px-8" style={{ backgroundColor: cardBgColor }}>
@@ -1251,22 +1251,50 @@ export default function ProjectCreatePage({ postType, pageTitle, pageSubtitle }:
           </div>
 
           {/* ステップ9: 価格と追加情報 */}
-          <div className="rounded-lg py-8 px-8" style={{ backgroundColor: cardBgColor }}>
+          <div className="rounded-lg py-8 px-8 relative" style={{ backgroundColor: cardBgColor }}>
             <div className="max-w-4xl mx-auto">
               <div className="flex items-start gap-4">
               <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 border" style={{ borderColor: stepBorderColor, backgroundColor: 'transparent' }}>
                 <span className="font-bold text-base" style={{ color: labelColor }}>9</span>
               </div>
               <div className="flex-1">
-                <h2 className="text-lg font-bold mb-2" style={{ color: labelColor }}>
-                  希望売却価格と追加情報
-                </h2>
-                <p className="text-sm mb-4" style={{ color: textColor }}>
-                  プロダクトの売却希望価格と技術情報を入力してください
-                </p>
+                <div className="flex items-start gap-4 mb-4">
+                  {/* タイトルと説明文 */}
+                  <div className="flex-1">
+                    <h2 className="text-lg font-bold mb-2" style={{ color: labelColor }}>
+                      希望売却価格と追加情報
+                    </h2>
+                    <p className="text-sm" style={{ color: textColor }}>
+                      プロダクトの売却希望価格と技術情報を入力してください
+                    </p>
+                  </div>
+
+                  {/* AI査定 - スマホでは横並び、デスクトップではカード外側 */}
+                  <div
+                    className="flex flex-col items-center justify-center gap-0 lg:absolute lg:-right-[230px] lg:top-[30%] lg:-translate-y-1/2 z-10 transition-transform duration-200 lg:hover:scale-[1.1] cursor-pointer"
+                    onClick={() => {
+                      // TODO: 将来的にAI査定APIと連携
+                      // プロジェクトの情報を元にAI査定を実行
+                      console.log('AI査定をリクエスト');
+                      // 例: const result = await callAIValuationAPI(projectData);
+                      // 結果を表示またはフォームに反映
+                    }}
+                  >
+                    <span className="text-xs lg:text-base font-semibold whitespace-nowrap text-center" style={{ color: postType === 'secret' ? textColor : '#374151' }}>
+                      \ AIで査定する /
+                    </span>
+                    <img
+                      src="/ai.png"
+                      alt="AI"
+                      width={110}
+                      height={110}
+                      className="object-contain w-[110px] h-[110px] lg:w-[220px] lg:h-[220px] ml-6"
+                    />
+                  </div>
+                </div>
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium mb-2" style={{ color: labelColor }}>
+                    <label className="block text-sm font-medium mb-1" style={{ color: labelColor }}>
                       希望売却価格 <span className="text-red-500">*</span>
                     </label>
                     <div className="flex gap-2">

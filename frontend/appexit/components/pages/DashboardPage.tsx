@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import ProjectCard from '@/components/ui/ProjectCard'
+import { useAuth } from '@/lib/auth-context'
 
 interface DashboardStats {
   totalProjects: number
@@ -12,18 +13,18 @@ interface DashboardStats {
 }
 
 export default function DashboardPage() {
-  const [userType, setUserType] = useState<'buyer' | 'seller' | null>(null)
+  const { profile } = useAuth()
   const [stats, setStats] = useState<DashboardStats>({
     totalProjects: 0,
     totalMessages: 0,
     activeBids: 0,
     completedDeals: 0,
   })
+  
+  // プロフィールからユーザータイプを取得（Cookieベースの認証）
+  const userType: 'buyer' | 'seller' | null = profile?.role === 'seller' ? 'seller' : profile?.role === 'buyer' ? 'buyer' : null
 
   useEffect(() => {
-    // LocalStorageからユーザータイプを取得
-    const storedUserType = localStorage.getItem('userType') as 'buyer' | 'seller'
-    setUserType(storedUserType)
 
     // TODO: APIからダッシュボード統計を取得
     // 仮のデータ

@@ -156,7 +156,7 @@ export default function Header() {
               <div className="relative" ref={dropdownRef}>
                 <div className="flex items-center gap-2">
                   <Link
-                    href={`/profile/${user.id}`}
+                    href="/profile"
                     className="flex items-center gap-2 text-gray-700 hover:text-gray-900"
                   >
                     {profile?.icon_url ? (
@@ -224,7 +224,7 @@ export default function Header() {
               <div className="w-8 h-8 bg-gray-200 rounded animate-pulse"></div>
             ) : user ? (
               <Link
-                href={`/profile/${user.id}`}
+                href="/profile"
                 className="flex items-center"
               >
                 {profile?.icon_url ? (

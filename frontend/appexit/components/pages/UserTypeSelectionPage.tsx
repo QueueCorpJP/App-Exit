@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Button from '@/components/ui/Button'
-import { getAuthHeader } from '@/lib/cookie-utils'
 
 export default function UserTypeSelectionPage() {
   const [role, setRole] = useState<'buyer' | 'seller' | null>(null)
@@ -54,9 +53,8 @@ export default function UserTypeSelectionPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...getAuthHeader(),
         },
-        credentials: 'include',
+        credentials: 'include', // HttpOnly Cookieを自動送信
         body: JSON.stringify(profileData),
       })
 

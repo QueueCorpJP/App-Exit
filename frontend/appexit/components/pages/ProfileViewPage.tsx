@@ -27,21 +27,21 @@ export default function ProfileViewPage({ userId }: ProfileViewPageProps) {
     const fetchProfileData = async () => {
       try {
         setLoading(true);
-        const response = await profileApi.getProfileById(userId);
-        if (response.success && response.data) {
-          console.log('[ProfileViewPage] Loaded profile:', response.data);
-          console.log('[ProfileViewPage] stripe_account_id:', response.data.stripe_account_id);
-          console.log('[ProfileViewPage] stripe_onboarding_completed:', response.data.stripe_onboarding_completed);
-          setProfile(response.data);
+        const profile = await profileApi.getProfileById(userId);
+        if (profile) {
+          console.log('[ProfileViewPage] Loaded profile:', profile);
+          console.log('[ProfileViewPage] stripe_account_id:', profile.stripe_account_id);
+          console.log('[ProfileViewPage] stripe_onboarding_completed:', profile.stripe_onboarding_completed);
+          setProfile(profile);
         }
 
         // ユーザーの投稿を取得（エラーが発生してもプロフィールは表示する）
         try {
-          const postsResponse = await postApi.getPosts({
+          const posts = await postApi.getPosts({
             author_user_id: userId,
             limit: 50
           });
-          setPosts(postsResponse.data);
+          setPosts(Array.isArray(posts) ? posts : []);
         } catch (postError) {
           console.error('投稿の取得に失敗しました:', postError);
           // 投稿の取得に失敗しても続行

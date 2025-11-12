@@ -40,6 +40,10 @@ type (
 		UserID string `json:"user_id"`
 	}
 
+	participantRowSimple struct {
+		UserID string `json:"user_id"`
+	}
+
 	participantInsert struct {
 		ThreadID string `json:"thread_id"`
 		UserID   string `json:"user_id"`
@@ -343,7 +347,10 @@ func (s *Server) GetThreads(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Printf("[GetThreads] Found %d threads", len(threadRows))
+
 	if len(threadRows) == 0 {
+		log.Printf("[GetThreads] No threads found, returning empty array")
 		response.Success(w, http.StatusOK, []models.ThreadWithLastMessage{})
 		return
 	}
@@ -413,7 +420,8 @@ func (s *Server) GetThreads(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	var threads []models.ThreadWithLastMessage
+	// 空配列を初期化（nilの場合でも確実に空配列を返す）
+	threads := make([]models.ThreadWithLastMessage, 0, len(threadRows))
 	for _, row := range threadRows {
 		thread := models.ThreadWithLastMessage{
 			Thread: models.Thread{
@@ -459,6 +467,7 @@ func (s *Server) GetThreads(w http.ResponseWriter, r *http.Request) {
 		threads = append(threads, thread)
 	}
 
+	log.Printf("[GetThreads] Returning %d threads with full details", len(threads))
 	response.Success(w, http.StatusOK, threads)
 }
 
@@ -505,6 +514,215 @@ func (s *Server) GetThreadByID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(threadRows) == 0 {
+		// Thread not found - check if the ID is actually a user ID
+		// If so, check if there's an existing thread with that user, or create a new one
+		log.Printf("[GetThreadByID] Thread not found, checking if ID is a user ID: %s", threadID)
+		
+		// Check if threadID is a valid user ID (exists in profiles table)
+		var profileRows []struct {
+			ID string `json:"id"`
+		}
+		_, profileErr := serviceClient.From("profiles").
+			Select("id", "", false).
+			Eq("id", threadID).
+			ExecuteTo(&profileRows)
+		
+		// If threadID is a valid user ID and it's not the current user, create a thread
+		if profileErr == nil && len(profileRows) > 0 && threadID != userID {
+			log.Printf("[GetThreadByID] ID is a valid user ID, checking for existing thread or creating new one")
+			
+			// Check if there's already a thread between these two users
+			// Use serviceClient to bypass RLS and check all threads
+			var existingThreadParticipants []participantRow
+			_, err = serviceClient.From("thread_participants").
+				Select("thread_id, user_id", "", false).
+				Eq("user_id", userID).
+				ExecuteTo(&existingThreadParticipants)
+			
+			if err == nil {
+				// Get all thread IDs where current user is a participant
+				userThreadIDs := make(map[string]bool)
+				for _, p := range existingThreadParticipants {
+					userThreadIDs[p.ThreadID] = true
+				}
+				
+				// Check if any of those threads also have the target user as a participant
+				if len(userThreadIDs) > 0 {
+					threadIDList := make([]string, 0, len(userThreadIDs))
+					for tid := range userThreadIDs {
+						threadIDList = append(threadIDList, tid)
+					}
+					
+					var targetUserParticipants []participantRow
+					_, err = serviceClient.From("thread_participants").
+						Select("thread_id, user_id", "", false).
+						In("thread_id", threadIDList).
+						Eq("user_id", threadID).
+						ExecuteTo(&targetUserParticipants)
+					
+					if err == nil && len(targetUserParticipants) > 0 {
+						// Found existing thread - use it
+						existingThreadID := targetUserParticipants[0].ThreadID
+						log.Printf("[GetThreadByID] Found existing thread: %s", existingThreadID)
+						
+						// Recursively call GetThreadByID with the actual thread ID
+						// But we need to avoid infinite recursion, so we'll fetch it directly
+						var existingThreadRows []threadRow
+						_, err = serviceClient.From("threads").
+							Select("id, created_by, related_post_id, created_at", "", false).
+							Eq("id", existingThreadID).
+							ExecuteTo(&existingThreadRows)
+						
+						if err == nil && len(existingThreadRows) > 0 {
+							// Build thread detail response
+							thread := models.ThreadDetail{
+								Thread: models.Thread{
+									ID:            existingThreadRows[0].ID,
+									CreatedBy:     existingThreadRows[0].CreatedBy,
+									RelatedPostID: existingThreadRows[0].RelatedPostID,
+									CreatedAt:     parseTime(existingThreadRows[0].CreatedAt),
+								},
+							}
+							
+							// Get participants
+							var participantRows []participantRowSimple
+							_, queryErr := serviceClient.From("thread_participants").
+								Select("user_id", "", false).
+								Eq("thread_id", existingThreadID).
+								ExecuteTo(&participantRows)
+							
+							if queryErr == nil && len(participantRows) > 0 {
+								participantIDs := make([]string, len(participantRows))
+								for i, row := range participantRows {
+									participantIDs[i] = row.UserID
+								}
+								
+								var profileRows []profileRow
+								_, err = client.From("profiles").
+									Select("id, role, party, display_name, age, icon_url, nda_flag, terms_accepted_at, privacy_accepted_at, stripe_customer_id, created_at, updated_at", "", false).
+									In("id", participantIDs).
+									ExecuteTo(&profileRows)
+								
+								if err == nil {
+									var iconPaths []string
+									for _, row := range profileRows {
+										if row.IconURL != nil && *row.IconURL != "" {
+											iconPaths = append(iconPaths, *row.IconURL)
+										}
+									}
+									
+									signedURLMap := s.supabase.GetBatchSignedURLs("profile-icons", iconPaths, 3600)
+									thread.Participants = s.buildProfilesFromRows(profileRows, signedURLMap)
+								}
+							}
+							
+							response.Success(w, http.StatusOK, thread)
+							return
+						}
+					}
+				}
+			}
+			
+			// No existing thread found - create a new one
+			log.Printf("[GetThreadByID] Creating new thread with user: %s", threadID)
+			
+			insertData := threadInsert{
+				CreatedBy:     userID,
+				RelatedPostID: nil,
+			}
+			
+			var threadResponse []threadResponse
+			_, err = client.From("threads").
+				Insert(insertData, false, "", "", "").
+				ExecuteTo(&threadResponse)
+			
+			if err != nil {
+				log.Printf("[GetThreadByID] Failed to create thread: %v", err)
+				response.Error(w, http.StatusInternalServerError, "Failed to create thread")
+				return
+			}
+			
+			if len(threadResponse) == 0 {
+				response.Error(w, http.StatusInternalServerError, "Failed to create thread")
+				return
+			}
+			
+			newThread := models.Thread{
+				ID:            threadResponse[0].ID,
+				CreatedBy:     threadResponse[0].CreatedBy,
+				RelatedPostID: threadResponse[0].RelatedPostID,
+				CreatedAt:     parseTime(threadResponse[0].CreatedAt),
+			}
+			
+			// Add participants
+			participantIDs := []string{threadID, userID}
+			uniqueParticipants := make(map[string]bool)
+			for _, pid := range participantIDs {
+				uniqueParticipants[pid] = true
+			}
+			
+			var participantInserts []participantInsert
+			for pid := range uniqueParticipants {
+				participantInserts = append(participantInserts, participantInsert{
+					ThreadID: newThread.ID,
+					UserID:   pid,
+				})
+			}
+			
+			if len(participantInserts) > 0 {
+				_, _, err = serviceClient.From("thread_participants").
+					Insert(participantInserts, false, "", "", "").
+					Execute()
+				
+				if err != nil {
+					log.Printf("[GetThreadByID] Failed to add participants: %v", err)
+					response.Error(w, http.StatusInternalServerError, fmt.Sprintf("Failed to add participants: %v", err))
+					return
+				}
+			}
+			
+			// Build thread detail response
+			threadDetail := models.ThreadDetail{
+				Thread: newThread,
+			}
+			
+			// Get participants for response
+			var participantRows []participantRowSimple
+			_, queryErr := serviceClient.From("thread_participants").
+				Select("user_id", "", false).
+				Eq("thread_id", newThread.ID).
+				ExecuteTo(&participantRows)
+			
+			if queryErr == nil && len(participantRows) > 0 {
+				participantIDsForResponse := make([]string, len(participantRows))
+				for i, row := range participantRows {
+					participantIDsForResponse[i] = row.UserID
+				}
+				
+				var profileRows []profileRow
+				_, err = client.From("profiles").
+					Select("id, role, party, display_name, age, icon_url, nda_flag, terms_accepted_at, privacy_accepted_at, stripe_customer_id, created_at, updated_at", "", false).
+					In("id", participantIDsForResponse).
+					ExecuteTo(&profileRows)
+				
+				if err == nil {
+					var iconPaths []string
+					for _, row := range profileRows {
+						if row.IconURL != nil && *row.IconURL != "" {
+							iconPaths = append(iconPaths, *row.IconURL)
+						}
+					}
+					
+					signedURLMap := s.supabase.GetBatchSignedURLs("profile-icons", iconPaths, 3600)
+					threadDetail.Participants = s.buildProfilesFromRows(profileRows, signedURLMap)
+				}
+			}
+			
+			response.Success(w, http.StatusCreated, threadDetail)
+			return
+		}
+		
+		// Not a valid user ID or is the current user - return 404
 		response.Error(w, http.StatusNotFound, "Thread not found")
 		return
 	}
@@ -522,10 +740,6 @@ func (s *Server) GetThreadByID(w http.ResponseWriter, r *http.Request) {
 			RelatedPostID: threadRows[0].RelatedPostID,
 			CreatedAt:     parseTime(threadRows[0].CreatedAt),
 		},
-	}
-
-	type participantRowSimple struct {
-		UserID string `json:"user_id"`
 	}
 
 	var participantRows []participantRowSimple
@@ -609,6 +823,9 @@ func (s *Server) GetMessages(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// メッセージが空でも正常に処理を続行
+	log.Printf("[GetMessages] Messages count: %d", len(messageRows))
+
 	senderIDs := make(map[string]bool)
 	for _, row := range messageRows {
 		senderIDs[row.SenderUserID] = true
@@ -654,7 +871,9 @@ func (s *Server) GetMessages(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	var messages []models.MessageWithSender
+	// 空配列を初期化（nilの場合でも確実に空配列を返す）
+	messages := make([]models.MessageWithSender, 0, len(messageRows))
+
 	for _, row := range messageRows {
 		profile, hasProfile := profilesMap[row.SenderUserID]
 		msg := models.MessageWithSender{
@@ -685,10 +904,7 @@ func (s *Server) GetMessages(w http.ResponseWriter, r *http.Request) {
 		messages = append(messages, msg)
 	}
 
-	if messages == nil {
-		messages = []models.MessageWithSender{}
-	}
-
+	log.Printf("[GetMessages] Returning %d messages", len(messages))
 	response.Success(w, http.StatusOK, messages)
 }
 

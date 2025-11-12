@@ -57,23 +57,17 @@ if (typeof window !== 'undefined') {
 
     if (event === 'TOKEN_REFRESHED') {
       console.log(`[SUPABASE ${now}] ✓ Token refreshed successfully`);
-      // リフレッシュされたトークンをCookieに保存
-      // JWT有効期限（30分）に合わせてCookie有効期限も30分（1800秒）に設定
-      if (session?.access_token) {
-        document.cookie = `access_token=${session.access_token}; path=/; max-age=1800; SameSite=Lax`;
-        console.log(`[SUPABASE ${now}] ✓ Updated access_token cookie (length: ${session.access_token.length})`);
-      }
+      // HttpOnly Cookieはバックエンドが設定するため、フロントエンドでは何もしない
     }
 
-    if (event === 'SIGNED_IN' && session?.access_token) {
-      console.log(`[SUPABASE ${now}] ✓ User signed in, saving access_token to cookie`);
-      // JWT有効期限（30分）に合わせてCookie有効期限も30分（1800秒）に設定
-      document.cookie = `access_token=${session.access_token}; path=/; max-age=1800; SameSite=Lax`;
+    if (event === 'SIGNED_IN') {
+      console.log(`[SUPABASE ${now}] ✓ User signed in`);
+      // HttpOnly Cookieはバックエンドが設定するため、フロントエンドでは何もしない
     }
 
     if (event === 'SIGNED_OUT') {
-      console.log(`[SUPABASE ${now}] User signed out, clearing cookies`);
-      document.cookie = 'access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+      console.log(`[SUPABASE ${now}] User signed out`);
+      // HttpOnly Cookieの削除はバックエンドが行うため、フロントエンドでは何もしない
     }
   });
 

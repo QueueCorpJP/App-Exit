@@ -66,8 +66,8 @@ func (s *Server) GetUserByID(w http.ResponseWriter, r *http.Request) {
 	var profiles []models.Profile
 	_, err := client.From("profiles").Select("*", "", false).Eq("id", userID).ExecuteTo(&profiles)
 	if err != nil || len(profiles) == 0 {
-		// プロフィールが存在しない場合は正常なレスポンスとしてnullを返す
-		response.Success(w, http.StatusOK, nil)
+		// プロフィールが存在しない場合は404エラーを返す
+		response.Error(w, http.StatusNotFound, "Profile not found")
 		return
 	}
 

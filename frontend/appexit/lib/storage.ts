@@ -1,5 +1,3 @@
-import { getAuthToken } from './cookie-utils';
-
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 
 /**
@@ -26,21 +24,10 @@ export async function uploadImage(
 
   console.log('[STORAGE] Uploading image:', { bucket, filePath, size: file.size });
 
-  // Get token from cookie
-  const token = getAuthToken();
-  if (!token) {
-    console.error('[STORAGE] No authentication token found in cookies');
-    throw new Error('Missing authentication token');
-  }
-
-  console.log('[STORAGE] Using auth token from cookie');
-
+  // HttpOnly Cookieで認証されるため、手動でトークンを取得する必要なし
   const response = await fetch(`${API_URL}/api/storage/upload`, {
     method: 'POST',
-    credentials: 'include', // Cookie認証
-    headers: {
-      'Authorization': `Bearer ${token}`,
-    },
+    credentials: 'include', // HttpOnly Cookieを自動送信
     body: formData,
   });
 
@@ -164,8 +151,8 @@ export async function getImageUrls(
     bucketGroups.get(actualBucket)!.push(actualPath);
   });
 
-  // 各バケットごとにまとめてリクエスト
-  for (const [bucketName, bucketPaths] of bucketGroups) {
+  // 各バケットごとにまとめてリクエスト（並列処理）
+  const bucketPromises = Array.from(bucketGroups.entries()).map(async ([bucketName, bucketPaths]) => {
     try {
       const response = await fetch(`${API_URL}/api/storage/signed-urls`, {
         method: 'POST',
@@ -178,19 +165,33 @@ export async function getImageUrls(
 
       if (!response.ok) {
         console.error('[STORAGE] Failed to get signed URLs for bucket:', bucketName, response.status);
-        continue;
+        return new Map<string, string>();
       }
 
       const result = await response.json();
       const urls = result.data.urls;
+      const bucketUrlMap = new Map<string, string>();
 
       // 元のパス（バケット名を含む）をキーとしてマップに追加
       for (const [actualPath, url] of Object.entries(urls)) {
         const originalPath = bucketName === 'post-images' ? actualPath : `${bucketName}/${actualPath}`;
-        urlMap.set(originalPath, url as string);
+        bucketUrlMap.set(originalPath, url as string);
       }
+
+      return bucketUrlMap;
     } catch (error) {
       console.error('[STORAGE] Error getting signed URLs for bucket:', bucketName, error);
+      return new Map<string, string>();
+    }
+  });
+
+  // すべてのバケットのリクエストを並列実行
+  const bucketResults = await Promise.all(bucketPromises);
+
+  // 結果を統合
+  for (const bucketUrlMap of bucketResults) {
+    for (const [path, url] of bucketUrlMap) {
+      urlMap.set(path, url);
     }
   }
 

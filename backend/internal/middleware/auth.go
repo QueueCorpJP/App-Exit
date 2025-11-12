@@ -53,36 +53,42 @@ func AuthWithSupabase(supabaseJWTSecret string, supabaseService *services.Supaba
 				}
 			}
 
-			// Authorizationヘッダーからトークンを取得
-			// 統一戦略: Authorizationヘッダーのみを使用（Cookieは使用しない）
-			fmt.Printf("[AUTH] Checking for Authorization header...\n")
-			authHeader := r.Header.Get("Authorization")
-			if authHeader == "" {
-				fmt.Printf("[AUTH] ❌ ERROR: Missing Authorization header\n")
-				fmt.Printf("[AUTH] Checking all header keys:\n")
-				for key := range r.Header {
-					fmt.Printf("[AUTH]   - %s\n", key)
+			// トークンを取得（Cookie優先、後方互換でAuthorizationヘッダーもチェック）
+			var tokenString string
+
+			// 1. まずCookieをチェック（推奨: HttpOnly Cookieを使用）
+			fmt.Printf("[AUTH] Checking for access_token cookie...\n")
+			cookie, err := r.Cookie("access_token")
+			if err == nil && cookie.Value != "" {
+				tokenString = cookie.Value
+				fmt.Printf("[AUTH] ✓ Token found in cookie (length: %d)\n", len(tokenString))
+			} else {
+				// 2. Cookieがない場合はAuthorizationヘッダーをチェック（後方互換）
+				fmt.Printf("[AUTH] Cookie not found, checking Authorization header...\n")
+				authHeader := r.Header.Get("Authorization")
+				if authHeader == "" {
+					fmt.Printf("[AUTH] ❌ ERROR: No authentication token found (neither cookie nor header)\n")
+					fmt.Printf("[AUTH] Available cookies:\n")
+					for _, c := range r.Cookies() {
+						fmt.Printf("[AUTH]   - %s\n", c.Name)
+					}
+					fmt.Printf("========== AUTH MIDDLEWARE END (FAILED - Missing Auth) ==========\n\n")
+					response.Error(w, http.StatusUnauthorized, "Missing authentication token")
+					return
 				}
-				fmt.Printf("[AUTH] Available headers: %v\n", r.Header)
-				fmt.Printf("[AUTH] Request URL: %s\n", r.URL.String())
-				fmt.Printf("[AUTH] Request Method: %s\n", r.Method)
-				fmt.Printf("========== AUTH MIDDLEWARE END (FAILED - Missing Auth Header) ==========\n\n")
-				response.Error(w, http.StatusUnauthorized, "Missing authentication token")
-				return
+
+				if len(authHeader) < 8 || authHeader[:7] != "Bearer " {
+					fmt.Printf("[AUTH] ❌ ERROR: Invalid Authorization header format\n")
+					fmt.Printf("========== AUTH MIDDLEWARE END (FAILED) ==========\n\n")
+					response.Error(w, http.StatusUnauthorized, "Invalid authorization header format")
+					return
+				}
+
+				tokenString = authHeader[7:]
+				fmt.Printf("[AUTH] ✓ Token found in header (length: %d)\n", len(tokenString))
 			}
 
-			fmt.Printf("[AUTH] ✓ Authorization header found: %s...\n", authHeader[:min(50, len(authHeader))])
-
-			if len(authHeader) < 8 || authHeader[:7] != "Bearer " {
-				fmt.Printf("[AUTH] ❌ ERROR: Invalid Authorization header format\n")
-				fmt.Printf("[AUTH] Header value: %s\n", authHeader)
-				fmt.Printf("========== AUTH MIDDLEWARE END (FAILED) ==========\n\n")
-				response.Error(w, http.StatusUnauthorized, "Invalid authorization header format")
-				return
-			}
-
-			tokenString := authHeader[7:]
-			fmt.Printf("[AUTH] ✓ Token extracted (length: %d, segments: %d)\n", len(tokenString), len(strings.Split(tokenString, ".")))
+			fmt.Printf("[AUTH] Token segments: %d\n", len(strings.Split(tokenString, ".")))
 
 			// Verify Supabase JWT token
 			fmt.Printf("[AUTH] Parsing JWT token...\n")
@@ -149,22 +155,31 @@ func AuthWithSupabase(supabaseJWTSecret string, supabaseService *services.Supaba
 func OptionalAuthWithSupabase(supabaseJWTSecret string, supabaseService *services.SupabaseService) func(http.HandlerFunc) http.HandlerFunc {
 	return func(next http.HandlerFunc) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
-			// Authorizationヘッダーからトークンを取得
-			authHeader := r.Header.Get("Authorization")
-			if authHeader == "" {
-				// 認証なし - そのまま通す
-				next(w, r)
-				return
-			}
+			// トークンを取得（Cookie優先、後方互換でAuthorizationヘッダーもチェック）
+			var tokenString string
 
-			// 認証ヘッダーがある場合は検証する
-			if len(authHeader) < 8 || authHeader[:7] != "Bearer " {
-				// 無効なフォーマットの場合もそのまま通す（エラーにしない）
-				next(w, r)
-				return
-			}
+			// 1. まずCookieをチェック
+			cookie, err := r.Cookie("access_token")
+			if err == nil && cookie.Value != "" {
+				tokenString = cookie.Value
+			} else {
+				// 2. Cookieがない場合はAuthorizationヘッダーをチェック
+				authHeader := r.Header.Get("Authorization")
+				if authHeader == "" {
+					// 認証なし - そのまま通す
+					next(w, r)
+					return
+				}
 
-			tokenString := authHeader[7:]
+				// 認証ヘッダーがある場合は検証する
+				if len(authHeader) < 8 || authHeader[:7] != "Bearer " {
+					// 無効なフォーマットの場合もそのまま通す（エラーにしない）
+					next(w, r)
+					return
+				}
+
+				tokenString = authHeader[7:]
+			}
 
 			// Verify Supabase JWT token
 			token, err := jwt.ParseWithClaims(tokenString, &SupabaseJWTClaims{}, func(token *jwt.Token) (interface{}, error) {
