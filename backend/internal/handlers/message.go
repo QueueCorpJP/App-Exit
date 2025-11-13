@@ -985,13 +985,19 @@ func (s *Server) GetMessages(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if filePath, hasAttachment := attachmentsMap[row.ID]; hasAttachment {
-			log.Printf("[GetMessages] Getting image URL for message %s, bucket=message-images, path=%s", row.ID, filePath)
-			imageURL, err := s.supabase.GetImageURL("message-images", filePath, 3600)
+			// 契約書の場合はcontract-documentsバケットから、画像の場合はmessage-imagesバケットからURLを取得
+			bucketName := "message-images"
+			if row.Type == string(models.MessageTypeContract) || row.Type == string(models.MessageTypeNDA) {
+				bucketName = "contract-documents"
+			}
+			
+			log.Printf("[GetMessages] Getting file URL for message %s, bucket=%s, path=%s", row.ID, bucketName, filePath)
+			imageURL, err := s.supabase.GetImageURL(bucketName, filePath, 3600)
 			if err != nil {
-				log.Printf("[GetMessages] ERROR: Failed to get image URL for message %s: %v", row.ID, err)
-				// エラーでもメッセージは返す（画像なしで）
+				log.Printf("[GetMessages] ERROR: Failed to get file URL for message %s: %v", row.ID, err)
+				// エラーでもメッセージは返す（ファイルなしで）
 			} else {
-				log.Printf("[GetMessages] Successfully got image URL for message %s: %s", row.ID, imageURL)
+				log.Printf("[GetMessages] Successfully got file URL for message %s: %s", row.ID, imageURL)
 				msg.ImageURL = &imageURL
 			}
 		}
@@ -1197,8 +1203,14 @@ func (s *Server) SendMessage(w http.ResponseWriter, r *http.Request) {
 			Execute()
 
 		if err == nil {
+			// 契約書の場合はcontract-documentsバケットから、画像の場合はmessage-imagesバケットからURLを取得
+			bucketName := "message-images"
+			if req.Type == models.MessageTypeContract || req.Type == models.MessageTypeNDA {
+				bucketName = "contract-documents"
+			}
+			
 			// 画像URLを取得（publicバケットの場合は直接URL、privateバケットの場合はsigned URL）
-			imageURL, err := s.supabase.GetImageURL("message-images", *req.FileURL, 3600)
+			imageURL, err := s.supabase.GetImageURL(bucketName, *req.FileURL, 3600)
 			if err == nil {
 				messageWithSender.ImageURL = &imageURL
 			} else {
@@ -1278,6 +1290,82 @@ func (s *Server) UploadMessageImage(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Printf("[UploadMessageImage] Failed to upload to storage: %v", err)
 		response.Error(w, http.StatusInternalServerError, fmt.Sprintf("Failed to upload image: %v", err))
+		return
+	}
+
+	response.Success(w, http.StatusCreated, map[string]string{
+		"file_path": filePath,
+	})
+}
+
+// UploadContractDocument handles contract document upload for messages
+func (s *Server) UploadContractDocument(w http.ResponseWriter, r *http.Request) {
+	userID, ok := utils.RequireUserID(r, w)
+	if !ok {
+		return
+	}
+
+	err := r.ParseMultipartForm(50 << 20) // 50MB max for contract documents
+	if err != nil {
+		log.Printf("[UploadContractDocument] Failed to parse form: %v", err)
+		response.Error(w, http.StatusBadRequest, "Failed to parse form data")
+		return
+	}
+
+	file, header, err := r.FormFile("contract")
+	if err != nil {
+		log.Printf("[UploadContractDocument] Failed to get file: %v", err)
+		response.Error(w, http.StatusBadRequest, "No contract file provided")
+		return
+	}
+	defer file.Close()
+
+	fileData, err := io.ReadAll(file)
+	if err != nil {
+		log.Printf("[UploadContractDocument] Failed to read file: %v", err)
+		response.Error(w, http.StatusInternalServerError, "Failed to read file")
+		return
+	}
+
+	contentType := http.DetectContentType(fileData)
+	if contentType == "application/octet-stream" || contentType == "application/json" {
+		headerContentType := header.Header.Get("Content-Type")
+		if headerContentType != "" {
+			contentType = headerContentType
+		} else {
+			ext := filepath.Ext(header.Filename)
+			mimeType := mime.TypeByExtension(ext)
+			if mimeType != "" {
+				contentType = mimeType
+			}
+		}
+	}
+
+	// 契約書として許可するファイルタイプ（PDF、画像、Word、Excelなど）
+	allowedTypes := map[string]bool{
+		"application/pdf":                          true,
+		"image/jpeg":                               true,
+		"image/png":                                true,
+		"image/webp":                               true,
+		"image/gif":                                true,
+		"application/msword":                       true, // .doc
+		"application/vnd.openxmlformats-officedocument.wordprocessingml.document": true, // .docx
+		"application/vnd.ms-excel":                  true, // .xls
+		"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": true, // .xlsx
+	}
+
+	if !allowedTypes[contentType] {
+		response.Error(w, http.StatusBadRequest, "Invalid file type. Only PDF, images, Word, and Excel files are allowed")
+		return
+	}
+
+	ext := filepath.Ext(header.Filename)
+	fileName := fmt.Sprintf("%s/%s%s", userID, uuid.New().String(), ext)
+
+	filePath, err := s.supabase.UploadFile(userID, "contract-documents", fileName, fileData, contentType)
+	if err != nil {
+		log.Printf("[UploadContractDocument] Failed to upload to storage: %v", err)
+		response.Error(w, http.StatusInternalServerError, fmt.Sprintf("Failed to upload contract: %v", err))
 		return
 	}
 

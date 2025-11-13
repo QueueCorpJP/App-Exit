@@ -56,12 +56,25 @@ type CreateThreadRequest struct {
 	ParticipantIDs []string `json:"participant_ids" validate:"required,min=1"`
 }
 
+// ContractType represents the type of contract document
+type ContractType string
+
+const (
+	ContractTypeNDA      ContractType = "nda"
+	ContractTypeLOI      ContractType = "loi"
+	ContractTypeDD       ContractType = "dd"
+	ContractTypeTransfer ContractType = "transfer"
+	ContractTypeHandover ContractType = "handover"
+	ContractTypeOther    ContractType = "other"
+)
+
 // CreateMessageRequest is used to send a new message
 type CreateMessageRequest struct {
-	ThreadID string      `json:"thread_id" validate:"required"`
-	Type     MessageType `json:"type" validate:"required,oneof=text image file contract nda"`
-	Text     *string     `json:"text,omitempty" validate:"required_if=Type text"`
-	FileURL  *string     `json:"file_url,omitempty"`
+	ThreadID     string       `json:"thread_id" validate:"required"`
+	Type         MessageType  `json:"type" validate:"required,oneof=text image file contract nda"`
+	Text         *string      `json:"text,omitempty" validate:"required_if=Type text"`
+	FileURL      *string      `json:"file_url,omitempty"`
+	ContractType *ContractType `json:"contract_type,omitempty"`
 }
 
 // ThreadWithLastMessage includes thread info with the last message

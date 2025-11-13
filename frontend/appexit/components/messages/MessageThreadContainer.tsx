@@ -367,6 +367,105 @@ function MessageThreadContainer({ threadId, onBack }: MessageThreadContainerProp
     }
   }, [threadId, isSending, user]);
 
+  const handleSendContract = useCallback(async (contractFile: File, contractType: string) => {
+    if (!threadId || isSending || !user) return;
+
+    const tempId = `temp-${Date.now()}`;
+
+    // 楽観的UI: メッセージを即座に表示
+    const optimisticMessage: MessageWithSender = {
+      id: tempId,
+      thread_id: threadId,
+      sender_id: user.id,
+      sender_user_id: user.id,
+      type: 'contract',
+      content: contractType,
+      text: contractType,
+      image_url: URL.createObjectURL(contractFile),
+      sender: {
+        id: user.id,
+        display_name: user.name || 'あなた',
+        icon_url: undefined,
+      },
+      created_at: new Date().toISOString(),
+    } as any;
+
+    setMessages(prev => [...prev, optimisticMessage]);
+    setIsSending(true);
+
+    try {
+      let fileUrl: string | null = null;
+
+      try {
+        const uploadResponse = await messageApi.uploadContractDocument(contractFile);
+        if (uploadResponse.success && uploadResponse.data) {
+          fileUrl = uploadResponse.data.file_path;
+        }
+      } catch (uploadErr) {
+        console.error('Failed to upload contract:', uploadErr);
+        setError('契約書のアップロードに失敗しました');
+        setMessages(prev => prev.filter(msg => msg.id !== tempId));
+        setIsSending(false);
+        throw uploadErr;
+      }
+
+      const response = await messageApi.sendMessage({
+        thread_id: threadId,
+        type: 'contract',
+        text: contractType,
+        file_url: fileUrl ? fileUrl : undefined,
+        contract_type: contractType,
+      });
+
+      let sentMessage: MessageWithSender | null = null;
+      if (response && typeof response === 'object' && 'id' in response) {
+        sentMessage = response as MessageWithSender;
+      }
+
+      if (sentMessage) {
+        // バックエンドから既にsigned URLが返されている場合はそのまま使用
+        let signedFileUrl = sentMessage.image_url;
+        if (sentMessage.image_url && !sentMessage.image_url.startsWith('http://') && !sentMessage.image_url.startsWith('https://')) {
+          // ファイルパスの場合のみsigned URLを取得
+          try {
+            const imageUrlMap = await getImageUrls([sentMessage.image_url], 'contract-documents');
+            signedFileUrl = imageUrlMap.get(sentMessage.image_url) || sentMessage.image_url;
+          } catch (err) {
+            console.error('Failed to get signed URL for contract:', err);
+            // エラーが発生しても元のURLを使用
+          }
+        }
+
+        setMessages(prev =>
+          prev.map(msg =>
+            msg.id === tempId
+              ? {
+                  ...sentMessage!,
+                  image_url: signedFileUrl,
+                  sender_name: user.name || 'あなた',
+                  sender_icon_url: null,
+                  is_sending: false,
+                }
+              : msg
+          )
+        );
+
+        // スレッド一覧の最終メッセージを更新（カスタムイベントを発火）
+        const event = new CustomEvent('updateThreadLastMessage', {
+          detail: { threadId, lastMessage: sentMessage }
+        });
+        window.dispatchEvent(event);
+      }
+    } catch (err) {
+      console.error('Failed to send contract:', err);
+      setError('契約書の送信に失敗しました');
+      setMessages(prev => prev.filter(msg => msg.id !== tempId));
+      throw err;
+    } finally {
+      setIsSending(false);
+    }
+  }, [threadId, isSending, user]);
+
   if (!user) return null;
 
   console.log('[MESSAGE-THREAD-CONTAINER] Rendering MessageThread:', { isLoadingMessages, messagesLength: messages.length, threadId });
@@ -377,6 +476,7 @@ function MessageThreadContainer({ threadId, onBack }: MessageThreadContainerProp
       messages={messages}
       currentUserId={user.id}
       onSendMessage={handleSendMessage}
+      onSendContract={handleSendContract}
       isSending={isSending}
       isLoadingMessages={isLoadingMessages}
       onBack={onBack}

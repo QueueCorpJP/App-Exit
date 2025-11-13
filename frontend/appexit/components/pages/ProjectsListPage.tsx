@@ -34,15 +34,28 @@ type PostType = 'all' | 'board' | 'transaction' | 'secret';
 type SortOption = 'newest' | 'oldest' | 'price-high' | 'price-low' | 'revenue-high' | 'revenue-low' | 'profit-high' | 'profit-low';
 
 const CATEGORIES = [
-  'ECサイト',
-  'SaaS',
-  'マッチングサービス',
-  'メディア',
-  'コミュニティ',
-  'ツール',
-  'エンタメ',
-  '教育',
+  'ソーシャル',
+  'EC・マーケットプレイス',
+  'ゲーム',
+  'ユーティリティ',
+  '生産性',
+  'エンターテイメント',
   'ヘルスケア',
+  '教育',
+  'ビジネス',
+  'ライフスタイル',
+  'フード・ドリンク',
+  '旅行',
+  '写真・動画',
+  '音楽',
+  'ニュース',
+  'スポーツ',
+  '天気',
+  'ナビゲーション',
+  'ファイナンス',
+  '医療',
+  'ショッピング',
+  'ブック',
   'その他'
 ];
 
@@ -54,8 +67,21 @@ export default function ProjectsListPage() {
 
   // フィルター状態
   const [showFilters, setShowFilters] = useState(false);
+
+  // 検索実行用の状態（実際に適用されるフィルター）
   const [searchKeyword, setSearchKeyword] = useState('');
-  const [searchInput, setSearchInput] = useState(''); // 検索入力用の一時的な状態
+  const [appliedCategories, setAppliedCategories] = useState<string[]>([]);
+  const [appliedPostTypes, setAppliedPostTypes] = useState<PostType[]>([]);
+  const [appliedStatuses, setAppliedStatuses] = useState<string[]>([]);
+  const [appliedPriceMin, setAppliedPriceMin] = useState<string>('');
+  const [appliedPriceMax, setAppliedPriceMax] = useState<string>('');
+  const [appliedRevenueMin, setAppliedRevenueMin] = useState<string>('');
+  const [appliedRevenueMax, setAppliedRevenueMax] = useState<string>('');
+  const [appliedProfitMarginMin, setAppliedProfitMarginMin] = useState<string>('');
+  const [appliedTechStack, setAppliedTechStack] = useState<string[]>([]);
+
+  // フィルター入力用の一時的な状態
+  const [searchInput, setSearchInput] = useState('');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedPostTypes, setSelectedPostTypes] = useState<PostType[]>([]);
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
@@ -65,6 +91,7 @@ export default function ProjectsListPage() {
   const [revenueMax, setRevenueMax] = useState<string>('');
   const [profitMarginMin, setProfitMarginMin] = useState<string>('');
   const [selectedTechStack, setSelectedTechStack] = useState<string[]>([]);
+
   const [sortBy, setSortBy] = useState<SortOption>('newest');
 
   // 利用可能な技術スタックのリスト
@@ -88,27 +115,27 @@ export default function ProjectsListPage() {
     }
   }, []);
 
-  // フィルター変更時にバックエンドから再取得
+  // フィルター変更時にバックエンドから再取得（appliedフィルターを使用）
   useEffect(() => {
     if (!isInitialLoad) {
       fetchPosts();
     }
   }, [
     searchKeyword,
-    selectedCategories,
-    selectedPostTypes,
-    // selectedStatusesはクライアント側で処理するため除外
-    priceMin,
-    priceMax,
-    revenueMin,
-    revenueMax,
-    selectedTechStack, // profitMarginMinは除外（クライアント側で処理）
+    appliedCategories,
+    appliedPostTypes,
+    // appliedStatusesはクライアント側で処理するため除外
+    appliedPriceMin,
+    appliedPriceMax,
+    appliedRevenueMin,
+    appliedRevenueMax,
+    appliedTechStack, // appliedProfitMarginMinは除外（クライアント側で処理）
   ]);
 
   // ソート、利益率フィルター、ステータスフィルターをクライアント側で実行
   useEffect(() => {
     applySortingAndProfitFilter();
-  }, [projects, sortBy, profitMarginMin, selectedStatuses]);
+  }, [projects, sortBy, appliedProfitMarginMin, appliedStatuses]);
 
   const fetchInitialData = async () => {
     setLoading(true);
@@ -210,32 +237,32 @@ export default function ProjectsListPage() {
   const fetchPosts = async () => {
     setLoading(true);
     try {
-      // バックエンドに検索パラメータを渡す
+      // バックエンドに検索パラメータを渡す（appliedフィルターを使用）
       const params: any = {};
-      
+
       if (searchKeyword.trim()) {
         params.search_keyword = searchKeyword.trim();
       }
-      if (selectedCategories.length > 0) {
-        params.categories = selectedCategories;
+      if (appliedCategories.length > 0) {
+        params.categories = appliedCategories;
       }
-      if (selectedPostTypes.length > 0) {
-        params.post_types = selectedPostTypes;
+      if (appliedPostTypes.length > 0) {
+        params.post_types = appliedPostTypes;
       }
-      if (priceMin) {
-        params.price_min = parseInt(priceMin);
+      if (appliedPriceMin) {
+        params.price_min = parseInt(appliedPriceMin);
       }
-      if (priceMax) {
-        params.price_max = parseInt(priceMax);
+      if (appliedPriceMax) {
+        params.price_max = parseInt(appliedPriceMax);
       }
-      if (revenueMin) {
-        params.revenue_min = parseInt(revenueMin);
+      if (appliedRevenueMin) {
+        params.revenue_min = parseInt(appliedRevenueMin);
       }
-      if (revenueMax) {
-        params.revenue_max = parseInt(revenueMax);
+      if (appliedRevenueMax) {
+        params.revenue_max = parseInt(appliedRevenueMax);
       }
-      if (selectedTechStack.length > 0) {
-        params.tech_stacks = selectedTechStack;
+      if (appliedTechStack.length > 0) {
+        params.tech_stacks = appliedTechStack;
       }
 
       const response = await postApi.getPosts(params);
@@ -260,14 +287,14 @@ export default function ProjectsListPage() {
   const applySortingAndProfitFilter = () => {
     let filtered = [...projects];
 
-    // ステータスフィルター（クライアント側）
-    if (selectedStatuses.length > 0) {
-      filtered = filtered.filter(p => p.status && selectedStatuses.includes(p.status));
+    // ステータスフィルター（クライアント側、appliedフィルターを使用）
+    if (appliedStatuses.length > 0) {
+      filtered = filtered.filter(p => p.status && appliedStatuses.includes(p.status));
     }
 
-    // 利益率フィルター（クライアント側）
-    if (profitMarginMin) {
-      const min = parseFloat(profitMarginMin);
+    // 利益率フィルター（クライアント側、appliedフィルターを使用）
+    if (appliedProfitMarginMin) {
+      const min = parseFloat(appliedProfitMarginMin);
       filtered = filtered.filter(p => p.profitMargin !== undefined && p.profitMargin >= min);
     }
 
@@ -299,7 +326,7 @@ export default function ProjectsListPage() {
   };
 
   const clearAllFilters = () => {
-    setSearchKeyword('');
+    // 一時的な状態をクリア
     setSearchInput('');
     setSelectedCategories([]);
     setSelectedPostTypes([]);
@@ -310,11 +337,37 @@ export default function ProjectsListPage() {
     setRevenueMax('');
     setProfitMarginMin('');
     setSelectedTechStack([]);
+
+    // 適用済みの状態もクリア
+    setSearchKeyword('');
+    setAppliedCategories([]);
+    setAppliedPostTypes([]);
+    setAppliedStatuses([]);
+    setAppliedPriceMin('');
+    setAppliedPriceMax('');
+    setAppliedRevenueMin('');
+    setAppliedRevenueMax('');
+    setAppliedProfitMarginMin('');
+    setAppliedTechStack([]);
     setSortBy('newest');
   };
 
-  const handleSearch = () => {
+  const handleApplyFilters = () => {
+    // すべての一時的なフィルター状態を適用済み状態にコピー
     setSearchKeyword(searchInput);
+    setAppliedCategories(selectedCategories);
+    setAppliedPostTypes(selectedPostTypes);
+    setAppliedStatuses(selectedStatuses);
+    setAppliedPriceMin(priceMin);
+    setAppliedPriceMax(priceMax);
+    setAppliedRevenueMin(revenueMin);
+    setAppliedRevenueMax(revenueMax);
+    setAppliedProfitMarginMin(profitMarginMin);
+    setAppliedTechStack(selectedTechStack);
+  };
+
+  const handleSearch = () => {
+    handleApplyFilters();
   };
 
   const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -357,13 +410,13 @@ export default function ProjectsListPage() {
 
   const activeFilterCount =
     (searchKeyword ? 1 : 0) +
-    selectedCategories.length +
-    selectedPostTypes.length +
-    selectedStatuses.length +
-    (priceMin || priceMax ? 1 : 0) +
-    (revenueMin || revenueMax ? 1 : 0) +
-    (profitMarginMin ? 1 : 0) +
-    selectedTechStack.length;
+    appliedCategories.length +
+    appliedPostTypes.length +
+    appliedStatuses.length +
+    (appliedPriceMin || appliedPriceMax ? 1 : 0) +
+    (appliedRevenueMin || appliedRevenueMax ? 1 : 0) +
+    (appliedProfitMarginMin ? 1 : 0) +
+    appliedTechStack.length;
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#F9F8F7' }}>
@@ -401,7 +454,7 @@ export default function ProjectsListPage() {
             </div>
           </div>
 
-          {/* 選択中のフィルター表示（閉じている時も表示） */}
+          {/* 選択中のフィルター表示（閉じている時も表示、appliedフィルターを使用） */}
           {!showFilters && activeFilterCount > 0 && (
             <div className="flex flex-wrap gap-2 mt-4">
               {searchKeyword && (
@@ -410,13 +463,13 @@ export default function ProjectsListPage() {
                   <span className="font-semibold">{searchKeyword}</span>
                 </span>
               )}
-              {selectedCategories.map((cat) => (
+              {appliedCategories.map((cat) => (
                 <span key={cat} className="px-3 py-1 bg-gray-100 rounded-full text-sm flex items-center gap-2">
                   <span className="text-gray-600">カテゴリ:</span>
                   <span className="font-semibold">{cat}</span>
                 </span>
               ))}
-              {selectedPostTypes.map((type) => (
+              {appliedPostTypes.map((type) => (
                 <span key={type} className="px-3 py-1 bg-gray-100 rounded-full text-sm flex items-center gap-2">
                   <span className="text-gray-600">タイプ:</span>
                   <span className="font-semibold">
@@ -424,22 +477,22 @@ export default function ProjectsListPage() {
                   </span>
                 </span>
               ))}
-              {selectedStatuses.map((status) => (
+              {appliedStatuses.map((status) => (
                 <span key={status} className="px-3 py-1 bg-gray-100 rounded-full text-sm flex items-center gap-2">
                   <span className="text-gray-600">ステータス:</span>
                   <span className="font-semibold">{status}</span>
                 </span>
               ))}
-              {(priceMin || priceMax) && (
+              {(appliedPriceMin || appliedPriceMax) && (
                 <span className="px-3 py-1 bg-gray-100 rounded-full text-sm flex items-center gap-2">
                   <span className="text-gray-600">価格:</span>
                   <span className="font-semibold">
-                    {priceMin && `${Number(priceMin).toLocaleString()}円〜`}
-                    {priceMax && `${Number(priceMax).toLocaleString()}円`}
+                    {appliedPriceMin && `${Number(appliedPriceMin).toLocaleString()}円〜`}
+                    {appliedPriceMax && `${Number(appliedPriceMax).toLocaleString()}円`}
                   </span>
                 </span>
               )}
-              {selectedTechStack.map((tech) => (
+              {appliedTechStack.map((tech) => (
                 <span key={tech} className="px-3 py-1 bg-gray-100 rounded-full text-sm flex items-center gap-2">
                   <span className="text-gray-600">技術:</span>
                   <span className="font-semibold">{tech}</span>
@@ -456,37 +509,30 @@ export default function ProjectsListPage() {
               opacity: showFilters ? 1 : 0,
             }}
           >
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {/* キーワード検索 */}
-              <div className="lg:col-span-2">
+            <div className="space-y-6">
+              {/* キーワード検索（全幅） */}
+              <div>
                 <label className="block text-sm font-semibold mb-2" style={{ color: '#323232' }}>
                   キーワード検索
                 </label>
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
-                    <input
-                      type="text"
-                      placeholder="タイトル、説明文..."
-                      value={searchInput}
-                      onChange={(e) => setSearchInput(e.target.value)}
-                      onKeyDown={handleSearchKeyDown}
-                      className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:ring-2"
-                      style={{ '--tw-ring-color': '#E65D65' } as React.CSSProperties}
-                    />
-                  </div>
-                  <button
-                    onClick={handleSearch}
-                    className="px-6 py-2 rounded-sm text-white hover:opacity-90 transition-opacity whitespace-nowrap"
-                    style={{ backgroundColor: '#E65D65' }}
-                  >
-                    検索
-                  </button>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                  <input
+                    type="text"
+                    placeholder="タイトル、説明文..."
+                    value={searchInput}
+                    onChange={(e) => setSearchInput(e.target.value)}
+                    onKeyDown={handleSearchKeyDown}
+                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:ring-2"
+                    style={{ '--tw-ring-color': '#E65D65' } as React.CSSProperties}
+                  />
                 </div>
               </div>
 
-              {/* 投稿タイプ */}
-              <div>
+              {/* その他のフィルター（グリッド） */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {/* 投稿タイプ */}
+                <div>
                 <label className="block text-sm font-semibold mb-2" style={{ color: '#323232' }}>
                   投稿タイプ
                 </label>
@@ -619,28 +665,40 @@ export default function ProjectsListPage() {
                 />
               </div>
 
-              {/* 技術スタック */}
-              {availableTechStacks.length > 0 && (
-                <div className="lg:col-span-3">
-                  <label className="block text-sm font-semibold mb-2" style={{ color: '#323232' }}>
-                    技術スタック
-                  </label>
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 max-h-40 overflow-y-auto p-3 bg-gray-50 rounded-md border border-gray-200">
-                    {availableTechStacks.map(tech => (
-                      <label key={tech} className="flex items-center gap-2 cursor-pointer hover:bg-white p-2 rounded transition-colors">
-                        <input
-                          type="checkbox"
-                          checked={selectedTechStack.includes(tech)}
-                          onChange={() => toggleTechStack(tech)}
-                          className="w-4 h-4 rounded"
-                          style={{ accentColor: '#E65D65' }}
-                        />
-                        <span className="text-sm text-gray-700">{tech}</span>
-                      </label>
-                    ))}
+                {/* 技術スタック */}
+                {availableTechStacks.length > 0 && (
+                  <div className="lg:col-span-3">
+                    <label className="block text-sm font-semibold mb-2" style={{ color: '#323232' }}>
+                      技術スタック
+                    </label>
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 max-h-40 overflow-y-auto p-3 bg-gray-50 rounded-md border border-gray-200">
+                      {availableTechStacks.map(tech => (
+                        <label key={tech} className="flex items-center gap-2 cursor-pointer hover:bg-white p-2 rounded transition-colors">
+                          <input
+                            type="checkbox"
+                            checked={selectedTechStack.includes(tech)}
+                            onChange={() => toggleTechStack(tech)}
+                            className="w-4 h-4 rounded"
+                            style={{ accentColor: '#E65D65' }}
+                          />
+                          <span className="text-sm text-gray-700">{tech}</span>
+                        </label>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
+
+              {/* 検索ボタン */}
+              <div className="flex justify-center pt-4">
+                <button
+                  onClick={handleApplyFilters}
+                  className="px-8 py-3 rounded-sm text-white font-semibold hover:opacity-90 transition-opacity"
+                  style={{ backgroundColor: '#E65D65' }}
+                >
+                  この条件で検索
+                </button>
+              </div>
             </div>
           </div>
         </div>

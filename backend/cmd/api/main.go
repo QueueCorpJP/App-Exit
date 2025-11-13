@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"net"
 	"net/http"
 	"os"
 
@@ -41,10 +42,65 @@ func main() {
 		port = cfg.ServerPort
 	}
 
-	log.Printf("[MAIN] ✓ Server starting on port %s\n", port)
+	log.Printf("[MAIN] ✓ Server starting on port %s (IPv4 + IPv6)\n", port)
 	log.Printf("========== SERVER STARTUP COMPLETE ==========\n\n")
 
-	if err := http.ListenAndServe(":"+port, router); err != nil {
-		log.Fatalf("[MAIN] ❌ Server failed to start: %v", err)
+	// Start server on both IPv4 and IPv6
+	started := make(chan bool, 2)
+	errChan := make(chan error, 2)
+
+	// Start IPv4 listener
+	go func() {
+		ln4, err := net.Listen("tcp4", "0.0.0.0:"+port)
+		if err != nil {
+			log.Printf("[MAIN] ⚠️  IPv4 listener failed: %v", err)
+			errChan <- err
+			return
+		}
+		log.Printf("[MAIN] ✓ IPv4 listener started on 0.0.0.0:%s\n", port)
+		started <- true
+		if err := http.Serve(ln4, router); err != nil {
+			log.Printf("[MAIN] ❌ IPv4 server error: %v", err)
+			errChan <- err
+		}
+	}()
+
+	// Start IPv6 listener
+	go func() {
+		ln6, err := net.Listen("tcp6", "[::]:"+port)
+		if err != nil {
+			log.Printf("[MAIN] ⚠️  IPv6 listener failed: %v", err)
+			errChan <- err
+			return
+		}
+		log.Printf("[MAIN] ✓ IPv6 listener started on [::]:%s\n", port)
+		started <- true
+		if err := http.Serve(ln6, router); err != nil {
+			log.Printf("[MAIN] ❌ IPv6 server error: %v", err)
+			errChan <- err
+		}
+	}()
+
+	// Wait for at least one listener to start
+	startedCount := 0
+	for i := 0; i < 2; i++ {
+		select {
+		case <-started:
+			startedCount++
+		case err := <-errChan:
+			if startedCount == 0 {
+				log.Fatalf("[MAIN] ❌ Server failed to start: %v", err)
+			}
+		}
+	}
+
+	if startedCount == 0 {
+		log.Fatalf("[MAIN] ❌ Server failed to start: no listeners could be initialized")
+	}
+
+	// Wait for servers to run (block forever until error)
+	select {
+	case err := <-errChan:
+		log.Fatalf("[MAIN] ❌ Server error: %v", err)
 	}
 }

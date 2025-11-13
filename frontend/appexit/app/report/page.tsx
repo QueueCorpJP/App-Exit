@@ -258,7 +258,7 @@ export default function ReportPage() {
               <button
                 type="button"
                 onClick={handleBack}
-                className="flex-1 py-3 px-6 border border-gray-300 rounded-lg font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                className="flex-1 py-3 px-6 bg-gray-200 text-gray-900 rounded-lg font-medium hover:bg-gray-300 transition-colors"
               >
                 修正する
               </button>
@@ -284,18 +284,19 @@ export default function ReportPage() {
   // 入力画面
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="bg-white rounded-lg shadow-sm p-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">違反報告</h1>
-          <p className="text-gray-600 mb-8">
-            不適切なコンテンツや行為を発見した場合は、以下のフォームよりご報告ください。
-          </p>
+      <div className="max-w-4xl mx-auto px-4 py-12">
+          <div className="text-center mb-12" style={{ color: '#323232' }}>
+            <h1 className="text-2xl font-extrabold mb-12 text-center">違反報告</h1>
+            <p className="text-lg">
+              不適切なコンテンツや行為を発見した場合は、以下のフォームよりご報告ください
+            </p>
+          </div>
 
           {/* 注意事項 */}
-          <div className="mb-8 space-y-4">
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-              <h3 className="font-semibold text-gray-900 mb-2">報告する前にご確認ください</h3>
-              <ul className="text-sm text-gray-700 space-y-1 ml-4 list-disc">
+          <div className="mb-12 space-y-4">
+            <div className="bg-yellow-50 rounded-lg p-6">
+              <h3 className="font-semibold mb-2" style={{ color: '#323232' }}>報告する前にご確認ください</h3>
+              <ul className="text-sm space-y-1 ml-4 list-disc" style={{ color: '#323232' }}>
                 <li>虚偽の報告は利用規約違反となります</li>
                 <li>報告内容は慎重に審査され、適切な対応を行います</li>
                 <li>報告者の情報は厳重に管理し、第三者に開示することはありません</li>
@@ -305,10 +306,10 @@ export default function ReportPage() {
           </div>
 
           {/* フォーム */}
-          <form onSubmit={handleConfirm} className="space-y-6">
+          <form onSubmit={handleConfirm} className="space-y-6 bg-white rounded-lg p-8">
             {/* お名前 */}
             <div>
-              <label htmlFor="reporterName" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="reporterName" className="block text-sm font-medium mb-2" style={{ color: '#323232' }}>
                 お名前 <span className="text-red-500">*</span>
               </label>
               <input
@@ -325,7 +326,7 @@ export default function ReportPage() {
 
             {/* メールアドレス */}
             <div>
-              <label htmlFor="reporterEmail" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="reporterEmail" className="block text-sm font-medium mb-2" style={{ color: '#323232' }}>
                 メールアドレス <span className="text-red-500">*</span>
               </label>
               <input
@@ -342,7 +343,7 @@ export default function ReportPage() {
 
             {/* 報告の種類 */}
             <div>
-              <label htmlFor="reportType" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="reportType" className="block text-sm font-medium mb-2" style={{ color: '#323232' }}>
                 報告の種類 <span className="text-red-500">*</span>
               </label>
               <select
@@ -367,7 +368,7 @@ export default function ReportPage() {
 
             {/* 報告対象 */}
             <div>
-              <label htmlFor="targetType" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="targetType" className="block text-sm font-medium mb-2" style={{ color: '#323232' }}>
                 報告対象 <span className="text-red-500">*</span>
               </label>
               <select
@@ -389,7 +390,7 @@ export default function ReportPage() {
 
             {/* 対象のURL */}
             <div>
-              <label htmlFor="targetUrl" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="targetUrl" className="block text-sm font-medium mb-2" style={{ color: '#323232' }}>
                 対象のURL <span className="text-red-500">*</span>
               </label>
               <input
@@ -402,14 +403,14 @@ export default function ReportPage() {
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
                 placeholder="https://appexit.jp/..."
               />
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs mt-1" style={{ color: '#323232' }}>
                 報告対象のページURLをコピーして貼り付けてください
               </p>
             </div>
 
             {/* 対象ユーザーID（任意） */}
             <div>
-              <label htmlFor="targetUserId" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="targetUserId" className="block text-sm font-medium mb-2" style={{ color: '#323232' }}>
                 対象ユーザーID（任意）
               </label>
               <input
@@ -425,7 +426,7 @@ export default function ReportPage() {
 
             {/* 詳細説明 */}
             <div>
-              <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="description" className="block text-sm font-medium mb-2" style={{ color: '#323232' }}>
                 詳細説明 <span className="text-red-500">*</span>
               </label>
               <textarea
@@ -442,7 +443,7 @@ export default function ReportPage() {
 
             {/* 証拠URL */}
             <div>
-              <label htmlFor="evidenceUrls" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="evidenceUrls" className="block text-sm font-medium mb-2" style={{ color: '#323232' }}>
                 証拠となるURL（任意）
               </label>
               <textarea
@@ -454,15 +455,15 @@ export default function ReportPage() {
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
                 placeholder="スクリーンショットや関連資料のURLを1行ごとに入力&#10;https://example.com/screenshot1.png&#10;https://example.com/screenshot2.png"
               />
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs mt-1" style={{ color: '#323232' }}>
                 画像共有サービス等にアップロードしたURLを入力してください（1行に1つのURL）
               </p>
             </div>
 
             {/* 注意事項 */}
-            <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
-              <h3 className="font-semibold text-gray-900 mb-2">個人情報の取り扱いについて</h3>
-              <p className="text-sm text-gray-700">
+            <div className="rounded-lg p-6 bg-gray-50">
+              <h3 className="font-semibold mb-2" style={{ color: '#323232' }}>個人情報の取り扱いについて</h3>
+              <p className="text-sm" style={{ color: '#323232' }}>
                 ご提供いただいた情報は、報告内容の確認と対応のためにのみ使用し、
                 <Link href="/privacy" className="text-blue-600 hover:text-blue-800 underline mx-1">
                   プライバシーポリシー
@@ -484,23 +485,22 @@ export default function ReportPage() {
 
           {/* よくある質問 */}
           <div className="mt-8 pt-8 border-t border-gray-200">
-            <h3 className="font-semibold text-gray-900 mb-4">報告に関するよくある質問</h3>
-            <div className="space-y-3 text-sm text-gray-700">
+            <h3 className="font-semibold mb-4" style={{ color: '#323232' }}>報告に関するよくある質問</h3>
+            <div className="space-y-3 text-sm" style={{ color: '#323232' }}>
               <div>
                 <p className="font-medium">Q. 報告後、どのくらいで対応されますか？</p>
-                <p className="text-gray-600 ml-4">A. 報告内容により異なりますが、通常1〜3営業日以内に確認し、対応いたします。</p>
+                <p className="ml-4" style={{ color: '#323232', opacity: 0.7 }}>A. 報告内容により異なりますが、通常1〜3営業日以内に確認し、対応いたします。</p>
               </div>
               <div>
                 <p className="font-medium">Q. 報告者の情報は相手に知られますか？</p>
-                <p className="text-gray-600 ml-4">A. いいえ。報告者の情報は厳重に管理し、報告対象者に開示することはありません。</p>
+                <p className="ml-4" style={{ color: '#323232', opacity: 0.7 }}>A. いいえ。報告者の情報は厳重に管理し、報告対象者に開示することはありません。</p>
               </div>
               <div>
                 <p className="font-medium">Q. 緊急の場合はどうすればよいですか？</p>
-                <p className="text-gray-600 ml-4">A. 犯罪行為や生命に関わる緊急事態の場合は、まず警察（110番）にご連絡ください。</p>
+                <p className="ml-4" style={{ color: '#323232', opacity: 0.7 }}>A. 犯罪行為や生命に関わる緊急事態の場合は、まず警察（110番）にご連絡ください。</p>
               </div>
             </div>
           </div>
-        </div>
       </div>
     </div>
   )

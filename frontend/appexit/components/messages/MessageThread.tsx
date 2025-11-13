@@ -12,6 +12,7 @@ interface MessageThreadProps {
   messages: MessageWithSender[];
   currentUserId: string;
   onSendMessage: (text: string, imageFile?: File | null) => Promise<void>;
+  onSendContract?: (contractFile: File, contractType: string) => Promise<void>;
   isSending: boolean;
   isLoadingMessages: boolean;
   onBack?: () => void;
@@ -31,6 +32,7 @@ function MessageThread({
   messages,
   currentUserId,
   onSendMessage,
+  onSendContract,
   isSending,
   isLoadingMessages,
   onBack,
@@ -144,6 +146,41 @@ function MessageThread({
     setCustomContracts(prev => prev.filter(contract => contract.id !== contractId));
   };
 
+  // 契約書を送信
+  const handleSendContract = async (contractId: string, isCustom: boolean) => {
+    if (!onSendContract || isSending || isLoadingMessages) return;
+
+    const contract = isCustom
+      ? customContracts.find(c => c.id === contractId)
+      : contracts.find(c => c.id === contractId);
+
+    if (!contract || !contract.file) return;
+
+    try {
+      await onSendContract(contract.file, contractId);
+      // 送信成功後、契約書の状態をリセット
+      if (isCustom) {
+        setCustomContracts(prev =>
+          prev.map(c =>
+            c.id === contractId
+              ? { ...c, file: null, preview: null }
+              : c
+          )
+        );
+      } else {
+        setContracts(prev =>
+          prev.map(c =>
+            c.id === contractId
+              ? { ...c, file: null, preview: null }
+              : c
+          )
+        );
+      }
+    } catch (err) {
+      console.error('Failed to send contract:', err);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if ((!newMessage.trim() && !selectedImageFile) || isSending || isLoadingMessages) return;
@@ -203,7 +240,7 @@ function MessageThread({
                 )}
               </div>
             </div>
-            <div>
+            <div className="hidden md:block">
               <h2 className="font-semibold" title={otherParticipant?.display_name || 'ユーザー'}>
                 {otherParticipant?.display_name ? truncateDisplayName(otherParticipant.display_name, 'header') : 'ユーザー'}
               </h2>
@@ -272,7 +309,7 @@ function MessageThread({
               {contracts.map((contract) => {
                 const IconComponent = contract.icon;
                 return (
-                  <div key={contract.id}>
+                  <div key={contract.id} className="relative">
                     <label
                       className={`flex flex-col items-center justify-center aspect-square border-2 border-dashed rounded-lg cursor-pointer transition-colors overflow-hidden relative ${
                         contract.preview ? 'border-[#323232]' : 'border-gray-300 hover:bg-white'
@@ -308,10 +345,20 @@ function MessageThread({
                       <input
                         type="file"
                         className="hidden"
-                        accept="image/*,application/pdf"
+                        accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx"
                         onChange={handleContractFileSelect(contract.id, false)}
                       />
                     </label>
+                    {contract.file && (
+                      <button
+                        type="button"
+                        onClick={() => handleSendContract(contract.id, false)}
+                        disabled={isSending || isLoadingMessages}
+                        className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 px-2 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        送信
+                      </button>
+                    )}
                   </div>
                 );
               })}
@@ -356,7 +403,7 @@ function MessageThread({
                       <input
                         type="file"
                         className="hidden"
-                        accept="image/*,application/pdf"
+                        accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx"
                         onChange={handleContractFileSelect(contract.id, true)}
                       />
                     </label>
@@ -367,6 +414,16 @@ function MessageThread({
                     >
                       ×
                     </button>
+                    {contract.file && (
+                      <button
+                        type="button"
+                        onClick={() => handleSendContract(contract.id, true)}
+                        disabled={isSending || isLoadingMessages}
+                        className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 px-2 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        送信
+                      </button>
+                    )}
                   </div>
                 );
               })}

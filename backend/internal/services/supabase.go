@@ -308,10 +308,11 @@ func (s *SupabaseService) IsBucketPublic(bucketName string) (bool, error) {
 	// 一時的な解決策: 既知のバケット設定をハードコード
 	// 本番環境では、データベースから動的に取得することを推奨
 	knownBuckets := map[string]bool{
-		"avatars":        true,  // public: アバター画像
-		"profile-icons":  true,  // public: プロフィールアイコン
-		"message-images": false, // private: メッセージ添付画像
-		"post-images":    false, // private: 投稿画像
+		"avatars":            true,  // public: アバター画像
+		"profile-icons":      true,  // public: プロフィールアイコン
+		"message-images":     false, // private: メッセージ添付画像
+		"post-images":        false, // private: 投稿画像
+		"contract-documents": false, // private: 契約書
 	}
 	
 	isPublic, exists := knownBuckets[bucketName]

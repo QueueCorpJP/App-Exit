@@ -513,6 +513,7 @@ export interface SendMessageRequest {
   text?: string;
   image_url?: string;
   file_url?: string;
+  contract_type?: string;
 }
 
 export interface CreateThreadRequest {
@@ -554,6 +555,29 @@ export const messageApi = {
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: 'Upload failed' }));
       throw new Error(error.error || 'Failed to upload image');
+    }
+
+    const result = await response.json();
+    // バックエンドのレスポンス形式 {success: true, data: {...}} をそのまま返す
+    return result;
+  },
+  uploadContractDocument: async (file: File) => {
+    const formData = new FormData();
+    formData.append('contract', file);
+
+    // FormData送信時はContent-Typeを自動設定させるため、手動で設定しない
+    // HttpOnly Cookieで認証されるため、Authorizationヘッダーは不要
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+
+    const response = await fetch(`${API_URL}/api/messages/upload-contract`, {
+      method: 'POST',
+      credentials: 'include', // HttpOnly Cookieを自動送信
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Upload failed' }));
+      throw new Error(error.error || 'Failed to upload contract');
     }
 
     const result = await response.json();

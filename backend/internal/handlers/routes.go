@@ -97,6 +97,8 @@ func SetupRoutes(cfg *config.Config) http.Handler {
 	fmt.Println("[ROUTES] Registered: /api/messages (with auth)")
 	mux.HandleFunc("/api/messages/upload-image", auth(server.UploadMessageImage))
 	fmt.Println("[ROUTES] Registered: /api/messages/upload-image (with auth)")
+	mux.HandleFunc("/api/messages/upload-contract", auth(server.UploadContractDocument))
+	fmt.Println("[ROUTES] Registered: /api/messages/upload-contract (with auth)")
 
 	// Post routes
 	mux.HandleFunc("/api/posts/metadata", server.HandlePostsMetadataRoute) // Must be before /api/posts/

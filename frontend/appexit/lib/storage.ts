@@ -79,17 +79,20 @@ export async function getImageUrl(
     } else if (path.startsWith('profile-icons/')) {
       actualBucket = 'profile-icons';
       actualPath = path.substring('profile-icons/'.length);
-    } else if (path.startsWith('message-images/')) {
-      actualBucket = 'message-images';
-      actualPath = path.substring('message-images/'.length);
-    } else if (path.startsWith('post-images/')) {
-      actualBucket = 'post-images';
-      actualPath = path.substring('post-images/'.length);
-    } else {
-      // プレフィックスがない場合はpost-imagesと仮定
-      actualBucket = 'post-images';
-      // パスをそのまま使用
-    }
+      } else if (path.startsWith('message-images/')) {
+        actualBucket = 'message-images';
+        actualPath = path.substring('message-images/'.length);
+      } else if (path.startsWith('contract-documents/')) {
+        actualBucket = 'contract-documents';
+        actualPath = path.substring('contract-documents/'.length);
+      } else if (path.startsWith('post-images/')) {
+        actualBucket = 'post-images';
+        actualPath = path.substring('post-images/'.length);
+      } else {
+        // プレフィックスがない場合はpost-imagesと仮定
+        actualBucket = 'post-images';
+        // パスをそのまま使用
+      }
   }
 
   console.log('[STORAGE] getImageUrl:', { originalPath: path, actualBucket, actualPath });
@@ -152,6 +155,9 @@ export async function getImageUrls(
       } else if (path.startsWith('message-images/')) {
         actualBucket = 'message-images';
         actualPath = path.substring('message-images/'.length);
+      } else if (path.startsWith('contract-documents/')) {
+        actualBucket = 'contract-documents';
+        actualPath = path.substring('contract-documents/'.length);
       } else if (path.startsWith('post-images/')) {
         actualBucket = 'post-images';
         actualPath = path.substring('post-images/'.length);
