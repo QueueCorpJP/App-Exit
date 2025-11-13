@@ -98,7 +98,7 @@ func (s *Server) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	setAuthCookies(w, authResponse.AccessToken, authResponse.RefreshToken, &authResponse.User, nil)
+	s.setAuthCookies(w, authResponse.AccessToken, authResponse.RefreshToken, &authResponse.User, nil)
 	fmt.Printf("[REGISTER] Setting auth cookies\n")
 	fmt.Printf("[DEBUG] Register: Registration successful, returning response\n")
 	response.Success(w, status, authResponse)
@@ -222,7 +222,7 @@ func (s *Server) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 3. Cookieにトークンを設定（setAuthCookies関数を使用）
-	setAuthCookies(w, authResp.AccessToken, authResp.RefreshToken, &user, profilePtr)
+	s.setAuthCookies(w, authResp.AccessToken, authResp.RefreshToken, &user, profilePtr)
 
 	// 4. SupabaseのAccessTokenを返す（RefreshTokenはHttpOnly Cookieにのみ保存）
 	// セキュリティ: RefreshTokenはフロントエンドのJavaScriptからアクセスできないようにする
@@ -499,11 +499,15 @@ func (s *Server) GetProfile(w http.ResponseWriter, r *http.Request) {
 }
 
 // setAuthCookies sets authentication cookies for the client
-func setAuthCookies(w http.ResponseWriter, accessToken, refreshToken string, user *models.User, profile *models.Profile) {
+func (s *Server) setAuthCookies(w http.ResponseWriter, accessToken, refreshToken string, user *models.User, profile *models.Profile) {
 	// Domainを明示的に設定（本番環境でクロスオリジン対応）
 	// 本番環境のIPアドレスに合わせてドメインを設定
 	cookieDomain := ""
 	// 同じドメインの異なるポート間での共有を許可するため、Domainは設定しない
+
+	// 環境に応じてSecureフラグを設定（本番環境=HTTPS=true、開発環境=HTTP=false）
+	isSecure := s.config.IsSecureCookie()
+	fmt.Printf("[DEBUG] setAuthCookies: Environment=%s, Secure=%v\n", s.config.Environment, isSecure)
 
 	// 1. auth_token (HttpOnly) - セッション管理用アクセストークン（30分有効）
 	// Supabase JWTの有効期限（30分）に合わせてCookie有効期限も30分に設定
@@ -513,7 +517,7 @@ func setAuthCookies(w http.ResponseWriter, accessToken, refreshToken string, use
 		Path:     "/",
 		Domain:   cookieDomain,
 		HttpOnly: true,
-		Secure:   false, // HTTPの場合はfalse
+		Secure:   isSecure, // 本番環境ではtrue（HTTPS必須）
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   30 * 60, // 30分（Supabase JWTの有効期限と一致）
 	})
@@ -526,7 +530,7 @@ func setAuthCookies(w http.ResponseWriter, accessToken, refreshToken string, use
 		Path:     "/",
 		Domain:   cookieDomain,
 		HttpOnly: true, // XSS攻撃から保護（JavaScriptからアクセス不可）
-		Secure:   false,
+		Secure:   isSecure, // 本番環境ではtrue（HTTPS必須）
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   30 * 60, // 30分（Supabase JWTの有効期限と一致）
 	})
@@ -538,7 +542,7 @@ func setAuthCookies(w http.ResponseWriter, accessToken, refreshToken string, use
 		Path:     "/",
 		Domain:   cookieDomain,
 		HttpOnly: true,
-		Secure:   false, // HTTPの場合はfalse
+		Secure:   isSecure, // 本番環境ではtrue（HTTPS必須）
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   60 * 60 * 24 * 2, // 2日間
 	})
@@ -552,12 +556,12 @@ func setAuthCookies(w http.ResponseWriter, accessToken, refreshToken string, use
 		Path:     "/",
 		Domain:   cookieDomain,
 		HttpOnly: true,
-		Secure:   false,
+		Secure:   isSecure, // 本番環境ではtrue（HTTPS必須）
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   60 * 60 * 24 * 2, // 2日間（refresh_tokenと同じ）
 	})
 
-	fmt.Printf("[DEBUG] setAuthCookies: Set HttpOnly auth cookies for user: %s\n", user.ID)
+	fmt.Printf("[DEBUG] setAuthCookies: Set HttpOnly auth cookies for user: %s (Secure=%v)\n", user.ID, isSecure)
 }
 
 // Logout ログアウト処理
@@ -567,13 +571,16 @@ func (s *Server) Logout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// 環境に応じてSecureフラグを設定（ログイン時と同じ設定にする）
+	isSecure := s.config.IsSecureCookie()
+
 	// クッキーを削除
 	http.SetCookie(w, &http.Cookie{
 		Name:     "auth_token",
 		Value:    "",
 		Path:     "/",
 		HttpOnly: true,
-		Secure:   false,
+		Secure:   isSecure,
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   -1, // 即座に削除
 	})
@@ -583,7 +590,7 @@ func (s *Server) Logout(w http.ResponseWriter, r *http.Request) {
 		Value:    "",
 		Path:     "/",
 		HttpOnly: true, // ログイン時と同じ設定にする
-		Secure:   false,
+		Secure:   isSecure,
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   -1,
 	})
@@ -593,7 +600,7 @@ func (s *Server) Logout(w http.ResponseWriter, r *http.Request) {
 		Value:    "",
 		Path:     "/",
 		HttpOnly: true,
-		Secure:   false,
+		Secure:   isSecure,
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   -1,
 	})
@@ -719,7 +726,7 @@ func (s *Server) CheckSession(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// 新しいCookieを設定
-		setAuthCookies(w, authResp.AccessToken, authResp.RefreshToken, &user, profilePtr)
+		s.setAuthCookies(w, authResp.AccessToken, authResp.RefreshToken, &user, profilePtr)
 		fmt.Printf("[SESSION] ✓ Set new auth cookies after refresh\n")
 	}
 
@@ -790,7 +797,7 @@ func (s *Server) CheckSession(w http.ResponseWriter, r *http.Request) {
 						user.Name = profilePtr.DisplayName
 					}
 
-					setAuthCookies(w, authResp.AccessToken, authResp.RefreshToken, &user, profilePtr)
+					s.setAuthCookies(w, authResp.AccessToken, authResp.RefreshToken, &user, profilePtr)
 					fmt.Printf("[SESSION] ✓ Set new auth cookies after refresh\n")
 				}
 			}
@@ -982,7 +989,7 @@ func (s *Server) HandleOAuthCallback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// HTTPOnly Cookieにトークンを設定
-	setAuthCookies(w, tokenData.AccessToken, tokenData.RefreshToken, &user, profilePtr)
+	s.setAuthCookies(w, tokenData.AccessToken, tokenData.RefreshToken, &user, profilePtr)
 
 	// プロフィールがあればダッシュボード、なければ登録フローへ
 	if profilePtr != nil {
@@ -1105,7 +1112,7 @@ func (s *Server) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 新しいクッキーを設定
-	setAuthCookies(w, authResp.AccessToken, authResp.RefreshToken, &user, profilePtr)
+	s.setAuthCookies(w, authResp.AccessToken, authResp.RefreshToken, &user, profilePtr)
 
 	fmt.Printf("[INFO] RefreshToken: Successfully set new auth cookies for user: %s\n", user.ID)
 

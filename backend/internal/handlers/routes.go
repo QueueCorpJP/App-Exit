@@ -103,7 +103,15 @@ func SetupRoutes(cfg *config.Config) http.Handler {
 	fmt.Println("[ROUTES] Registered: /api/messages (with auth)")
 
 	// Post routes
-	mux.HandleFunc("/api/posts/metadata", server.HandlePostsMetadataRoute) // Must be before /api/posts/
+	// IMPORTANT: Register /api/posts/metadata BEFORE /api/posts/ to prevent it from being treated as an ID
+	mux.HandleFunc("/api/posts/metadata", func(w http.ResponseWriter, r *http.Request) {
+		// Explicitly check path to avoid ServeMux routing issues
+		if r.URL.Path == "/api/posts/metadata" {
+			server.HandlePostsMetadataRoute(w, r)
+		} else {
+			http.Error(w, "Not found", http.StatusNotFound)
+		}
+	})
 	mux.HandleFunc("/api/posts", server.HandlePostsRoute)
 	mux.HandleFunc("/api/posts/", server.HandlePostByIDRoute)
 	fmt.Println("[ROUTES] Registered: /api/posts/metadata (with optional auth)")

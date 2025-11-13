@@ -34,6 +34,12 @@ func (s *Server) HandlePostByID(w http.ResponseWriter, r *http.Request) {
 	}
 	postID := parts[2]
 
+	// Safety check: reject "metadata" as post ID (should be handled by metadata route)
+	if postID == "metadata" {
+		http.Error(w, "Invalid post ID", http.StatusBadRequest)
+		return
+	}
+
 	switch r.Method {
 	case http.MethodGet:
 		s.GetPost(w, r, postID)

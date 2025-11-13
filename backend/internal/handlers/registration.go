@@ -48,7 +48,7 @@ func (s *Server) RegisterStep1(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		setAuthCookies(w, authResp.AccessToken, authResp.RefreshToken, &authResp.User, nil)
+		s.setAuthCookies(w, authResp.AccessToken, authResp.RefreshToken, &authResp.User, nil)
 
 		response.Success(w, status, models.RegistrationStep1Response{
 			Type:           "email",

@@ -422,23 +422,23 @@ export default function ProjectsListPage() {
     <div className="min-h-screen" style={{ backgroundColor: '#F9F8F7' }}>
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* フィルターエリア（上部） */}
-        <div className="bg-white rounded-lg p-6 mb-6 border border-gray-200">
+        <div className="bg-white rounded-lg p-4 sm:p-6 mb-6 border border-gray-200">
           {/* フィルターヘッダー */}
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <SlidersHorizontal size={22} style={{ color: '#E65D65' }} />
-              <h2 className="text-xl font-bold" style={{ color: '#323232' }}>検索条件</h2>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0 mb-6">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <SlidersHorizontal size={20} className="sm:w-[22px] sm:h-[22px]" style={{ color: '#E65D65' }} />
+              <h2 className="text-lg sm:text-xl font-bold" style={{ color: '#323232' }}>検索条件</h2>
               {activeFilterCount > 0 && (
-                <span className="px-3 py-1 text-xs font-bold rounded-full" style={{ backgroundColor: '#E65D65', color: '#fff' }}>
+                <span className="px-2 sm:px-3 py-1 text-xs font-bold rounded-full" style={{ backgroundColor: '#E65D65', color: '#fff' }}>
                   {activeFilterCount}
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3">
               {activeFilterCount > 0 && (
                 <button
                   onClick={clearAllFilters}
-                  className="text-sm py-2 px-4 rounded-md border-2 hover:bg-gray-50 transition-colors font-semibold"
+                  className="text-xs sm:text-sm py-1.5 sm:py-2 px-3 sm:px-4 rounded-md border-2 hover:bg-gray-50 transition-colors font-semibold whitespace-nowrap"
                   style={{ borderColor: '#E65D65', color: '#E65D65' }}
                 >
                   すべてクリア
@@ -446,10 +446,10 @@ export default function ProjectsListPage() {
               )}
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className="p-2 hover:bg-gray-100 rounded-md transition-colors"
+                className="p-1.5 sm:p-2 hover:bg-gray-100 rounded-md transition-colors"
                 title={showFilters ? 'フィルターを閉じる' : 'フィルターを開く'}
               >
-                {showFilters ? <ChevronUp size={22} /> : <ChevronDown size={22} />}
+                {showFilters ? <ChevronUp size={20} className="sm:w-[22px] sm:h-[22px]" /> : <ChevronDown size={20} className="sm:w-[22px] sm:h-[22px]" />}
               </button>
             </div>
           </div>
@@ -458,19 +458,19 @@ export default function ProjectsListPage() {
           {!showFilters && activeFilterCount > 0 && (
             <div className="flex flex-wrap gap-2 mt-4">
               {searchKeyword && (
-                <span className="px-3 py-1 bg-gray-100 rounded-full text-sm flex items-center gap-2">
+                <span className="px-2 sm:px-3 py-1 bg-gray-100 rounded-full text-xs sm:text-sm flex items-center gap-1 sm:gap-2">
                   <span className="text-gray-600">キーワード:</span>
-                  <span className="font-semibold">{searchKeyword}</span>
+                  <span className="font-semibold truncate max-w-[120px] sm:max-w-none">{searchKeyword}</span>
                 </span>
               )}
               {appliedCategories.map((cat) => (
-                <span key={cat} className="px-3 py-1 bg-gray-100 rounded-full text-sm flex items-center gap-2">
+                <span key={cat} className="px-2 sm:px-3 py-1 bg-gray-100 rounded-full text-xs sm:text-sm flex items-center gap-1 sm:gap-2">
                   <span className="text-gray-600">カテゴリ:</span>
-                  <span className="font-semibold">{cat}</span>
+                  <span className="font-semibold truncate max-w-[100px] sm:max-w-none">{cat}</span>
                 </span>
               ))}
               {appliedPostTypes.map((type) => (
-                <span key={type} className="px-3 py-1 bg-gray-100 rounded-full text-sm flex items-center gap-2">
+                <span key={type} className="px-2 sm:px-3 py-1 bg-gray-100 rounded-full text-xs sm:text-sm flex items-center gap-1 sm:gap-2">
                   <span className="text-gray-600">タイプ:</span>
                   <span className="font-semibold">
                     {type === 'transaction' ? '取引' : type === 'board' ? '掲示板' : 'シークレット'}
@@ -478,24 +478,24 @@ export default function ProjectsListPage() {
                 </span>
               ))}
               {appliedStatuses.map((status) => (
-                <span key={status} className="px-3 py-1 bg-gray-100 rounded-full text-sm flex items-center gap-2">
+                <span key={status} className="px-2 sm:px-3 py-1 bg-gray-100 rounded-full text-xs sm:text-sm flex items-center gap-1 sm:gap-2">
                   <span className="text-gray-600">ステータス:</span>
                   <span className="font-semibold">{status}</span>
                 </span>
               ))}
               {(appliedPriceMin || appliedPriceMax) && (
-                <span className="px-3 py-1 bg-gray-100 rounded-full text-sm flex items-center gap-2">
+                <span className="px-2 sm:px-3 py-1 bg-gray-100 rounded-full text-xs sm:text-sm flex items-center gap-1 sm:gap-2">
                   <span className="text-gray-600">価格:</span>
-                  <span className="font-semibold">
+                  <span className="font-semibold whitespace-nowrap">
                     {appliedPriceMin && `${Number(appliedPriceMin).toLocaleString()}円〜`}
                     {appliedPriceMax && `${Number(appliedPriceMax).toLocaleString()}円`}
                   </span>
                 </span>
               )}
               {appliedTechStack.map((tech) => (
-                <span key={tech} className="px-3 py-1 bg-gray-100 rounded-full text-sm flex items-center gap-2">
+                <span key={tech} className="px-2 sm:px-3 py-1 bg-gray-100 rounded-full text-xs sm:text-sm flex items-center gap-1 sm:gap-2">
                   <span className="text-gray-600">技術:</span>
-                  <span className="font-semibold">{tech}</span>
+                  <span className="font-semibold truncate max-w-[100px] sm:max-w-none">{tech}</span>
                 </span>
               ))}
             </div>
@@ -509,7 +509,7 @@ export default function ProjectsListPage() {
               opacity: showFilters ? 1 : 0,
             }}
           >
-            <div className="space-y-6">
+            <div className="space-y-4 sm:space-y-6">
               {/* キーワード検索（全幅） */}
               <div>
                 <label className="block text-sm font-semibold mb-2" style={{ color: '#323232' }}>
@@ -523,165 +523,165 @@ export default function ProjectsListPage() {
                     value={searchInput}
                     onChange={(e) => setSearchInput(e.target.value)}
                     onKeyDown={handleSearchKeyDown}
-                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:ring-2"
+                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:ring-2 text-sm sm:text-base"
                     style={{ '--tw-ring-color': '#E65D65' } as React.CSSProperties}
                   />
                 </div>
               </div>
 
               {/* その他のフィルター（グリッド） */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                 {/* 投稿タイプ */}
                 <div>
-                <label className="block text-sm font-semibold mb-2" style={{ color: '#323232' }}>
-                  投稿タイプ
-                </label>
-                <div className="space-y-2">
-                  {[
-                    { value: 'transaction', label: '取引' },
-                    { value: 'board', label: '掲示板' },
-                    { value: 'secret', label: 'シークレット' }
-                  ].map(type => (
-                    <label key={type.value} className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={selectedPostTypes.includes(type.value as PostType)}
-                        onChange={() => togglePostType(type.value as PostType)}
-                        className="w-4 h-4 rounded"
-                        style={{ accentColor: '#E65D65' }}
-                      />
-                      <span className="text-sm text-gray-700">{type.label}</span>
-                    </label>
-                  ))}
+                  <label className="block text-sm font-semibold mb-2" style={{ color: '#323232' }}>
+                    投稿タイプ
+                  </label>
+                  <div className="space-y-2">
+                    {[
+                      { value: 'transaction', label: '取引' },
+                      { value: 'board', label: '掲示板' },
+                      { value: 'secret', label: 'シークレット' }
+                    ].map(type => (
+                      <label key={type.value} className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={selectedPostTypes.includes(type.value as PostType)}
+                          onChange={() => togglePostType(type.value as PostType)}
+                          className="w-4 h-4 rounded"
+                          style={{ accentColor: '#E65D65' }}
+                        />
+                        <span className="text-sm text-gray-700">{type.label}</span>
+                      </label>
+                    ))}
+                  </div>
                 </div>
-              </div>
 
-              {/* ステータス */}
-              <div>
-                <label className="block text-sm font-semibold mb-2" style={{ color: '#323232' }}>
-                  ステータス
-                </label>
-                <div className="space-y-2">
-                  {['募集中', '成約済み'].map(status => (
-                    <label key={status} className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={selectedStatuses.includes(status)}
-                        onChange={() => toggleStatus(status)}
-                        className="w-4 h-4 rounded"
-                        style={{ accentColor: '#E65D65' }}
-                      />
-                      <span className="text-sm text-gray-700">{status}</span>
-                    </label>
-                  ))}
+                {/* ステータス */}
+                <div>
+                  <label className="block text-sm font-semibold mb-2" style={{ color: '#323232' }}>
+                    ステータス
+                  </label>
+                  <div className="space-y-2">
+                    {['募集中', '成約済み'].map(status => (
+                      <label key={status} className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={selectedStatuses.includes(status)}
+                          onChange={() => toggleStatus(status)}
+                          className="w-4 h-4 rounded"
+                          style={{ accentColor: '#E65D65' }}
+                        />
+                        <span className="text-sm text-gray-700">{status}</span>
+                      </label>
+                    ))}
+                  </div>
                 </div>
-              </div>
 
-              {/* カテゴリ */}
-              <div>
-                <label className="block text-sm font-semibold mb-2" style={{ color: '#323232' }}>
-                  カテゴリ
-                </label>
-                <div className="space-y-2 max-h-32 overflow-y-auto">
-                  {CATEGORIES.map(category => (
-                    <label key={category} className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={selectedCategories.includes(category)}
-                        onChange={() => toggleCategory(category)}
-                        className="w-4 h-4 rounded"
-                        style={{ accentColor: '#E65D65' }}
-                      />
-                      <span className="text-sm text-gray-700">{category}</span>
-                    </label>
-                  ))}
+                {/* カテゴリ */}
+                <div>
+                  <label className="block text-sm font-semibold mb-2" style={{ color: '#323232' }}>
+                    カテゴリ
+                  </label>
+                  <div className="space-y-2 max-h-32 overflow-y-auto pr-2">
+                    {CATEGORIES.map(category => (
+                      <label key={category} className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={selectedCategories.includes(category)}
+                          onChange={() => toggleCategory(category)}
+                          className="w-4 h-4 rounded flex-shrink-0"
+                          style={{ accentColor: '#E65D65' }}
+                        />
+                        <span className="text-sm text-gray-700">{category}</span>
+                      </label>
+                    ))}
+                  </div>
                 </div>
-              </div>
 
-              {/* 価格帯 */}
-              <div>
-                <label className="block text-sm font-semibold mb-2" style={{ color: '#323232' }}>
-                  価格帯（円）
-                </label>
-                <div className="flex items-center gap-2">
+                {/* 価格帯 */}
+                <div>
+                  <label className="block text-sm font-semibold mb-2" style={{ color: '#323232' }}>
+                    価格帯（円）
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      placeholder="最小"
+                      value={priceMin}
+                      onChange={(e) => setPriceMin(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:ring-2 text-sm"
+                      style={{ '--tw-ring-color': '#E65D65' } as React.CSSProperties}
+                    />
+                    <span className="text-gray-500 text-sm whitespace-nowrap">〜</span>
+                    <input
+                      type="number"
+                      placeholder="最大"
+                      value={priceMax}
+                      onChange={(e) => setPriceMax(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:ring-2 text-sm"
+                      style={{ '--tw-ring-color': '#E65D65' } as React.CSSProperties}
+                    />
+                  </div>
+                </div>
+
+                {/* 月商 */}
+                <div>
+                  <label className="block text-sm font-semibold mb-2" style={{ color: '#323232' }}>
+                    月商（円）
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      placeholder="最小"
+                      value={revenueMin}
+                      onChange={(e) => setRevenueMin(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:ring-2 text-sm"
+                      style={{ '--tw-ring-color': '#E65D65' } as React.CSSProperties}
+                    />
+                    <span className="text-gray-500 text-sm whitespace-nowrap">〜</span>
+                    <input
+                      type="number"
+                      placeholder="最大"
+                      value={revenueMax}
+                      onChange={(e) => setRevenueMax(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:ring-2 text-sm"
+                      style={{ '--tw-ring-color': '#E65D65' } as React.CSSProperties}
+                    />
+                  </div>
+                </div>
+
+                {/* 利益率 */}
+                <div>
+                  <label className="block text-sm font-semibold mb-2" style={{ color: '#323232' }}>
+                    利益率（%以上）
+                  </label>
                   <input
                     type="number"
-                    placeholder="最小"
-                    value={priceMin}
-                    onChange={(e) => setPriceMin(e.target.value)}
+                    placeholder="例: 30"
+                    value={profitMarginMin}
+                    onChange={(e) => setProfitMarginMin(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:ring-2 text-sm"
                     style={{ '--tw-ring-color': '#E65D65' } as React.CSSProperties}
                   />
-                  <span className="text-gray-500 text-sm">〜</span>
-                  <input
-                    type="number"
-                    placeholder="最大"
-                    value={priceMax}
-                    onChange={(e) => setPriceMax(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:ring-2 text-sm"
-                    style={{ '--tw-ring-color': '#E65D65' } as React.CSSProperties}
-                  />
                 </div>
-              </div>
-
-              {/* 月商 */}
-              <div>
-                <label className="block text-sm font-semibold mb-2" style={{ color: '#323232' }}>
-                  月商（円）
-                </label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="number"
-                    placeholder="最小"
-                    value={revenueMin}
-                    onChange={(e) => setRevenueMin(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:ring-2 text-sm"
-                    style={{ '--tw-ring-color': '#E65D65' } as React.CSSProperties}
-                  />
-                  <span className="text-gray-500 text-sm">〜</span>
-                  <input
-                    type="number"
-                    placeholder="最大"
-                    value={revenueMax}
-                    onChange={(e) => setRevenueMax(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:ring-2 text-sm"
-                    style={{ '--tw-ring-color': '#E65D65' } as React.CSSProperties}
-                  />
-                </div>
-              </div>
-
-              {/* 利益率 */}
-              <div>
-                <label className="block text-sm font-semibold mb-2" style={{ color: '#323232' }}>
-                  利益率（%以上）
-                </label>
-                <input
-                  type="number"
-                  placeholder="例: 30"
-                  value={profitMarginMin}
-                  onChange={(e) => setProfitMarginMin(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:ring-2 text-sm"
-                  style={{ '--tw-ring-color': '#E65D65' } as React.CSSProperties}
-                />
-              </div>
 
                 {/* 技術スタック */}
                 {availableTechStacks.length > 0 && (
-                  <div className="lg:col-span-3">
+                  <div className="md:col-span-2 lg:col-span-3">
                     <label className="block text-sm font-semibold mb-2" style={{ color: '#323232' }}>
                       技術スタック
                     </label>
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 max-h-40 overflow-y-auto p-3 bg-gray-50 rounded-md border border-gray-200">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 max-h-40 overflow-y-auto p-3 bg-gray-50 rounded-md border border-gray-200">
                       {availableTechStacks.map(tech => (
                         <label key={tech} className="flex items-center gap-2 cursor-pointer hover:bg-white p-2 rounded transition-colors">
                           <input
                             type="checkbox"
                             checked={selectedTechStack.includes(tech)}
                             onChange={() => toggleTechStack(tech)}
-                            className="w-4 h-4 rounded"
+                            className="w-4 h-4 rounded flex-shrink-0"
                             style={{ accentColor: '#E65D65' }}
                           />
-                          <span className="text-sm text-gray-700">{tech}</span>
+                          <span className="text-sm text-gray-700 truncate">{tech}</span>
                         </label>
                       ))}
                     </div>
@@ -690,10 +690,10 @@ export default function ProjectsListPage() {
               </div>
 
               {/* 検索ボタン */}
-              <div className="flex justify-center pt-4">
+              <div className="flex justify-center pt-2 sm:pt-4">
                 <button
                   onClick={handleApplyFilters}
-                  className="px-8 py-3 rounded-sm text-white font-semibold hover:opacity-90 transition-opacity"
+                  className="w-full sm:w-auto px-6 sm:px-8 py-2.5 sm:py-3 rounded-sm text-white font-semibold hover:opacity-90 transition-opacity text-sm sm:text-base"
                   style={{ backgroundColor: '#E65D65' }}
                 >
                   この条件で検索

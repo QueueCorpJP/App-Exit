@@ -21,6 +21,16 @@ type Config struct {
 	StripeWebhookSecret string
 }
 
+// IsProduction returns true if the environment is production
+func (c *Config) IsProduction() bool {
+	return c.Environment == "production"
+}
+
+// IsSecureCookie returns true if cookies should use the Secure flag (HTTPS only)
+func (c *Config) IsSecureCookie() bool {
+	return c.IsProduction()
+}
+
 func LoadConfig() *Config {
 	cfg := &Config{
 		ServerPort:         getEnv("PORT", "8080"),
