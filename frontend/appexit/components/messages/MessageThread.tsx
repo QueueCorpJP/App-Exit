@@ -12,7 +12,6 @@ interface MessageThreadProps {
   messages: MessageWithSender[];
   currentUserId: string;
   onSendMessage: (text: string, imageFile?: File | null) => Promise<void>;
-  onSendContract?: (contractFile: File, contractType: string) => Promise<void>;
   isSending: boolean;
   isLoadingMessages: boolean;
   onBack?: () => void;
@@ -25,6 +24,8 @@ interface ContractDocument {
   icon: any; // Lucide icon component
   file: File | null;
   preview: string | null;
+  filePath: string | null; // ストレージに保存されたファイルパス
+  signedUrl: string | null; // 署名付きURL
 }
 
 function MessageThread({
@@ -32,7 +33,6 @@ function MessageThread({
   messages,
   currentUserId,
   onSendMessage,
-  onSendContract,
   isSending,
   isLoadingMessages,
   onBack,
@@ -47,11 +47,11 @@ function MessageThread({
 
   // 契約書のリスト
   const [contracts, setContracts] = useState<ContractDocument[]>([
-    { id: 'nda', name: '秘密保持契約（NDA）', icon: FileText, file: null, preview: null },
-    { id: 'loi', name: '基本合意書（LOI / MOU）', icon: File, file: null, preview: null },
-    { id: 'dd', name: 'デューデリジェンス関連の資料', icon: Briefcase, file: null, preview: null },
-    { id: 'transfer', name: '事業譲渡契約', icon: Scale, file: null, preview: null },
-    { id: 'handover', name: '引継ぎ業務委託契約', icon: Users, file: null, preview: null },
+    { id: 'nda', name: '秘密保持契約（NDA）', icon: FileText, file: null, preview: null, filePath: null, signedUrl: null },
+    { id: 'loi', name: '基本合意書（LOI / MOU）', icon: File, file: null, preview: null, filePath: null, signedUrl: null },
+    { id: 'dd', name: 'デューデリジェンス関連の資料', icon: Briefcase, file: null, preview: null, filePath: null, signedUrl: null },
+    { id: 'transfer', name: '事業譲渡契約', icon: Scale, file: null, preview: null, filePath: null, signedUrl: null },
+    { id: 'handover', name: '引継ぎ業務委託契約', icon: Users, file: null, preview: null, filePath: null, signedUrl: null },
   ]);
 
   // 追加の契約書
@@ -96,19 +96,53 @@ function MessageThread({
     setImagePreview(null);
   };
 
-  // 契約書ファイルのアップロード
-  const handleContractFileSelect = (contractId: string, isCustom: boolean = false) => (e: React.ChangeEvent<HTMLInputElement>) => {
+  // 契約書ファイルのアップロード（ストレージに保存）
+  const handleContractFileSelect = (contractId: string, isCustom: boolean = false) => async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const preview = reader.result as string;
+    if (!file) return;
+
+    // プレビューを生成
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const preview = reader.result as string;
+
+      if (isCustom) {
+        setCustomContracts(prev =>
+          prev.map(contract =>
+            contract.id === contractId
+              ? { ...contract, file, preview }
+              : contract
+          )
+        );
+      } else {
+        setContracts(prev =>
+          prev.map(contract =>
+            contract.id === contractId
+              ? { ...contract, file, preview }
+              : contract
+          )
+        );
+      }
+    };
+    reader.readAsDataURL(file);
+
+    // ストレージに保存
+    try {
+      const { messageApi } = await import('@/lib/api-client');
+      const uploadResponse = await messageApi.uploadContractDocument(file);
+      
+      if (uploadResponse.success && uploadResponse.data) {
+        const filePath = uploadResponse.data.file_path;
+        
+        // 署名付きURLを取得
+        const { getImageUrl } = await import('@/lib/storage');
+        const signedUrl = await getImageUrl(filePath, 'contract-documents');
 
         if (isCustom) {
           setCustomContracts(prev =>
             prev.map(contract =>
               contract.id === contractId
-                ? { ...contract, file, preview }
+                ? { ...contract, filePath, signedUrl }
                 : contract
             )
           );
@@ -116,13 +150,15 @@ function MessageThread({
           setContracts(prev =>
             prev.map(contract =>
               contract.id === contractId
-                ? { ...contract, file, preview }
+                ? { ...contract, filePath, signedUrl }
                 : contract
             )
           );
         }
-      };
-      reader.readAsDataURL(file);
+      }
+    } catch (err) {
+      console.error('Failed to upload contract:', err);
+      // エラーが発生してもプレビューは表示する
     }
   };
 
@@ -137,6 +173,8 @@ function MessageThread({
         icon: FileText,
         file: null,
         preview: null,
+        filePath: null,
+        signedUrl: null,
       }
     ]);
   };
@@ -146,38 +184,24 @@ function MessageThread({
     setCustomContracts(prev => prev.filter(contract => contract.id !== contractId));
   };
 
-  // 契約書を送信
-  const handleSendContract = async (contractId: string, isCustom: boolean) => {
-    if (!onSendContract || isSending || isLoadingMessages) return;
-
-    const contract = isCustom
-      ? customContracts.find(c => c.id === contractId)
-      : contracts.find(c => c.id === contractId);
-
-    if (!contract || !contract.file) return;
-
-    try {
-      await onSendContract(contract.file, contractId);
-      // 送信成功後、契約書の状態をリセット
-      if (isCustom) {
-        setCustomContracts(prev =>
-          prev.map(c =>
-            c.id === contractId
-              ? { ...c, file: null, preview: null }
-              : c
-          )
-        );
-      } else {
-        setContracts(prev =>
-          prev.map(c =>
-            c.id === contractId
-              ? { ...c, file: null, preview: null }
-              : c
-          )
-        );
-      }
-    } catch (err) {
-      console.error('Failed to send contract:', err);
+  // 契約書を削除
+  const handleRemoveContract = (contractId: string, isCustom: boolean) => {
+    if (isCustom) {
+      setCustomContracts(prev =>
+        prev.map(c =>
+          c.id === contractId
+            ? { ...c, file: null, preview: null, filePath: null, signedUrl: null }
+            : c
+        )
+      );
+    } else {
+      setContracts(prev =>
+        prev.map(c =>
+          c.id === contractId
+            ? { ...c, file: null, preview: null, filePath: null, signedUrl: null }
+            : c
+        )
+      );
     }
   };
 
@@ -312,14 +336,14 @@ function MessageThread({
                   <div key={contract.id} className="relative">
                     <label
                       className={`flex flex-col items-center justify-center aspect-square border-2 border-dashed rounded-lg cursor-pointer transition-colors overflow-hidden relative ${
-                        contract.preview ? 'border-[#323232]' : 'border-gray-300 hover:bg-white'
+                        (contract.preview || contract.signedUrl) ? 'border-[#323232]' : 'border-gray-300 hover:bg-white'
                       }`}
                     >
-                      {contract.preview ? (
+                      {(contract.preview || contract.signedUrl) ? (
                         <div className="absolute inset-0 p-2 flex flex-col">
                           <div className="flex-1 relative">
                             <Image
-                              src={contract.preview}
+                              src={contract.signedUrl || contract.preview || ''}
                               alt={contract.name}
                               fill
                               className="object-cover rounded"
@@ -352,11 +376,10 @@ function MessageThread({
                     {contract.file && (
                       <button
                         type="button"
-                        onClick={() => handleSendContract(contract.id, false)}
-                        disabled={isSending || isLoadingMessages}
-                        className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 px-2 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                        onClick={() => handleRemoveContract(contract.id, false)}
+                        className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors z-10"
                       >
-                        送信
+                        ×
                       </button>
                     )}
                   </div>
@@ -370,14 +393,14 @@ function MessageThread({
                   <div key={contract.id} className="relative">
                     <label
                       className={`flex flex-col items-center justify-center aspect-square border-2 border-dashed rounded-lg cursor-pointer transition-colors overflow-hidden relative ${
-                        contract.preview ? 'border-[#323232]' : 'border-gray-300 hover:bg-white'
+                        (contract.preview || contract.signedUrl) ? 'border-[#323232]' : 'border-gray-300 hover:bg-white'
                       }`}
                     >
-                      {contract.preview ? (
+                      {(contract.preview || contract.signedUrl) ? (
                         <div className="absolute inset-0 p-2 flex flex-col">
                           <div className="flex-1 relative">
                             <Image
-                              src={contract.preview}
+                              src={contract.signedUrl || contract.preview || ''}
                               alt={contract.name}
                               fill
                               className="object-cover rounded"
@@ -417,11 +440,10 @@ function MessageThread({
                     {contract.file && (
                       <button
                         type="button"
-                        onClick={() => handleSendContract(contract.id, true)}
-                        disabled={isSending || isLoadingMessages}
-                        className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 px-2 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                        onClick={() => handleRemoveContract(contract.id, true)}
+                        className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors z-10"
                       >
-                        送信
+                        ×
                       </button>
                     )}
                   </div>

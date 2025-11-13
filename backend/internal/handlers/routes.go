@@ -79,6 +79,7 @@ func SetupRoutes(cfg *config.Config) http.Handler {
 	fmt.Println("[ROUTES] Registered: /api/user-links")
 
 	// Message routes (protected)
+	// 注意: より長いパスを先に登録する必要がある（http.ServeMuxの仕様）
 	fmt.Println("[ROUTES] Registering message routes with auth middleware...")
 	mux.HandleFunc("/api/threads", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("\n========== ROUTER: /api/threads ==========\n")
@@ -93,12 +94,13 @@ func SetupRoutes(cfg *config.Config) http.Handler {
 	fmt.Println("[ROUTES] Registered: /api/threads (with auth)")
 	mux.HandleFunc("/api/threads/", auth(server.HandleThreadByID))
 	fmt.Println("[ROUTES] Registered: /api/threads/ (with auth)")
-	mux.HandleFunc("/api/messages", auth(server.HandleMessages))
-	fmt.Println("[ROUTES] Registered: /api/messages (with auth)")
-	mux.HandleFunc("/api/messages/upload-image", auth(server.UploadMessageImage))
-	fmt.Println("[ROUTES] Registered: /api/messages/upload-image (with auth)")
+	// より長いパスを先に登録（重要: http.ServeMuxの仕様）
 	mux.HandleFunc("/api/messages/upload-contract", auth(server.UploadContractDocument))
 	fmt.Println("[ROUTES] Registered: /api/messages/upload-contract (with auth)")
+	mux.HandleFunc("/api/messages/upload-image", auth(server.UploadMessageImage))
+	fmt.Println("[ROUTES] Registered: /api/messages/upload-image (with auth)")
+	mux.HandleFunc("/api/messages", auth(server.HandleMessages))
+	fmt.Println("[ROUTES] Registered: /api/messages (with auth)")
 
 	// Post routes
 	mux.HandleFunc("/api/posts/metadata", server.HandlePostsMetadataRoute) // Must be before /api/posts/

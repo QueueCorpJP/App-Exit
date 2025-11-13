@@ -364,12 +364,17 @@ func (s *SupabaseService) GetImageURL(bucketName string, filePath string, expire
 
 // GetSignedURL generates a signed URL for accessing a private file
 func (s *SupabaseService) GetSignedURL(bucketName string, filePath string, expiresIn int) (string, error) {
-	client := s.GetServiceClient()
-
 	// パスの先頭のスラッシュを削除（Supabase Storageは先頭スラッシュを許可しない）
 	cleanPath := strings.TrimPrefix(filePath, "/")
 
-	result, err := client.Storage.CreateSignedUrl(bucketName, cleanPath, expiresIn)
+	// storage-goパッケージを直接使用して署名付きURLを生成
+	storageClient := storage_go.NewClient(
+		fmt.Sprintf("%s/storage/v1", s.cfg.SupabaseURL),
+		s.cfg.SupabaseServiceKey,
+		nil,
+	)
+
+	result, err := storageClient.CreateSignedUrl(bucketName, cleanPath, expiresIn)
 	if err != nil {
 		return "", fmt.Errorf("failed to create signed URL for bucket=%s path=%s: %w", bucketName, cleanPath, err)
 	}
