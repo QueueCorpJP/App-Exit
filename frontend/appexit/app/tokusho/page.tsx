@@ -2,33 +2,33 @@ export default function TokushoPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="bg-white rounded-lg shadow-sm p-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-8">特定商取引法に基づく表記</h1>
-          
+        <div className="rounded-lg p-8" style={{ color: '#323232' }}>
+          <h1 className="text-2xl font-black mb-12 text-center">特定商取引法に基づく表記</h1>
+
           <div className="prose max-w-none">
-            <p className="text-gray-600 mb-8">
+            <p className="mb-8">
               特定商取引法に基づき、以下のとおり表示いたします。
             </p>
 
             <div className="space-y-8">
-              <div className="border border-gray-200 rounded-lg p-6">
+              <div className="border-0 rounded-lg p-6">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">販売業者</h2>
                 <p className="text-gray-700">Queue株式会社</p>
               </div>
 
-              <div className="border border-gray-200 rounded-lg p-6">
+              <div className="border-0 rounded-lg p-6">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">運営統括責任者</h2>
                 <p className="text-gray-700">代表取締役 谷口太一</p>
               </div>
 
-              <div className="border border-gray-200 rounded-lg p-6">
+              <div className="border-0 rounded-lg p-6">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">所在地</h2>
                 <p className="text-gray-700">〒104-0061</p>
                 <p className="text-gray-700">東京都中央区銀座８丁目17-5</p>
                 <p className="text-gray-700">THE HUB 銀座 OCT</p>
               </div>
 
-              <div className="border border-gray-200 rounded-lg p-6">
+              <div className="border-0 rounded-lg p-6">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">連絡先</h2>
                 <div className="space-y-2">
                   <p className="text-gray-700">
@@ -43,7 +43,7 @@ export default function TokushoPage() {
                 </div>
               </div>
 
-              <div className="border border-gray-200 rounded-lg p-6">
+              <div className="border-0 rounded-lg p-6">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">販売価格</h2>
                 <div className="space-y-3">
                   <p className="text-gray-700">各商品・サービスの価格は、各商品・サービスの詳細ページに記載しております。</p>
@@ -51,7 +51,7 @@ export default function TokushoPage() {
                 </div>
               </div>
 
-              <div className="border border-gray-200 rounded-lg p-6">
+              <div className="border-0 rounded-lg p-6">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">支払い方法</h2>
                 <ul className="list-disc list-inside space-y-2 text-gray-700">
                   <li>クレジットカード決済（VISA、MasterCard、JCB、American Express、Diners Club）</li>
@@ -62,7 +62,7 @@ export default function TokushoPage() {
                 </ul>
               </div>
 
-              <div className="border border-gray-200 rounded-lg p-6">
+              <div className="border-0 rounded-lg p-6">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">支払い時期</h2>
                 <div className="space-y-3">
                   <p className="text-gray-700">
@@ -80,7 +80,7 @@ export default function TokushoPage() {
                 </div>
               </div>
 
-              <div className="border border-gray-200 rounded-lg p-6">
+              <div className="border-0 rounded-lg p-6">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">商品・サービスの提供時期</h2>
                 <div className="space-y-3">
                   <p className="text-gray-700">
@@ -95,7 +95,7 @@ export default function TokushoPage() {
                 </div>
               </div>
 
-              <div className="border border-gray-200 rounded-lg p-6">
+              <div className="border-0 rounded-lg p-6">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">返品・交換・キャンセル</h2>
                 <div className="space-y-4">
                   <div>
@@ -122,7 +122,7 @@ export default function TokushoPage() {
                 </div>
               </div>
 
-              <div className="border border-gray-200 rounded-lg p-6">
+              <div className="border-0 rounded-lg p-6">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">返品送料</h2>
                 <p className="text-gray-700">
                   当社の責めに帰すべき事由による返品の場合：当社負担
@@ -131,7 +131,7 @@ export default function TokushoPage() {
                 </p>
               </div>
 
-              <div className="border border-gray-200 rounded-lg p-6">
+              <div className="border-0 rounded-lg p-6">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">サービス手数料</h2>
                 <div className="space-y-3">
                   <p className="text-gray-700">
@@ -149,7 +149,7 @@ export default function TokushoPage() {
                 </div>
               </div>
 
-              <div className="border border-gray-200 rounded-lg p-6">
+              <div className="border-0 rounded-lg p-6">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">個人情報の取り扱い</h2>
                 <p className="text-gray-700">
                   お客様の個人情報については、当社の
@@ -158,7 +158,7 @@ export default function TokushoPage() {
                 </p>
               </div>
 
-              <div className="border border-gray-200 rounded-lg p-6">
+              <div className="border-0 rounded-lg p-6">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">その他</h2>
                 <div className="space-y-3">
                   <p className="text-gray-700">
@@ -172,7 +172,7 @@ export default function TokushoPage() {
                 </div>
               </div>
 
-              <div className="border border-gray-200 rounded-lg p-6">
+              <div className="border-0 rounded-lg p-6">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">苦情・相談窓口</h2>
                 <div className="space-y-4">
                   <div>

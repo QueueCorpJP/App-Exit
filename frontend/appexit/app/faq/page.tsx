@@ -165,10 +165,10 @@ export default function FAQPage() {
         <div className="max-w-4xl mx-auto px-4">
           {/* ヘッダー */}
           <div className="text-center mb-12">
-            <h1 className="text-4xl font-bold text-gray-900 mb-4">
+            <h1 className="text-2xl font-bold mb-12 text-center" style={{ color: '#323232' }}>
               よくある質問（FAQ）
             </h1>
-            <p className="text-xl text-gray-600">
+            <p className="text-lg" style={{ color: '#323232' }}>
               アプリ・Webサービス売買に関するよくある質問
             </p>
           </div>
@@ -197,30 +197,6 @@ export default function FAQPage() {
               </div>
             </div>
           ))}
-
-          {/* CTA */}
-          <div className="mt-12 text-center bg-gradient-to-r from-[#FF6B35] to-[#FF8C42] text-white rounded-lg p-8">
-            <h2 className="text-2xl font-bold mb-4">
-              まだ疑問が解決しませんか？
-            </h2>
-            <p className="mb-6">
-              無料相談で専門スタッフが丁寧にお答えします
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <a
-                href="/seminar"
-                className="bg-white text-[#FF6B35] px-8 py-3 rounded-lg font-bold hover:bg-gray-100 transition-colors"
-              >
-                説明会に参加する（無料）
-              </a>
-              <a
-                href="/contact"
-                className="bg-white text-[#FF6B35] px-8 py-3 rounded-lg font-bold hover:bg-gray-100 transition-colors"
-              >
-                個別相談を申し込む（無料）
-              </a>
-            </div>
-          </div>
 
           {/* 関連リンク */}
           <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-4">

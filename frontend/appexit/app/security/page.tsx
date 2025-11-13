@@ -2,8 +2,8 @@ export default function SecurityPolicyPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="bg-white rounded-lg shadow-sm p-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-8">情報セキュリティ基本方針</h1>
+        <div className="rounded-lg p-8" style={{ color: '#323232' }}>
+          <h1 className="text-2xl font-bold mb-12 text-center">情報セキュリティ基本方針</h1>
           
           <div className="prose max-w-none">
             <p className="text-gray-600 mb-8">
@@ -14,7 +14,7 @@ export default function SecurityPolicyPage() {
             </p>
 
             <div className="space-y-8">
-              <div className="border border-gray-200 rounded-lg p-6 bg-blue-50">
+              <div className="border-0 rounded-lg p-6">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">基本方針</h2>
                 <p className="text-gray-700 mb-3 font-medium">
                   当社は、情報セキュリティの確保を経営上の重要課題と認識し、以下の基本方針を定めます。
@@ -28,7 +28,7 @@ export default function SecurityPolicyPage() {
                 </ol>
               </div>
 
-              <div className="border border-gray-200 rounded-lg p-6">
+              <div className="border-0 rounded-lg p-6">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">1. 適用範囲</h2>
                 <p className="text-gray-700 mb-4">
                   本方針は、当社が取り扱うすべての情報資産に適用されます。
@@ -56,7 +56,7 @@ export default function SecurityPolicyPage() {
                 </div>
               </div>
 
-              <div className="border border-gray-200 rounded-lg p-6">
+              <div className="border-0 rounded-lg p-6">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">2. 情報セキュリティ管理体制</h2>
                 <div className="space-y-4">
                   <div>
@@ -102,7 +102,7 @@ export default function SecurityPolicyPage() {
                 </div>
               </div>
 
-              <div className="border border-gray-200 rounded-lg p-6">
+              <div className="border-0 rounded-lg p-6">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">3. 情報資産の管理</h2>
                 <div className="space-y-4">
                   <div>
@@ -111,7 +111,7 @@ export default function SecurityPolicyPage() {
                       情報資産を重要度に応じて以下のように分類し、適切に管理します。
                     </p>
                     <div className="space-y-2 ml-4">
-                      <div className="bg-red-50 border border-red-200 rounded p-3">
+                      <div className="border-0 rounded p-3">
                         <p className="font-medium text-gray-800">機密情報（最重要）</p>
                         <p className="text-gray-700 text-sm">
                           漏洩した場合に当社または顧客に重大な影響を及ぼす情報
@@ -119,7 +119,7 @@ export default function SecurityPolicyPage() {
                           例：お客様の個人情報、決済情報、アプリのソースコード等
                         </p>
                       </div>
-                      <div className="bg-yellow-50 border border-yellow-200 rounded p-3">
+                      <div className="border-0 rounded p-3">
                         <p className="font-medium text-gray-800">重要情報</p>
                         <p className="text-gray-700 text-sm">
                           漏洩した場合に当社または顧客に影響を及ぼす情報
@@ -127,7 +127,7 @@ export default function SecurityPolicyPage() {
                           例：取引履歴、社内システムの設定情報等
                         </p>
                       </div>
-                      <div className="bg-green-50 border border-green-200 rounded p-3">
+                      <div className="border-0 rounded p-3">
                         <p className="font-medium text-gray-800">一般情報</p>
                         <p className="text-gray-700 text-sm">
                           公開されている情報や業務上一般的に取り扱われる情報
@@ -148,7 +148,7 @@ export default function SecurityPolicyPage() {
                 </div>
               </div>
 
-              <div className="border border-gray-200 rounded-lg p-6">
+              <div className="border-0 rounded-lg p-6">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">4. 技術的セキュリティ対策</h2>
                 <div className="space-y-4">
                   <div>
@@ -192,7 +192,7 @@ export default function SecurityPolicyPage() {
                 </div>
               </div>
 
-              <div className="border border-gray-200 rounded-lg p-6">
+              <div className="border-0 rounded-lg p-6">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">5. 物理的セキュリティ対策</h2>
                 <ul className="list-disc list-inside space-y-2 text-gray-700 ml-4">
                   <li>オフィスへの入退室管理（ICカード、生体認証等）</li>
@@ -205,7 +205,7 @@ export default function SecurityPolicyPage() {
                 </ul>
               </div>
 
-              <div className="border border-gray-200 rounded-lg p-6">
+              <div className="border-0 rounded-lg p-6">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">6. 人的セキュリティ対策</h2>
                 <div className="space-y-4">
                   <div>
@@ -239,7 +239,7 @@ export default function SecurityPolicyPage() {
                 </div>
               </div>
 
-              <div className="border border-gray-200 rounded-lg p-6">
+              <div className="border-0 rounded-lg p-6">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">7. インシデント対応</h2>
                 <div className="space-y-4">
                   <div>
@@ -288,7 +288,7 @@ export default function SecurityPolicyPage() {
                 </div>
               </div>
 
-              <div className="border border-gray-200 rounded-lg p-6">
+              <div className="border-0 rounded-lg p-6">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">8. 事業継続管理</h2>
                 <ul className="list-disc list-inside space-y-2 text-gray-700 ml-4">
                   <li>事業継続計画（BCP）の策定</li>
@@ -299,7 +299,7 @@ export default function SecurityPolicyPage() {
                 </ul>
               </div>
 
-              <div className="border border-gray-200 rounded-lg p-6">
+              <div className="border-0 rounded-lg p-6">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">9. 法令遵守</h2>
                 <p className="text-gray-700 mb-3">
                   当社は、以下の法令を遵守し、情報セキュリティを確保します。
@@ -315,7 +315,7 @@ export default function SecurityPolicyPage() {
                 </ul>
               </div>
 
-              <div className="border border-gray-200 rounded-lg p-6">
+              <div className="border-0 rounded-lg p-6">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">10. 監査と継続的改善</h2>
                 <div className="space-y-3">
                   <div>
@@ -342,7 +342,7 @@ export default function SecurityPolicyPage() {
                 </div>
               </div>
 
-              <div className="border border-gray-200 rounded-lg p-6">
+              <div className="border-0 rounded-lg p-6">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">11. お客様へのお願い</h2>
                 <p className="text-gray-700 mb-4">
                   APPEXITをご利用のお客様には、以下の点にご協力をお願いいたします。
@@ -357,12 +357,12 @@ export default function SecurityPolicyPage() {
                 </ul>
               </div>
 
-              <div className="border border-gray-200 rounded-lg p-6">
+              <div className="border-0 rounded-lg p-6">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">12. お問い合わせ</h2>
                 <p className="text-gray-700 mb-4">
                   情報セキュリティに関するお問い合わせは、以下までお願いいたします。
                 </p>
-                <div className="bg-gray-50 p-4 rounded">
+                <div className="p-4 rounded">
                   <p className="text-gray-700 font-semibold">Queue株式会社</p>
                   <p className="text-gray-700">情報セキュリティ管理責任者</p>
                   <p className="text-gray-700">メールアドレス：security@appexit.jp</p>

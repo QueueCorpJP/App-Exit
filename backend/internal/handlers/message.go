@@ -54,7 +54,6 @@ type (
 		Role              string  `json:"role"`
 		Party             string  `json:"party"`
 		DisplayName       string  `json:"display_name"`
-		Age               *int    `json:"age"`
 		IconURL           *string `json:"icon_url"`
 		NDAFlag           bool    `json:"nda_flag"`
 		TermsAcceptedAt   *string `json:"terms_accepted_at"`
@@ -145,7 +144,6 @@ func (s *Server) buildProfilesFromRows(rows []profileRow, signedURLMap map[strin
 			Role:              row.Role,
 			Party:             row.Party,
 			DisplayName:       row.DisplayName,
-			Age:               row.Age,
 			IconURL:           iconURL,
 			NDAFlag:           row.NDAFlag,
 			TermsAcceptedAt:   termsAcceptedAt,
@@ -402,13 +400,27 @@ func (s *Server) GetThreads(w http.ResponseWriter, r *http.Request) {
 			participantIDList = append(participantIDList, id)
 		}
 
+		log.Printf("[GetThreads] Fetching profiles for %d participant IDs: %v", len(participantIDList), participantIDList)
+
 		var profileRows []profileRow
 		_, err = serviceClient.From("profiles").
-			Select("id, role, party, display_name, age, icon_url, nda_flag, terms_accepted_at, privacy_accepted_at, stripe_customer_id, created_at, updated_at", "", false).
+			Select("id, role, party, display_name, icon_url, nda_flag, terms_accepted_at, privacy_accepted_at, stripe_customer_id, created_at, updated_at", "", false).
 			In("id", participantIDList).
 			ExecuteTo(&profileRows)
 
-		if err == nil {
+		if err != nil {
+			log.Printf("[GetThreads] ❌ ERROR: Failed to fetch profiles: %v", err)
+		} else {
+			log.Printf("[GetThreads] ✓ Successfully fetched %d profiles from DB", len(profileRows))
+			if len(profileRows) == 0 {
+				log.Printf("[GetThreads] ⚠️ WARNING: No profiles found for participant IDs: %v", participantIDList)
+			} else {
+				// プロフィールの内容をログ出力
+				for _, row := range profileRows {
+					log.Printf("[GetThreads] Profile found: ID=%s, DisplayName=%s, IconURL=%v", row.ID, row.DisplayName, row.IconURL)
+				}
+			}
+
 			var iconPaths []string
 			for _, row := range profileRows {
 				if row.IconURL != nil && *row.IconURL != "" {
@@ -420,10 +432,21 @@ func (s *Server) GetThreads(w http.ResponseWriter, r *http.Request) {
 			signedURLMap := s.supabase.GetBatchSignedURLs("profile-icons", iconPaths, 3600)
 			log.Printf("[GetThreads] GetBatchSignedURLs returned %d URLs", len(signedURLMap))
 			profiles := s.buildProfilesFromRows(profileRows, signedURLMap)
+			log.Printf("[GetThreads] buildProfilesFromRows returned %d profiles", len(profiles))
+
+			// 同じIDで複数のロールがある場合、最初の1つだけを使用
 			for _, profile := range profiles {
-				profilesMap[profile.ID] = profile
+				if _, exists := profilesMap[profile.ID]; !exists {
+					profilesMap[profile.ID] = profile
+					log.Printf("[GetThreads] Added profile to map: ID=%s, DisplayName=%s", profile.ID, profile.DisplayName)
+				} else {
+					log.Printf("[GetThreads] Skipping duplicate profile: ID=%s, Role=%s (already exists)", profile.ID, profile.Role)
+				}
 			}
+			log.Printf("[GetThreads] profilesMap now contains %d unique profiles", len(profilesMap))
 		}
+	} else {
+		log.Printf("[GetThreads] ⚠️ No participant IDs to fetch profiles for")
 	}
 
 	// 空配列を初期化（nilの場合でも確実に空配列を返す）
@@ -466,8 +489,11 @@ func (s *Server) GetThreads(w http.ResponseWriter, r *http.Request) {
 		for _, pid := range thread.ParticipantIDs {
 			if profile, exists := profilesMap[pid]; exists {
 				thread.Participants = append(thread.Participants, profile)
+			} else {
+				log.Printf("[GetThreads] ⚠️ WARNING: No profile found in profilesMap for participant ID: %s", pid)
 			}
 		}
+		log.Printf("[GetThreads] Thread %s: %d participant IDs, %d profiles added", row.ID, len(thread.ParticipantIDs), len(thread.Participants))
 
 		thread.UnreadCount = 0
 		threads = append(threads, thread)
@@ -605,7 +631,7 @@ func (s *Server) GetThreadByID(w http.ResponseWriter, r *http.Request) {
 								
 								var profileRows []profileRow
 								_, err = client.From("profiles").
-									Select("id, role, party, display_name, age, icon_url, nda_flag, terms_accepted_at, privacy_accepted_at, stripe_customer_id, created_at, updated_at", "", false).
+									Select("id, role, party, display_name, icon_url, nda_flag, terms_accepted_at, privacy_accepted_at, stripe_customer_id, created_at, updated_at", "", false).
 									In("id", participantIDs).
 									ExecuteTo(&profileRows)
 								
@@ -618,7 +644,19 @@ func (s *Server) GetThreadByID(w http.ResponseWriter, r *http.Request) {
 									}
 									
 									signedURLMap := s.supabase.GetBatchSignedURLs("profile-icons", iconPaths, 3600)
-									thread.Participants = s.buildProfilesFromRows(profileRows, signedURLMap)
+
+									allProfiles := s.buildProfilesFromRows(profileRows, signedURLMap)
+									// 同じIDで複数のロールがある場合、最初の1つだけを使用
+									uniqueProfilesMap := make(map[string]models.Profile)
+									for _, profile := range allProfiles {
+										if _, exists := uniqueProfilesMap[profile.ID]; !exists {
+											uniqueProfilesMap[profile.ID] = profile
+										}
+									}
+									thread.Participants = make([]models.Profile, 0, len(uniqueProfilesMap))
+									for _, profile := range uniqueProfilesMap {
+										thread.Participants = append(thread.Participants, profile)
+									}
 								}
 							}
 							
@@ -707,7 +745,7 @@ func (s *Server) GetThreadByID(w http.ResponseWriter, r *http.Request) {
 				
 				var profileRows []profileRow
 				_, err = client.From("profiles").
-					Select("id, role, party, display_name, age, icon_url, nda_flag, terms_accepted_at, privacy_accepted_at, stripe_customer_id, created_at, updated_at", "", false).
+					Select("id, role, party, display_name, icon_url, nda_flag, terms_accepted_at, privacy_accepted_at, stripe_customer_id, created_at, updated_at", "", false).
 					In("id", participantIDsForResponse).
 					ExecuteTo(&profileRows)
 				
@@ -720,7 +758,19 @@ func (s *Server) GetThreadByID(w http.ResponseWriter, r *http.Request) {
 					}
 					
 					signedURLMap := s.supabase.GetBatchSignedURLs("profile-icons", iconPaths, 3600)
-					threadDetail.Participants = s.buildProfilesFromRows(profileRows, signedURLMap)
+
+					allProfiles := s.buildProfilesFromRows(profileRows, signedURLMap)
+					// 同じIDで複数のロールがある場合、最初の1つだけを使用
+					uniqueProfilesMap := make(map[string]models.Profile)
+					for _, profile := range allProfiles {
+						if _, exists := uniqueProfilesMap[profile.ID]; !exists {
+							uniqueProfilesMap[profile.ID] = profile
+						}
+					}
+					threadDetail.Participants = make([]models.Profile, 0, len(uniqueProfilesMap))
+					for _, profile := range uniqueProfilesMap {
+						threadDetail.Participants = append(threadDetail.Participants, profile)
+					}
 				}
 			}
 			
@@ -771,16 +821,29 @@ func (s *Server) GetThreadByID(w http.ResponseWriter, r *http.Request) {
 		participantIDs[i] = row.UserID
 	}
 
+	log.Printf("[GetThreadByID] Fetching profiles for %d participant IDs: %v", len(participantIDs), participantIDs)
+
 	var profileRows []profileRow
 	_, err = client.From("profiles").
-		Select("id, role, party, display_name, age, icon_url, nda_flag, terms_accepted_at, privacy_accepted_at, stripe_customer_id, created_at, updated_at", "", false).
+		Select("id, role, party, display_name, icon_url, nda_flag, terms_accepted_at, privacy_accepted_at, stripe_customer_id, created_at, updated_at", "", false).
 		In("id", participantIDs).
 		ExecuteTo(&profileRows)
 
 	if err != nil {
+		log.Printf("[GetThreadByID] ❌ ERROR: Failed to fetch profiles: %v", err)
 		thread.Participants = []models.Profile{}
 		response.Success(w, http.StatusOK, thread)
 		return
+	}
+
+	log.Printf("[GetThreadByID] ✓ Successfully fetched %d profiles from DB", len(profileRows))
+	if len(profileRows) == 0 {
+		log.Printf("[GetThreadByID] ⚠️ WARNING: No profiles found for participant IDs: %v", participantIDs)
+	} else {
+		// プロフィールの内容をログ出力
+		for _, row := range profileRows {
+			log.Printf("[GetThreadByID] Profile found: ID=%s, DisplayName=%s, IconURL=%v", row.ID, row.DisplayName, row.IconURL)
+		}
 	}
 
 	var iconPaths []string
@@ -790,8 +853,29 @@ func (s *Server) GetThreadByID(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	log.Printf("[GetThreadByID] Fetching signed URLs for %d icon paths", len(iconPaths))
 	signedURLMap := s.supabase.GetBatchSignedURLs("profile-icons", iconPaths, 3600)
-	thread.Participants = s.buildProfilesFromRows(profileRows, signedURLMap)
+	log.Printf("[GetThreadByID] GetBatchSignedURLs returned %d URLs", len(signedURLMap))
+
+	allProfiles := s.buildProfilesFromRows(profileRows, signedURLMap)
+
+	// 同じIDで複数のロールがある場合、最初の1つだけを使用
+	uniqueProfilesMap := make(map[string]models.Profile)
+	for _, profile := range allProfiles {
+		if _, exists := uniqueProfilesMap[profile.ID]; !exists {
+			uniqueProfilesMap[profile.ID] = profile
+			log.Printf("[GetThreadByID] Added profile: ID=%s, DisplayName=%s", profile.ID, profile.DisplayName)
+		} else {
+			log.Printf("[GetThreadByID] Skipping duplicate profile: ID=%s, Role=%s", profile.ID, profile.Role)
+		}
+	}
+
+	// map から slice に変換
+	thread.Participants = make([]models.Profile, 0, len(uniqueProfilesMap))
+	for _, profile := range uniqueProfilesMap {
+		thread.Participants = append(thread.Participants, profile)
+	}
+	log.Printf("[GetThreadByID] Final participants count: %d unique profiles", len(thread.Participants))
 
 	response.Success(w, http.StatusOK, thread)
 }

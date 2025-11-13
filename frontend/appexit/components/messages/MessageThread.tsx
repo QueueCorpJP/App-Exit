@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, memo } from 'react';
+import Image from 'next/image';
 import { MessageWithSender, ThreadDetail } from '@/lib/api-client';
-import { Image as ImageIcon, X } from 'lucide-react';
+import { Image as ImageIcon, X, FileText, File, Briefcase, Scale, Users } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { truncateDisplayName } from '@/lib/text-utils';
 
@@ -14,6 +15,15 @@ interface MessageThreadProps {
   isSending: boolean;
   isLoadingMessages: boolean;
   onBack?: () => void;
+}
+
+// 契約書の種類
+interface ContractDocument {
+  id: string;
+  name: string;
+  icon: any; // Lucide icon component
+  file: File | null;
+  preview: string | null;
 }
 
 function MessageThread({
@@ -29,6 +39,21 @@ function MessageThread({
   const [newMessage, setNewMessage] = useState('');
   const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+
+  // 契約書セクションの展開状態
+  const [isContractExpanded, setIsContractExpanded] = useState(false);
+
+  // 契約書のリスト
+  const [contracts, setContracts] = useState<ContractDocument[]>([
+    { id: 'nda', name: '秘密保持契約（NDA）', icon: FileText, file: null, preview: null },
+    { id: 'loi', name: '基本合意書（LOI / MOU）', icon: File, file: null, preview: null },
+    { id: 'dd', name: 'デューデリジェンス関連の資料', icon: Briefcase, file: null, preview: null },
+    { id: 'transfer', name: '事業譲渡契約', icon: Scale, file: null, preview: null },
+    { id: 'handover', name: '引継ぎ業務委託契約', icon: Users, file: null, preview: null },
+  ]);
+
+  // 追加の契約書
+  const [customContracts, setCustomContracts] = useState<ContractDocument[]>([]);
 
   const formatTime = (timeString: string) => {
     const date = new Date(timeString);
@@ -69,6 +94,56 @@ function MessageThread({
     setImagePreview(null);
   };
 
+  // 契約書ファイルのアップロード
+  const handleContractFileSelect = (contractId: string, isCustom: boolean = false) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const preview = reader.result as string;
+
+        if (isCustom) {
+          setCustomContracts(prev =>
+            prev.map(contract =>
+              contract.id === contractId
+                ? { ...contract, file, preview }
+                : contract
+            )
+          );
+        } else {
+          setContracts(prev =>
+            prev.map(contract =>
+              contract.id === contractId
+                ? { ...contract, file, preview }
+                : contract
+            )
+          );
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // カスタム契約書の追加
+  const handleAddCustomContract = () => {
+    const customId = `custom-${Date.now()}`;
+    setCustomContracts(prev => [
+      ...prev,
+      {
+        id: customId,
+        name: 'その他の契約書',
+        icon: FileText,
+        file: null,
+        preview: null,
+      }
+    ]);
+  };
+
+  // カスタム契約書の削除
+  const handleRemoveCustomContract = (contractId: string) => {
+    setCustomContracts(prev => prev.filter(contract => contract.id !== contractId));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if ((!newMessage.trim() && !selectedImageFile) || isSending || isLoadingMessages) return;
@@ -98,9 +173,9 @@ function MessageThread({
   const otherParticipant = threadDetail ? getOtherParticipant() : null;
 
   return (
-    <div className="flex-1 md:flex-1 w-full md:w-auto flex flex-col h-full overflow-hidden bg-white">
+    <div className="flex-1 md:flex-1 w-full md:w-auto flex flex-col h-full overflow-hidden bg-white relative">
       {/* チャットヘッダー */}
-      <div className="p-4 border-b border-gray-200 bg-white flex-shrink-0">
+      <div className="p-4 border-b border-gray-200 bg-white flex-shrink-0 relative z-10">
         <div className="grid grid-cols-3 items-center gap-4">
           {/* 左側：ユーザー情報 */}
           <div className="flex items-center gap-3">
@@ -136,12 +211,15 @@ function MessageThread({
           </div>
 
           {/* 中央：契約書状況 */}
-          <div className="flex items-center justify-center gap-1">
+          <div
+            className="flex items-center justify-center gap-1 cursor-pointer hover:opacity-70 transition-opacity"
+            onClick={() => setIsContractExpanded(!isContractExpanded)}
+          >
             <span className="font-semibold" style={{ color: '#323232' }}>
               契約書状況
             </span>
             <svg
-              className="w-4 h-4"
+              className={`w-4 h-4 transition-transform ${isContractExpanded ? 'rotate-180' : ''}`}
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -185,8 +263,132 @@ function MessageThread({
         </div>
       </div>
 
+      {/* 契約書アップロードエリア（展開時のみ表示） */}
+      {isContractExpanded && (
+        <div className="absolute top-[73px] left-0 right-0 z-20 p-3 bg-white border-b border-gray-200 shadow-md overflow-y-auto max-h-64">
+          <div className="max-w-4xl mx-auto">
+            <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-7 gap-2">
+              {/* 標準契約書 */}
+              {contracts.map((contract) => {
+                const IconComponent = contract.icon;
+                return (
+                  <div key={contract.id}>
+                    <label
+                      className={`flex flex-col items-center justify-center aspect-square border-2 border-dashed rounded-lg cursor-pointer transition-colors overflow-hidden relative ${
+                        contract.preview ? 'border-[#323232]' : 'border-gray-300 hover:bg-white'
+                      }`}
+                    >
+                      {contract.preview ? (
+                        <div className="absolute inset-0 p-2 flex flex-col">
+                          <div className="flex-1 relative">
+                            <Image
+                              src={contract.preview}
+                              alt={contract.name}
+                              fill
+                              className="object-cover rounded"
+                            />
+                          </div>
+                          <div className="mt-2">
+                            <p className="text-xs font-semibold text-gray-900 truncate text-center">
+                              {contract.name}
+                            </p>
+                            <p className="text-[10px] text-gray-500 truncate text-center">
+                              {contract.file?.name}
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center gap-2 p-2">
+                          <IconComponent className="w-8 h-8 text-gray-400" strokeWidth={1.5} />
+                          <p className="text-xs font-semibold text-gray-600 text-center leading-tight">
+                            {contract.name}
+                          </p>
+                        </div>
+                      )}
+                      <input
+                        type="file"
+                        className="hidden"
+                        accept="image/*,application/pdf"
+                        onChange={handleContractFileSelect(contract.id, false)}
+                      />
+                    </label>
+                  </div>
+                );
+              })}
+
+              {/* カスタム契約書 */}
+              {customContracts.map((contract) => {
+                const IconComponent = contract.icon;
+                return (
+                  <div key={contract.id} className="relative">
+                    <label
+                      className={`flex flex-col items-center justify-center aspect-square border-2 border-dashed rounded-lg cursor-pointer transition-colors overflow-hidden relative ${
+                        contract.preview ? 'border-[#323232]' : 'border-gray-300 hover:bg-white'
+                      }`}
+                    >
+                      {contract.preview ? (
+                        <div className="absolute inset-0 p-2 flex flex-col">
+                          <div className="flex-1 relative">
+                            <Image
+                              src={contract.preview}
+                              alt={contract.name}
+                              fill
+                              className="object-cover rounded"
+                            />
+                          </div>
+                          <div className="mt-2">
+                            <p className="text-xs font-semibold text-gray-900 truncate text-center">
+                              {contract.name}
+                            </p>
+                            <p className="text-[10px] text-gray-500 truncate text-center">
+                              {contract.file?.name}
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center gap-2 p-2">
+                          <IconComponent className="w-8 h-8 text-gray-400" strokeWidth={1.5} />
+                          <p className="text-xs font-semibold text-gray-600 text-center leading-tight">
+                            {contract.name}
+                          </p>
+                        </div>
+                      )}
+                      <input
+                        type="file"
+                        className="hidden"
+                        accept="image/*,application/pdf"
+                        onChange={handleContractFileSelect(contract.id, true)}
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveCustomContract(contract.id)}
+                      className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors z-10"
+                    >
+                      ×
+                    </button>
+                  </div>
+                );
+              })}
+
+              {/* 追加ボタン */}
+              <button
+                type="button"
+                onClick={handleAddCustomContract}
+                className="aspect-square border-2 border-dashed border-gray-300 rounded-lg hover:bg-white transition-colors flex flex-col items-center justify-center gap-2 text-gray-600 p-2"
+              >
+                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                <span className="text-xs font-semibold text-center leading-tight">その他を追加</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* メッセージエリア */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-8 bg-white">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-8 bg-white shadow-inner">
         {isLoadingMessages ? (
           <div className="text-center text-gray-500 mt-8">
             <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>

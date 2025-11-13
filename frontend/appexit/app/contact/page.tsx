@@ -237,7 +237,7 @@ export default function ContactPage() {
               <button
                 type="button"
                 onClick={handleBack}
-                className="flex-1 py-3 px-6 border border-gray-300 rounded-lg font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                className="flex-1 py-3 px-6 bg-gray-200 text-gray-900 rounded-lg font-medium hover:bg-gray-300 transition-colors"
               >
                 修正する
               </button>
@@ -271,17 +271,18 @@ export default function ContactPage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(contactFAQ) }}
       />
       <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="bg-white rounded-lg shadow-sm p-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">お問い合わせ</h1>
-          <p className="text-gray-600 mb-8">
-            APPEXITに関するご質問やご相談は、以下のフォームよりお問い合わせください。
-          </p>
+      <div className="max-w-4xl mx-auto px-4 py-12">
+          <div className="text-center mb-12">
+            <h1 className="text-3xl font-bold mb-6 text-center" style={{ color: '#323232' }}>お問い合わせ</h1>
+            <p className="text-lg" style={{ color: '#323232' }}>
+              APPEXITに関するご質問やご相談は、以下のフォームよりお問い合わせください
+            </p>
+          </div>
 
           {/* お知らせ */}
-          <div className="mb-8 space-y-4">
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <p className="text-sm text-gray-700">
+          <div className="mb-12 space-y-4">
+            <div className="border border-gray-200 rounded-lg p-6 bg-blue-50">
+              <p className="text-sm" style={{ color: '#323232' }}>
                 <strong>APPEXITに会員登録をしている場合は、</strong>
                 <Link href="/login" className="text-blue-600 hover:text-blue-800 underline mx-1">
                   ログイン
@@ -290,17 +291,17 @@ export default function ContactPage() {
               </p>
             </div>
 
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-              <p className="text-sm text-gray-700 mb-2">
+            <div className="border border-gray-200 rounded-lg p-6 bg-green-50">
+              <p className="text-sm mb-2" style={{ color: '#323232' }}>
                 <strong>アプリ・サービスの出品に関するご質問やご相談はこちらから</strong>
               </p>
-              <p className="text-xs text-gray-600">
+              <p className="text-xs" style={{ color: '#323232' }}>
                 ※審査や取引に関するお問い合わせは、マイページ内の「メッセージ」より専任担当者までご連絡ください。
               </p>
             </div>
 
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-              <p className="text-sm text-gray-700">
+            <div className="border border-gray-200 rounded-lg p-6 bg-yellow-50">
+              <p className="text-sm" style={{ color: '#323232' }}>
                 <strong>出品されているアプリ・サービスに関するご質問は、</strong>
                 各出品ページより出品者にメッセージでお問い合わせください。
               </p>
@@ -308,10 +309,10 @@ export default function ContactPage() {
           </div>
 
           {/* フォーム */}
-          <form onSubmit={handleConfirm} className="space-y-6">
+          <form onSubmit={handleConfirm} className="space-y-6 bg-white rounded-lg p-8">
             {/* お名前 */}
             <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="name" className="block text-sm font-medium mb-2" style={{ color: '#323232' }}>
                 お名前 <span className="text-red-500">*</span>
               </label>
               <input
@@ -328,7 +329,7 @@ export default function ContactPage() {
 
             {/* メールアドレス */}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="email" className="block text-sm font-medium mb-2" style={{ color: '#323232' }}>
                 メールアドレス <span className="text-red-500">*</span>
               </label>
               <input
@@ -345,7 +346,7 @@ export default function ContactPage() {
 
             {/* お問い合わせ種別 */}
             <div>
-              <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="category" className="block text-sm font-medium mb-2" style={{ color: '#323232' }}>
                 お問い合わせ種別 <span className="text-red-500">*</span>
               </label>
               <select
@@ -372,7 +373,7 @@ export default function ContactPage() {
 
             {/* お問い合わせ件名 */}
             <div>
-              <label htmlFor="subject" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="subject" className="block text-sm font-medium mb-2" style={{ color: '#323232' }}>
                 お問い合わせ件名 <span className="text-red-500">*</span>
               </label>
               <input
@@ -389,7 +390,7 @@ export default function ContactPage() {
 
             {/* お問い合わせ内容 */}
             <div>
-              <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="message" className="block text-sm font-medium mb-2" style={{ color: '#323232' }}>
                 お問い合わせ内容 <span className="text-red-500">*</span>
               </label>
               <textarea
@@ -406,7 +407,7 @@ export default function ContactPage() {
 
             {/* 対象のURL */}
             <div>
-              <label htmlFor="targetUrl" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="targetUrl" className="block text-sm font-medium mb-2" style={{ color: '#323232' }}>
                 対象アプリ・サービスのURL（任意）
               </label>
               <input
@@ -418,34 +419,34 @@ export default function ContactPage() {
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="https://appexit.jp/apps/..."
               />
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs mt-1" style={{ color: '#323232' }}>
                 特定のアプリ・サービスに関するお問い合わせの場合は、URLをご記入ください
               </p>
             </div>
 
             {/* 注意事項 */}
-            <div className="border border-gray-200 rounded-lg p-4 bg-gray-50 space-y-3">
-              <h3 className="font-semibold text-gray-900 mb-2">事前にお読みください</h3>
-              <ul className="space-y-2 text-sm text-gray-700">
-                <li className="flex items-start">
+            <div className="border border-gray-200 rounded-lg p-6 bg-gray-50 space-y-3">
+              <h3 className="font-semibold mb-2" style={{ color: '#323232' }}>事前にお読みください</h3>
+              <ul className="space-y-2 text-sm">
+                <li className="flex items-start" style={{ color: '#323232' }}>
                   <span className="text-blue-500 mr-2">•</span>
                   <span>
                     出品されているアプリ・サービスに関するご質問は、各出品ページより出品者にメッセージでお問い合わせください。
                   </span>
                 </li>
-                <li className="flex items-start">
+                <li className="flex items-start" style={{ color: '#323232' }}>
                   <span className="text-blue-500 mr-2">•</span>
                   <span>
                     <strong>営業時間：</strong>平日 10:00～18:00（土日祝日除く）
                   </span>
                 </li>
-                <li className="flex items-start">
+                <li className="flex items-start" style={{ color: '#323232' }}>
                   <span className="text-blue-500 mr-2">•</span>
                   <span>
                     お問い合わせ内容によっては、回答にお時間をいただく場合や、お応えできかねる場合もございます。
                   </span>
                 </li>
-                <li className="flex items-start">
+                <li className="flex items-start" style={{ color: '#323232' }}>
                   <span className="text-blue-500 mr-2">•</span>
                   <span>
                     お問い合わせ内容に関しては、
@@ -470,43 +471,42 @@ export default function ContactPage() {
           </form>
 
           {/* 直接連絡先 */}
-          <div className="mt-8 pt-8 border-t border-gray-200">
-            <h3 className="font-semibold text-gray-900 mb-4">その他のお問い合わせ方法</h3>
-            <div className="space-y-2 text-sm text-gray-700">
-              <p>
+          <section className="mt-12 border border-gray-200 rounded-lg p-6">
+            <h3 className="font-semibold mb-4" style={{ color: '#323232' }}>その他のお問い合わせ方法</h3>
+            <div className="space-y-2 text-sm">
+              <p style={{ color: '#323232' }}>
                 <span className="font-medium">メールアドレス：</span>
                 <a href="mailto:support@appexit.jp" className="text-blue-600 hover:text-blue-800 underline">
                   support@appexit.jp
                 </a>
               </p>
-              <p>
+              <p style={{ color: '#323232' }}>
                 <span className="font-medium">電話番号：</span>
                 <a href="tel:03-5324-2678" className="text-blue-600 hover:text-blue-800">
                   03-5324-2678
                 </a>
               </p>
-              <p className="text-gray-600">
+              <p style={{ color: '#323232' }}>
                 受付時間：平日 10:00～18:00（土日祝日除く）
               </p>
             </div>
-          </div>
+          </section>
 
           {/* よくある質問へのリンク */}
-          <div className="mt-8 pt-8 border-t border-gray-200">
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 text-center">
-              <h3 className="font-semibold text-gray-900 mb-2">よくある質問</h3>
-              <p className="text-sm text-gray-700 mb-4">
-                お問い合わせの前に、よくある質問もご確認ください。
+          <section className="mt-8">
+            <Link
+              href="/help"
+              className="block border border-gray-200 rounded-lg p-6 bg-blue-50 text-center hover:border-gray-400 transition-colors"
+            >
+              <h3 className="font-semibold mb-2" style={{ color: '#323232' }}>よくある質問</h3>
+              <p className="text-sm mb-4" style={{ color: '#323232' }}>
+                お問い合わせの前に、よくある質問もご確認ください
               </p>
-              <Link
-                href="/help"
-                className="inline-block px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
+              <span className="inline-block px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
                 ヘルプセンターへ
-              </Link>
-            </div>
-          </div>
-        </div>
+              </span>
+            </Link>
+          </section>
       </div>
     </div>
     </>
