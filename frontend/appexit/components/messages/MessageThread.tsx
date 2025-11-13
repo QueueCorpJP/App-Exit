@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, memo } from 'react';
+import { useState, useEffect, memo } from 'react';
 import Image from 'next/image';
 import { MessageWithSender, ThreadDetail } from '@/lib/api-client';
 import { Image as ImageIcon, X, FileText, File, Briefcase, Scale, Users } from 'lucide-react';
@@ -26,6 +26,8 @@ interface ContractDocument {
   preview: string | null;
   filePath: string | null; // ストレージに保存されたファイルパス
   signedUrl: string | null; // 署名付きURL
+  contentType?: string; // MIMEタイプ
+  fileName?: string; // ファイル名
 }
 
 function MessageThread({
@@ -56,6 +58,77 @@ function MessageThread({
 
   // 追加の契約書
   const [customContracts, setCustomContracts] = useState<ContractDocument[]>([]);
+
+  // 既存の契約書を取得
+  useEffect(() => {
+    const fetchContractDocuments = async () => {
+      if (!threadDetail?.id) {
+        return;
+      }
+
+      try {
+        const { messageApi } = await import('@/lib/api-client');
+        const contractDocs = await messageApi.getThreadContractDocuments(threadDetail.id);
+        
+        console.log('[MessageThread] Fetched contract documents:', contractDocs);
+        
+        if (Array.isArray(contractDocs) && contractDocs.length > 0) {
+          // 標準契約書を更新
+          setContracts(prev => prev.map(contract => {
+            const existingDoc = contractDocs.find(doc => doc.contract_type === contract.id);
+            if (existingDoc) {
+              console.log('[MessageThread] Found existing contract:', contract.id, existingDoc);
+              return {
+                ...contract,
+                filePath: existingDoc.file_path,
+                signedUrl: existingDoc.signed_url,
+                preview: null, // 既存のものはsignedUrlを使用
+                file: null, // 既存のものはfileオブジェクトなし
+                contentType: existingDoc.content_type,
+                fileName: existingDoc.file_name,
+              };
+            }
+            return contract;
+          }));
+
+          // カスタム契約書を追加（contract_typeが'custom'のもの）
+          const customDocs = contractDocs.filter(doc => doc.contract_type === 'custom');
+          if (customDocs.length > 0) {
+            const customContractsList: ContractDocument[] = customDocs.map((doc) => ({
+              id: doc.id, // データベースのIDを使用
+              name: doc.file_name || 'その他の契約書',
+              icon: FileText,
+              file: null,
+              preview: null,
+              filePath: doc.file_path,
+              signedUrl: doc.signed_url,
+              contentType: doc.content_type,
+              fileName: doc.file_name,
+            }));
+            setCustomContracts(customContractsList);
+          } else {
+            // カスタム契約書がない場合は空配列にリセット
+            setCustomContracts([]);
+          }
+        } else {
+          // 契約書がない場合はリセット
+          console.log('[MessageThread] No contract documents found');
+          setContracts(prev => prev.map(contract => ({
+            ...contract,
+            filePath: null,
+            signedUrl: null,
+            preview: null,
+            file: null,
+          })));
+          setCustomContracts([]);
+        }
+      } catch (err) {
+        console.error('Failed to fetch contract documents:', err);
+      }
+    };
+
+    fetchContractDocuments();
+  }, [threadDetail?.id]);
 
   const formatTime = (timeString: string) => {
     const date = new Date(timeString);
@@ -127,9 +200,16 @@ function MessageThread({
     reader.readAsDataURL(file);
 
     // ストレージに保存
+    if (!threadDetail?.id) {
+      console.error('Thread ID is required to upload contract');
+      return;
+    }
+
     try {
       const { messageApi } = await import('@/lib/api-client');
-      const uploadResponse = await messageApi.uploadContractDocument(file);
+      // contractIdをcontract_typeとして使用（customの場合は'custom'）
+      const contractType = isCustom ? 'custom' : contractId;
+      const uploadResponse = await messageApi.uploadContractDocument(file, threadDetail.id, contractType);
       
       if (uploadResponse.success && uploadResponse.data) {
         const filePath = uploadResponse.data.file_path;
@@ -142,7 +222,13 @@ function MessageThread({
           setCustomContracts(prev =>
             prev.map(contract =>
               contract.id === contractId
-                ? { ...contract, filePath, signedUrl }
+                ? { 
+                    ...contract, 
+                    filePath, 
+                    signedUrl,
+                    contentType: file.type,
+                    fileName: file.name,
+                  }
                 : contract
             )
           );
@@ -150,7 +236,13 @@ function MessageThread({
           setContracts(prev =>
             prev.map(contract =>
               contract.id === contractId
-                ? { ...contract, filePath, signedUrl }
+                ? { 
+                    ...contract, 
+                    filePath, 
+                    signedUrl,
+                    contentType: file.type,
+                    fileName: file.name,
+                  }
                 : contract
             )
           );
@@ -342,19 +434,26 @@ function MessageThread({
                       {(contract.preview || contract.signedUrl) ? (
                         <div className="absolute inset-0 p-2 flex flex-col">
                           <div className="flex-1 relative">
-                            <Image
-                              src={contract.signedUrl || contract.preview || ''}
-                              alt={contract.name}
-                              fill
-                              className="object-cover rounded"
-                            />
+                            {contract.contentType && contract.contentType.startsWith('image/') ? (
+                              <Image
+                                src={contract.signedUrl || contract.preview || ''}
+                                alt={contract.name}
+                                fill
+                                className="object-cover rounded"
+                                unoptimized
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center bg-gray-100 rounded">
+                                <IconComponent className="w-12 h-12 text-gray-400" strokeWidth={1.5} />
+                              </div>
+                            )}
                           </div>
                           <div className="mt-2">
                             <p className="text-xs font-semibold text-gray-900 truncate text-center">
                               {contract.name}
                             </p>
                             <p className="text-[10px] text-gray-500 truncate text-center">
-                              {contract.file?.name}
+                              {contract.file?.name || contract.fileName || (contract.filePath ? contract.filePath.split('/').pop() : '')}
                             </p>
                           </div>
                         </div>
@@ -373,7 +472,7 @@ function MessageThread({
                         onChange={handleContractFileSelect(contract.id, false)}
                       />
                     </label>
-                    {contract.file && (
+                    {(contract.file || contract.filePath) && (
                       <button
                         type="button"
                         onClick={() => handleRemoveContract(contract.id, false)}
@@ -399,19 +498,26 @@ function MessageThread({
                       {(contract.preview || contract.signedUrl) ? (
                         <div className="absolute inset-0 p-2 flex flex-col">
                           <div className="flex-1 relative">
-                            <Image
-                              src={contract.signedUrl || contract.preview || ''}
-                              alt={contract.name}
-                              fill
-                              className="object-cover rounded"
-                            />
+                            {contract.contentType && contract.contentType.startsWith('image/') ? (
+                              <Image
+                                src={contract.signedUrl || contract.preview || ''}
+                                alt={contract.name}
+                                fill
+                                className="object-cover rounded"
+                                unoptimized
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center bg-gray-100 rounded">
+                                <IconComponent className="w-12 h-12 text-gray-400" strokeWidth={1.5} />
+                              </div>
+                            )}
                           </div>
                           <div className="mt-2">
                             <p className="text-xs font-semibold text-gray-900 truncate text-center">
                               {contract.name}
                             </p>
                             <p className="text-[10px] text-gray-500 truncate text-center">
-                              {contract.file?.name}
+                              {contract.file?.name || contract.fileName || (contract.filePath ? contract.filePath.split('/').pop() : '')}
                             </p>
                           </div>
                         </div>
@@ -430,18 +536,17 @@ function MessageThread({
                         onChange={handleContractFileSelect(contract.id, true)}
                       />
                     </label>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveCustomContract(contract.id)}
-                      className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors z-10"
-                    >
-                      ×
-                    </button>
-                    {contract.file && (
+                    {(contract.file || contract.filePath) && (
                       <button
                         type="button"
-                        onClick={() => handleRemoveContract(contract.id, true)}
-                        className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors z-10"
+                        onClick={() => {
+                          if (contract.file) {
+                            handleRemoveContract(contract.id, true);
+                          } else {
+                            handleRemoveCustomContract(contract.id);
+                          }
+                        }}
+                        className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors z-10"
                       >
                         ×
                       </button>

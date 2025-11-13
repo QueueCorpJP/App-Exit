@@ -561,9 +561,11 @@ export const messageApi = {
     // バックエンドのレスポンス形式 {success: true, data: {...}} をそのまま返す
     return result;
   },
-  uploadContractDocument: async (file: File) => {
+  uploadContractDocument: async (file: File, threadId: string, contractType: string) => {
     const formData = new FormData();
     formData.append('contract', file);
+    formData.append('thread_id', threadId);
+    formData.append('contract_type', contractType);
 
     // FormData送信時はContent-Typeを自動設定させるため、手動で設定しない
     // HttpOnly Cookieで認証されるため、Authorizationヘッダーは不要
@@ -584,6 +586,20 @@ export const messageApi = {
     // バックエンドのレスポンス形式 {success: true, data: {...}} をそのまま返す
     return result;
   },
+  getThreadContractDocuments: (threadId: string) =>
+    apiClient.get<Array<{
+      id: string;
+      thread_id: string;
+      uploaded_by: string;
+      contract_type: string;
+      file_path: string;
+      file_name: string;
+      file_size?: number;
+      content_type: string;
+      signed_url: string;
+      created_at: string;
+      updated_at: string;
+    }>>(`/api/threads/${threadId}/contracts`),
 };
 
 /**

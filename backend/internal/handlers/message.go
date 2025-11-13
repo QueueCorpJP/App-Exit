@@ -170,6 +170,16 @@ func (s *Server) HandleThreads(w http.ResponseWriter, r *http.Request) {
 
 // HandleThreadByID routes thread by ID requests
 func (s *Server) HandleThreadByID(w http.ResponseWriter, r *http.Request) {
+	// Check if this is a contract documents request
+	if strings.HasSuffix(r.URL.Path, "/contracts") {
+		if r.Method == http.MethodGet {
+			s.GetThreadContractDocuments(w, r)
+		} else {
+			response.Error(w, http.StatusMethodNotAllowed, "Method not allowed")
+		}
+		return
+	}
+
 	switch r.Method {
 	case http.MethodGet:
 		s.GetThreadByID(w, r)
@@ -1312,6 +1322,56 @@ func (s *Server) UploadContractDocument(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	// thread_idとcontract_typeを取得
+	threadID := r.FormValue("thread_id")
+	contractType := r.FormValue("contract_type")
+	
+	if threadID == "" {
+		response.Error(w, http.StatusBadRequest, "thread_id is required")
+		return
+	}
+	if contractType == "" {
+		response.Error(w, http.StatusBadRequest, "contract_type is required")
+		return
+	}
+
+	// contract_typeのバリデーション
+	validContractTypes := map[string]bool{
+		"nda":      true,
+		"loi":      true,
+		"dd":       true,
+		"transfer": true,
+		"handover": true,
+		"custom":   true,
+	}
+	if !validContractTypes[contractType] {
+		response.Error(w, http.StatusBadRequest, "Invalid contract_type")
+		return
+	}
+
+	// スレッドの参加者であることを確認
+	client, err := s.supabase.GetImpersonateClient(userID)
+	if err != nil {
+		log.Printf("[UploadContractDocument] Failed to get impersonate client: %v", err)
+		response.Error(w, http.StatusInternalServerError, "Failed to verify thread access")
+		return
+	}
+
+	var participantCheck []struct {
+		UserID string `json:"user_id"`
+	}
+	_, err = client.From("thread_participants").
+		Select("user_id", "", false).
+		Eq("thread_id", threadID).
+		Eq("user_id", userID).
+		ExecuteTo(&participantCheck)
+
+	if err != nil || len(participantCheck) == 0 {
+		log.Printf("[UploadContractDocument] User is not a participant of the thread: %v", err)
+		response.Error(w, http.StatusForbidden, "You are not a participant of this thread")
+		return
+	}
+
 	file, header, err := r.FormFile("contract")
 	if err != nil {
 		log.Printf("[UploadContractDocument] Failed to get file: %v", err)
@@ -1369,7 +1429,146 @@ func (s *Server) UploadContractDocument(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	// データベースに契約書情報を保存
+	type contractDocumentInsert struct {
+		ThreadID    string `json:"thread_id"`
+		UploadedBy  string `json:"uploaded_by"`
+		ContractType string `json:"contract_type"`
+		FilePath    string `json:"file_path"`
+		FileName    string `json:"file_name"`
+		FileSize    int64  `json:"file_size"`
+		ContentType string `json:"content_type"`
+	}
+
+	contractDoc := contractDocumentInsert{
+		ThreadID:     threadID,
+		UploadedBy:   userID,
+		ContractType: contractType,
+		FilePath:     filePath,
+		FileName:     header.Filename,
+		FileSize:     int64(len(fileData)),
+		ContentType:  contentType,
+	}
+
+	_, _, err = client.From("thread_contract_documents").
+		Insert(contractDoc, false, "", "", "").
+		Execute()
+
+	if err != nil {
+		log.Printf("[UploadContractDocument] Failed to save contract document to database: %v", err)
+		// ストレージへのアップロードは成功しているが、DB保存に失敗した場合でもエラーを返す
+		response.Error(w, http.StatusInternalServerError, "Failed to save contract document information")
+		return
+	}
+
 	response.Success(w, http.StatusCreated, map[string]string{
 		"file_path": filePath,
 	})
+}
+
+// GetThreadContractDocuments retrieves contract documents for a specific thread
+func (s *Server) GetThreadContractDocuments(w http.ResponseWriter, r *http.Request) {
+	userID, ok := utils.RequireUserID(r, w)
+	if !ok {
+		return
+	}
+
+	threadID := strings.TrimPrefix(r.URL.Path, "/api/threads/")
+	threadID = strings.TrimSuffix(threadID, "/contracts")
+	threadID = strings.Trim(threadID, "/")
+	
+	if threadID == "" {
+		response.Error(w, http.StatusBadRequest, "Thread ID required")
+		return
+	}
+
+	client, err := s.supabase.GetImpersonateClient(userID)
+	if err != nil {
+		log.Printf("[GetThreadContractDocuments] Failed to get impersonate client: %v", err)
+		response.Error(w, http.StatusInternalServerError, "Failed to fetch contract documents")
+		return
+	}
+
+	// スレッドの参加者であることを確認
+	var participantCheck []struct {
+		UserID string `json:"user_id"`
+	}
+	_, err = client.From("thread_participants").
+		Select("user_id", "", false).
+		Eq("thread_id", threadID).
+		Eq("user_id", userID).
+		ExecuteTo(&participantCheck)
+
+	if err != nil || len(participantCheck) == 0 {
+		log.Printf("[GetThreadContractDocuments] User is not a participant of the thread: %v", err)
+		response.Error(w, http.StatusForbidden, "You are not a participant of this thread")
+		return
+	}
+
+	type contractDocumentRow struct {
+		ID           string `json:"id"`
+		ThreadID     string `json:"thread_id"`
+		UploadedBy   string `json:"uploaded_by"`
+		ContractType string `json:"contract_type"`
+		FilePath     string `json:"file_path"`
+		FileName     string `json:"file_name"`
+		FileSize     *int64 `json:"file_size"`
+		ContentType  string `json:"content_type"`
+		CreatedAt    string `json:"created_at"`
+		UpdatedAt    string `json:"updated_at"`
+	}
+
+	var contractRows []contractDocumentRow
+	_, err = client.From("thread_contract_documents").
+		Select("id, thread_id, uploaded_by, contract_type, file_path, file_name, file_size, content_type, created_at, updated_at", "", false).
+		Eq("thread_id", threadID).
+		Order("created_at", nil).
+		ExecuteTo(&contractRows)
+
+	if err != nil {
+		log.Printf("[GetThreadContractDocuments] Failed to query contract documents: %v", err)
+		response.Error(w, http.StatusInternalServerError, "Failed to fetch contract documents")
+		return
+	}
+
+	// 署名付きURLを生成してレスポンスを作成
+	type contractDocumentResponse struct {
+		ID           string  `json:"id"`
+		ThreadID     string  `json:"thread_id"`
+		UploadedBy   string  `json:"uploaded_by"`
+		ContractType string  `json:"contract_type"`
+		FilePath     string  `json:"file_path"`
+		FileName     string  `json:"file_name"`
+		FileSize     *int64  `json:"file_size"`
+		ContentType  string  `json:"content_type"`
+		SignedURL    string  `json:"signed_url"`
+		CreatedAt    string  `json:"created_at"`
+		UpdatedAt    string  `json:"updated_at"`
+	}
+
+	contracts := make([]contractDocumentResponse, 0, len(contractRows))
+	for _, row := range contractRows {
+		signedURL, err := s.supabase.GetImageURL("contract-documents", row.FilePath, 3600)
+		if err != nil {
+			log.Printf("[GetThreadContractDocuments] Failed to generate signed URL for %s: %v", row.FilePath, err)
+			// エラーでも続行（signedURLは空文字列）
+			signedURL = ""
+		}
+
+		contracts = append(contracts, contractDocumentResponse{
+			ID:           row.ID,
+			ThreadID:     row.ThreadID,
+			UploadedBy:   row.UploadedBy,
+			ContractType: row.ContractType,
+			FilePath:     row.FilePath,
+			FileName:     row.FileName,
+			FileSize:     row.FileSize,
+			ContentType:  row.ContentType,
+			SignedURL:    signedURL,
+			CreatedAt:    row.CreatedAt,
+			UpdatedAt:    row.UpdatedAt,
+		})
+	}
+
+	response.Success(w, http.StatusOK, contracts)
 }
