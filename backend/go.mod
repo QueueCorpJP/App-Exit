@@ -10,7 +10,7 @@ require (
 	github.com/supabase-community/gotrue-go v1.2.0
 	github.com/supabase-community/storage-go v0.7.0
 	github.com/supabase-community/supabase-go v0.0.4
-	golang.org/x/crypto v0.18.0
+	golang.org/x/crypto v0.35.0
 )
 
 require (
