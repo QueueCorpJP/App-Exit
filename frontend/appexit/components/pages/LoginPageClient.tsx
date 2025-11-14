@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/lib/auth-context';
 import Button from '@/components/ui/Button';
 import { loginWithBackend, loginWithOAuth, LoginMethod } from '@/lib/auth-api';
 
@@ -14,6 +15,7 @@ export default function LoginPageClient({ error: serverError }: LoginPageClientP
   const [isLoading, setIsLoading] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const router = useRouter();
+  const { refreshSession } = useAuth();
 
   async function handleOAuthLogin(method: LoginMethod) {
     setError(undefined);
@@ -50,9 +52,12 @@ export default function LoginPageClient({ error: serverError }: LoginPageClientP
       console.log('[LOGIN] Backend login successful, cookie set');
 
       // バックエンドがauth_token Cookieを設定済み
-      // 認証コンテキストがCookieを読み取るため、リフレッシュしてから遷移
-      router.refresh();
+      // 認証コンテキストへ即時反映（AuthProviderの初期化待ちによる遅延を防ぐ）
+      await refreshSession();
+
+      // 遷移後にサーバーコンポーネントも最新化
       router.push('/');
+      router.refresh();
     } catch (err) {
       console.error('Login error:', err);
       setError(err instanceof Error ? err.message : 'ログインに失敗しました');
