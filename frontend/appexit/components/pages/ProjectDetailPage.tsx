@@ -176,65 +176,7 @@ export default function ProjectDetailPage({
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* 左側: 画像と詳細情報 */}
-          <div className="lg:col-span-2 relative">
-            {/* サムネイル一覧（デスクトップ: 左側に絶対配置） */}
-            {postDetails?.extra_image_urls && postDetails.extra_image_urls.length > 0 && (
-              <div className="hidden lg:flex absolute left-0 top-0 flex-col gap-2 z-10" style={{ marginLeft: '-88px' }}>
-                {/* メイン画像のサムネイル */}
-                <button
-                  onClick={() => {
-                    setSelectedImagePath(displayImagePath || '');
-                    setSelectedImageIndex(-1);
-                  }}
-                  className={`relative bg-gray-100 rounded-sm overflow-hidden cursor-pointer hover:opacity-80 transition-opacity border-2 ${
-                    selectedImagePath === displayImagePath || selectedImageIndex === -1 ? 'border-dashed' : 'border-gray-300'
-                  }`}
-                  style={{
-                    width: '80px',
-                    height: '80px',
-                    borderColor: selectedImagePath === displayImagePath || selectedImageIndex === -1 ? '#323232' : undefined
-                  }}
-                >
-                  <StorageImage
-                    path={displayImagePath}
-                    alt={displayTitle}
-                    width={80}
-                    height={80}
-                    className="w-full h-full object-cover"
-                    signedUrl={displayImagePath ? imageUrls.get(displayImagePath) : undefined}
-                  />
-                </button>
-
-                {/* 追加画像のサムネイル */}
-                {postDetails.extra_image_urls.map((url, index) => (
-                  <button
-                    key={index}
-                    onClick={() => {
-                      setSelectedImagePath(url);
-                      setSelectedImageIndex(index);
-                    }}
-                    className={`relative bg-gray-100 rounded-sm overflow-hidden cursor-pointer hover:opacity-80 transition-opacity border-2 ${
-                      selectedImagePath === url && selectedImageIndex === index ? 'border-dashed' : 'border-gray-300'
-                    }`}
-                    style={{
-                      width: '80px',
-                      height: '80px',
-                      borderColor: selectedImagePath === url && selectedImageIndex === index ? '#323232' : undefined
-                    }}
-                  >
-                    <StorageImage
-                      path={url}
-                      alt={`追加画像 ${index + 1}`}
-                      width={80}
-                      height={80}
-                      className="w-full h-full object-cover"
-                      signedUrl={imageUrls.get(url)}
-                    />
-                  </button>
-                ))}
-              </div>
-            )}
-
+          <div className="lg:col-span-2">
             {/* メイン画像表示（カードと同じ幅） */}
             <div className="relative bg-gray-100 rounded-sm overflow-hidden mb-6" style={{ aspectRatio: '16/9' }}>
               <StorageImage
@@ -267,21 +209,20 @@ export default function ProjectDetailPage({
               </button>
             </div>
 
-            {/* サムネイル一覧（スマホ: メイン画像の下部に配置） */}
+            {/* サムネイル一覧（メイン画像の下部に配置、グリッド表示で折り返し） */}
             {postDetails?.extra_image_urls && postDetails.extra_image_urls.length > 0 && (
-              <div className="lg:hidden flex flex-row gap-2 mb-6 overflow-x-auto pb-2">
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(80px,1fr))] gap-2 mb-6">
                 {/* メイン画像のサムネイル */}
                 <button
                   onClick={() => {
                     setSelectedImagePath(displayImagePath || '');
                     setSelectedImageIndex(-1);
                   }}
-                  className={`relative bg-gray-100 rounded-sm overflow-hidden cursor-pointer hover:opacity-80 transition-opacity border-2 flex-shrink-0 ${
+                  className={`relative bg-gray-100 rounded-sm overflow-hidden cursor-pointer hover:opacity-80 transition-opacity border-2 ${
                     selectedImagePath === displayImagePath || selectedImageIndex === -1 ? 'border-dashed' : 'border-gray-300'
                   }`}
                   style={{
-                    width: '80px',
-                    height: '80px',
+                    aspectRatio: '1/1',
                     borderColor: selectedImagePath === displayImagePath || selectedImageIndex === -1 ? '#323232' : undefined
                   }}
                 >
@@ -303,12 +244,11 @@ export default function ProjectDetailPage({
                       setSelectedImagePath(url);
                       setSelectedImageIndex(index);
                     }}
-                    className={`relative bg-gray-100 rounded-sm overflow-hidden cursor-pointer hover:opacity-80 transition-opacity border-2 flex-shrink-0 ${
+                    className={`relative bg-gray-100 rounded-sm overflow-hidden cursor-pointer hover:opacity-80 transition-opacity border-2 ${
                       selectedImagePath === url && selectedImageIndex === index ? 'border-dashed' : 'border-gray-300'
                     }`}
                     style={{
-                      width: '80px',
-                      height: '80px',
+                      aspectRatio: '1/1',
                       borderColor: selectedImagePath === url && selectedImageIndex === index ? '#323232' : undefined
                     }}
                   >

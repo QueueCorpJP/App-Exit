@@ -112,8 +112,8 @@ class ApiClient {
         ...fetchOptions,
         headers,
         credentials: 'include',
-        // デフォルトのキャッシュ設定を使用（Next.jsが適切に処理）
-        next: { revalidate: 60 }, // 60秒キャッシュ
+        // 認証Cookie付きのリクエストは常に最新を取得（ログイン直後やリフレッシュ直後の反映遅延を防止）
+        cache: 'no-store',
       });
 
       if (response.status === 401 && !_isRetry) {
@@ -355,10 +355,10 @@ export interface Post {
  * Post API
  */
 export const postApi = {
-  getPosts: (params?: { 
-    type?: string; 
-    author_user_id?: string; 
-    limit?: number; 
+  getPosts: (params?: {
+    type?: string;
+    author_user_id?: string;
+    limit?: number;
     offset?: number;
     search_keyword?: string;
     categories?: string[];
@@ -372,14 +372,15 @@ export const postApi = {
     tech_stacks?: string[];
     sort_by?: string;
   }) => {
-    // Convert arrays to comma-separated strings
+    // Convert arrays to JSON strings for backend
     const queryParams: Record<string, string | number> = {};
     if (params) {
       Object.entries(params).forEach(([key, value]) => {
         if (value !== undefined && value !== null) {
           if (Array.isArray(value)) {
             if (value.length > 0) {
-              queryParams[key] = value.join(',');
+              // Send arrays as JSON strings
+              queryParams[key] = JSON.stringify(value);
             }
           } else {
             queryParams[key] = value;
@@ -599,8 +600,79 @@ export const messageApi = {
       signed_url: string;
       created_at: string;
       updated_at: string;
+      signatures?: Array<{
+        user_id: string;
+        signed_at: string;
+        signature_data?: string;
+      }>;
     }>>(`/api/threads/${threadId}/contracts`),
+
+  // 契約書を更新（編集後のPDFを保存）
+  updateContract: async (contractId: string, pdfBlob: Blob, fileName: string) => {
+    const formData = new FormData();
+    formData.append('contract', pdfBlob, fileName);
+
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+
+    const response = await fetch(`${API_URL}/api/contracts/${contractId}/update`, {
+      method: 'PUT',
+      credentials: 'include',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Update failed' }));
+      throw new Error(error.error || 'Failed to update contract');
+    }
+
+    const result = await response.json();
+    return result;
+  },
+
+  // 契約書に署名を追加
+  addContractSignature: async (contractId: string, signatureData: string) => {
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+
+    const response = await fetch(`${API_URL}/api/contracts/${contractId}/sign`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ signature_data: signatureData }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Signature failed' }));
+      throw new Error(error.error || 'Failed to add signature');
+    }
+
+    const result = await response.json();
+    return result;
+  },
+
+  // 売却リクエストを作成
+  createSaleRequest: (data: { thread_id: string; post_id: string; price: number }) =>
+    apiClient.post<SaleRequest>('/api/sale-requests', data),
+
+  // 売却リクエストを取得
+  getSaleRequests: (threadId: string) =>
+    apiClient.get<SaleRequest[]>('/api/sale-requests', { params: { thread_id: threadId } }),
 };
+
+/**
+ * Sale Request types
+ */
+export interface SaleRequest {
+  id: string;
+  thread_id: string;
+  user_id: string;
+  post_id: string;
+  price: number;
+  status: 'pending' | 'active' | 'completed' | 'cancelled';
+  created_at: string;
+  updated_at: string;
+}
 
 /**
  * Active View types

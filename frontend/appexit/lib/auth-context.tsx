@@ -40,15 +40,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   /**
    * バックエンドのCookieセッションをチェック
    */
-  const checkBackendSession = async (): Promise<boolean> => {
+  const checkBackendSession = async (attemptedRefresh: boolean = false): Promise<boolean> => {
     try {
       const apiUrl = getApiUrl();
 
       const response = await fetch(`${apiUrl}/api/auth/session`, {
         method: 'GET',
         credentials: 'include',
-        // セッションチェックは30秒キャッシュ（頻繁なチェックを避ける）
-        next: { revalidate: 30 },
+        // 認証状態は常に最新を取得（ログイン直後やリフレッシュ直後の反映遅延を防止）
+        cache: 'no-store',
         headers: {
           'Content-Type': 'application/json',
         },
@@ -71,6 +71,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         return true;
       } else if (response.status === 401) {
+        // 401のときは、まずトークンリフレッシュを試行してから再確認（UIの一時的な未ログイン化を防ぐ）
+        if (!attemptedRefresh) {
+          console.log('[AUTH-CONTEXT] 401 Unauthorized - attempting token refresh before clearing state');
+          const refreshed = await refreshBackendToken();
+          if (refreshed) {
+            return await checkBackendSession(true);
+          }
+        }
         console.log('[AUTH-CONTEXT] 401 Unauthorized - session expired, clearing local state');
         setUser(null);
         setProfile(null);
@@ -89,6 +97,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (error) {
       console.error('[AUTH-CONTEXT] Error checking backend session:', error);
+      // ネットワーク誤判定時の揺れを避けるため、未試行なら一度だけリフレッシュ→再確認
+      if (!attemptedRefresh) {
+        const refreshed = await refreshBackendToken();
+        if (refreshed) {
+          return await checkBackendSession(true);
+        }
+      }
       setUser(null);
       setProfile(null);
       return false;

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/yourusername/appexit-backend/internal/models"
 	"github.com/yourusername/appexit-backend/internal/utils"
@@ -20,6 +21,15 @@ func (s *Server) HandlePosts(w http.ResponseWriter, r *http.Request) {
 	case http.MethodPost:
 		s.CreatePost(w, r)
 	default:
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+// HandlePostsWithAuth handles GET (list) with authentication - ensures user can only see their own posts when author_user_id is specified
+func (s *Server) HandlePostsWithAuth(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodGet {
+		s.ListPostsWithAuth(w, r)
+	} else {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 	}
 }
@@ -50,6 +60,34 @@ func (s *Server) HandlePostByID(w http.ResponseWriter, r *http.Request) {
 	default:
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 	}
+}
+
+// ListPostsWithAuth retrieves a list of posts with authentication - ensures user can only see their own posts
+func (s *Server) ListPostsWithAuth(w http.ResponseWriter, r *http.Request) {
+	userID, ok := utils.RequireUserID(r, w)
+	if !ok {
+		return
+	}
+
+	urlQuery := r.URL.Query()
+	authorUserID := urlQuery.Get("author_user_id")
+
+	// If author_user_id is specified, ensure it matches the authenticated user
+	if authorUserID != "" && authorUserID != userID {
+		fmt.Printf("[ListPostsWithAuth] ❌ ERROR: User %s attempted to access posts from user %s\n", userID, authorUserID)
+		response.Error(w, http.StatusForbidden, "You can only view your own posts")
+		return
+	}
+
+	// If author_user_id is not specified but user is authenticated, default to their own posts
+	if authorUserID == "" {
+		authorUserID = userID
+		urlQuery.Set("author_user_id", userID)
+		r.URL.RawQuery = urlQuery.Encode()
+	}
+
+	// Call the regular ListPosts function
+	s.ListPosts(w, r)
 }
 
 // ListPosts retrieves a list of posts with optional filters using Supabase
@@ -96,8 +134,53 @@ func (s *Server) ListPosts(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Search parameters
+	if searchKeyword := urlQuery.Get("search_keyword"); searchKeyword != "" {
+		params.SearchKeyword = &searchKeyword
+	}
+	if categoriesStr := urlQuery.Get("categories"); categoriesStr != "" {
+		var categories []string
+		if err := json.Unmarshal([]byte(categoriesStr), &categories); err == nil {
+			params.Categories = categories
+		}
+	}
+	if postTypesStr := urlQuery.Get("post_types"); postTypesStr != "" {
+		var postTypes []string
+		if err := json.Unmarshal([]byte(postTypesStr), &postTypes); err == nil {
+			params.PostTypes = postTypes
+		}
+	}
+	if priceMinStr := urlQuery.Get("price_min"); priceMinStr != "" {
+		if priceMin, err := strconv.ParseInt(priceMinStr, 10, 64); err == nil {
+			params.PriceMin = &priceMin
+		}
+	}
+	if priceMaxStr := urlQuery.Get("price_max"); priceMaxStr != "" {
+		if priceMax, err := strconv.ParseInt(priceMaxStr, 10, 64); err == nil {
+			params.PriceMax = &priceMax
+		}
+	}
+	if revenueMinStr := urlQuery.Get("revenue_min"); revenueMinStr != "" {
+		if revenueMin, err := strconv.ParseInt(revenueMinStr, 10, 64); err == nil {
+			params.RevenueMin = &revenueMin
+		}
+	}
+	if revenueMaxStr := urlQuery.Get("revenue_max"); revenueMaxStr != "" {
+		if revenueMax, err := strconv.ParseInt(revenueMaxStr, 10, 64); err == nil {
+			params.RevenueMax = &revenueMax
+		}
+	}
+	if techStacksStr := urlQuery.Get("tech_stacks"); techStacksStr != "" {
+		var techStacks []string
+		if err := json.Unmarshal([]byte(techStacksStr), &techStacks); err == nil {
+			params.TechStacks = techStacks
+		}
+	}
+
 	// Check for sort parameter
 	sortBy := urlQuery.Get("sort")
+	fmt.Printf("[ListPosts] Search params: keyword=%v, categories=%v, postTypes=%v, price=%v-%v, revenue=%v-%v, techStacks=%v\n",
+		params.SearchKeyword, params.Categories, params.PostTypes, params.PriceMin, params.PriceMax, params.RevenueMin, params.RevenueMax, params.TechStacks)
 
 	// Use Supabase service client for querying posts
 	client := s.supabase.GetServiceClient()
@@ -121,6 +204,48 @@ func (s *Server) ListPosts(w http.ResponseWriter, r *http.Request) {
 			isActiveStr = "true"
 		}
 		query = query.Eq("is_active", isActiveStr)
+	}
+
+	// Search keyword - search in title and body
+	if params.SearchKeyword != nil && *params.SearchKeyword != "" {
+		keyword := *params.SearchKeyword
+		// Use OR condition to search in title or body
+		query = query.Or(fmt.Sprintf("title.ilike.%%25%s%%25,body.ilike.%%25%s%%25", keyword, keyword), "")
+	}
+
+	// Categories filter - check if any category matches
+	if len(params.Categories) > 0 {
+		// Use overlaps to check if app_categories array has any overlap with specified categories
+		categoriesJSON, _ := json.Marshal(params.Categories)
+		query = query.Filter("app_categories", "ov", string(categoriesJSON))
+	}
+
+	// Post types filter
+	if len(params.PostTypes) > 0 {
+		query = query.In("type", params.PostTypes)
+	}
+
+	// Price range filter
+	if params.PriceMin != nil {
+		query = query.Gte("price", strconv.FormatInt(*params.PriceMin, 10))
+	}
+	if params.PriceMax != nil {
+		query = query.Lte("price", strconv.FormatInt(*params.PriceMax, 10))
+	}
+
+	// Revenue range filter
+	if params.RevenueMin != nil {
+		query = query.Gte("monthly_revenue", strconv.FormatInt(*params.RevenueMin, 10))
+	}
+	if params.RevenueMax != nil {
+		query = query.Lte("monthly_revenue", strconv.FormatInt(*params.RevenueMax, 10))
+	}
+
+	// Tech stacks filter - check if any tech stack matches
+	if len(params.TechStacks) > 0 {
+		// Use overlaps to check if tech_stack array has any overlap with specified tech stacks
+		techStacksJSON, _ := json.Marshal(params.TechStacks)
+		query = query.Filter("tech_stack", "ov", string(techStacksJSON))
 	}
 
 	// Apply pagination
@@ -1097,5 +1222,198 @@ func (s *Server) GetPostsMetadata(w http.ResponseWriter, r *http.Request) {
 		result = append(result, *meta)
 	}
 
+	response.Success(w, http.StatusOK, result)
+}
+
+// BoardSidebarData represents the sidebar data for board posts
+type BoardSidebarData struct {
+	Stats struct {
+		TotalPosts    int    `json:"total_posts"`
+		UniqueAuthors int    `json:"unique_authors"`
+		FirstPostDate string `json:"first_post_date"`
+		TotalComments int    `json:"total_comments"`
+	} `json:"stats"`
+	PopularPosts []struct {
+		ID        string `json:"id"`
+		Title     string `json:"title"`
+		LikeCount int    `json:"like_count"`
+	} `json:"popular_posts"`
+	RecentPosts []struct {
+		ID        string `json:"id"`
+		Title     string `json:"title"`
+		CreatedAt string `json:"created_at"`
+	} `json:"recent_posts"`
+}
+
+// HandleBoardSidebar returns sidebar data for board posts
+func (s *Server) HandleBoardSidebar(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	fmt.Printf("\n========== BOARD SIDEBAR START ==========\n")
+	client := s.supabase.GetServiceClient()
+
+	// Get all board posts
+	var boardPosts []models.Post
+	_, err := client.From("posts").
+		Select("id, title, created_at, author_user_id", "", false).
+		Eq("type", "board").
+		Eq("is_active", "true").
+		ExecuteTo(&boardPosts)
+
+	if err != nil {
+		fmt.Printf("[HandleBoardSidebar] ERROR: Failed to query posts: %v\n", err)
+		response.Error(w, http.StatusInternalServerError, "Failed to fetch sidebar data")
+		return
+	}
+
+	var result BoardSidebarData
+
+	// Calculate stats
+	result.Stats.TotalPosts = len(boardPosts)
+
+	// Get unique authors
+	authorMap := make(map[string]bool)
+	for _, post := range boardPosts {
+		authorMap[post.AuthorUserID] = true
+	}
+	result.Stats.UniqueAuthors = len(authorMap)
+
+	// Get first post date
+	if len(boardPosts) > 0 {
+		firstPost := boardPosts[0]
+		for _, post := range boardPosts {
+			if post.CreatedAt.Before(firstPost.CreatedAt) {
+				firstPost = post
+			}
+		}
+		result.Stats.FirstPostDate = firstPost.CreatedAt.Format(time.RFC3339)
+	}
+
+	// Get comment count
+	boardPostIDs := make([]string, len(boardPosts))
+	for i, post := range boardPosts {
+		boardPostIDs[i] = post.ID
+	}
+
+	var commentRows []struct {
+		PostID string `json:"post_id"`
+	}
+	if len(boardPostIDs) > 0 {
+		_, err = client.From("post_comments").
+			Select("post_id", "", false).
+			In("post_id", boardPostIDs).
+			ExecuteTo(&commentRows)
+		if err != nil {
+			fmt.Printf("[HandleBoardSidebar] WARNING: Failed to query comments: %v\n", err)
+		} else {
+			result.Stats.TotalComments = len(commentRows)
+		}
+	}
+
+	// Get like counts for all posts
+	postLikeCounts := make(map[string]int)
+
+	if len(boardPostIDs) > 0 {
+		var likeRows []struct {
+			PostID string `json:"post_id"`
+		}
+		_, err = client.From("post_likes").
+			Select("post_id", "", false).
+			In("post_id", boardPostIDs).
+			ExecuteTo(&likeRows)
+		if err != nil {
+			fmt.Printf("[HandleBoardSidebar] WARNING: Failed to query likes: %v\n", err)
+		} else {
+			for _, like := range likeRows {
+				postLikeCounts[like.PostID]++
+			}
+		}
+	}
+
+	// Build popular posts (top 5 by like count)
+	type PopularPost struct {
+		ID        string
+		Title     string
+		LikeCount int
+	}
+	popularPostsList := make([]PopularPost, 0, len(boardPosts))
+	for _, post := range boardPosts {
+		popularPostsList = append(popularPostsList, PopularPost{
+			ID:        post.ID,
+			Title:     post.Title,
+			LikeCount: postLikeCounts[post.ID],
+		})
+	}
+
+	// Sort by like count (descending)
+	for i := 0; i < len(popularPostsList)-1; i++ {
+		for j := i + 1; j < len(popularPostsList); j++ {
+			if popularPostsList[i].LikeCount < popularPostsList[j].LikeCount {
+				popularPostsList[i], popularPostsList[j] = popularPostsList[j], popularPostsList[i]
+			}
+		}
+	}
+
+	// Take top 5
+	if len(popularPostsList) > 5 {
+		popularPostsList = popularPostsList[:5]
+	}
+
+	result.PopularPosts = make([]struct {
+		ID        string `json:"id"`
+		Title     string `json:"title"`
+		LikeCount int    `json:"like_count"`
+	}, len(popularPostsList))
+	for i, pp := range popularPostsList {
+		result.PopularPosts[i].ID = pp.ID
+		result.PopularPosts[i].Title = pp.Title
+		result.PopularPosts[i].LikeCount = pp.LikeCount
+	}
+
+	// Get recent posts (top 5 by created_at)
+	type RecentPost struct {
+		ID        string
+		Title     string
+		CreatedAt time.Time
+	}
+	recentPostsList := make([]RecentPost, 0, len(boardPosts))
+	for _, post := range boardPosts {
+		recentPostsList = append(recentPostsList, RecentPost{
+			ID:        post.ID,
+			Title:     post.Title,
+			CreatedAt: post.CreatedAt,
+		})
+	}
+
+	// Sort by created_at (descending)
+	for i := 0; i < len(recentPostsList)-1; i++ {
+		for j := i + 1; j < len(recentPostsList); j++ {
+			if recentPostsList[i].CreatedAt.Before(recentPostsList[j].CreatedAt) {
+				recentPostsList[i], recentPostsList[j] = recentPostsList[j], recentPostsList[i]
+			}
+		}
+	}
+
+	// Take top 5
+	if len(recentPostsList) > 5 {
+		recentPostsList = recentPostsList[:5]
+	}
+
+	result.RecentPosts = make([]struct {
+		ID        string `json:"id"`
+		Title     string `json:"title"`
+		CreatedAt string `json:"created_at"`
+	}, len(recentPostsList))
+	for i, rp := range recentPostsList {
+		result.RecentPosts[i].ID = rp.ID
+		result.RecentPosts[i].Title = rp.Title
+		result.RecentPosts[i].CreatedAt = rp.CreatedAt.Format(time.RFC3339)
+	}
+
+	fmt.Printf("[HandleBoardSidebar] ✅ Returning sidebar data\n")
+	fmt.Printf("========== BOARD SIDEBAR END ==========\n\n")
 	response.Success(w, http.StatusOK, result)
 }

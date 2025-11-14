@@ -2,10 +2,12 @@
 
 import { useState, useEffect, memo } from 'react';
 import Image from 'next/image';
-import { MessageWithSender, ThreadDetail } from '@/lib/api-client';
-import { Image as ImageIcon, X, FileText, File, Briefcase, Scale, Users } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { MessageWithSender, ThreadDetail, messageApi, postApi, Post } from '@/lib/api-client';
+import { Image as ImageIcon, X, FileText, File, Briefcase, Scale, Users, Info, Check } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { truncateDisplayName } from '@/lib/text-utils';
+import { useAuth } from '@/lib/auth-context';
 
 interface MessageThreadProps {
   threadDetail: ThreadDetail | null;
@@ -17,9 +19,16 @@ interface MessageThreadProps {
   onBack?: () => void;
 }
 
+// 契約書の署名情報
+interface ContractSignature {
+  user_id: string;
+  signed_at: string;
+  signature_data?: string;
+}
+
 // 契約書の種類
 interface ContractDocument {
-  id: string;
+  id: string; // contract_typeまたはカスタム契約書のID
   name: string;
   icon: any; // Lucide icon component
   file: File | null;
@@ -28,6 +37,8 @@ interface ContractDocument {
   signedUrl: string | null; // 署名付きURL
   contentType?: string; // MIMEタイプ
   fileName?: string; // ファイル名
+  dbId?: string; // データベースのID（thread_contract_documents.id）
+  signatures?: ContractSignature[]; // 署名情報
 }
 
 function MessageThread({
@@ -40,12 +51,27 @@ function MessageThread({
   onBack,
 }: MessageThreadProps) {
   console.log('[MESSAGE-THREAD-COMPONENT] Render:', { isLoadingMessages, messagesLength: messages.length });
+  const router = useRouter();
+  const { user } = useAuth();
   const [newMessage, setNewMessage] = useState('');
   const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  
+  // 売却モーダルの状態
+  const [showSaleModal, setShowSaleModal] = useState(false);
+  const [userPosts, setUserPosts] = useState<Post[]>([]);
+  const [selectedPostId, setSelectedPostId] = useState<string>('');
+  const [salePrice, setSalePrice] = useState<string>('');
+  const [isLoadingPosts, setIsLoadingPosts] = useState(false);
+  const [isSubmittingSale, setIsSubmittingSale] = useState(false);
+  const [saleError, setSaleError] = useState<string | null>(null);
+  const [showSaleInfoTooltip, setShowSaleInfoTooltip] = useState(false);
 
   // 契約書セクションの展開状態
   const [isContractExpanded, setIsContractExpanded] = useState(false);
+  
+  // バリデーションエラーメッセージ
+  const [contractError, setContractError] = useState<string | null>(null);
 
   // 契約書のリスト
   const [contracts, setContracts] = useState<ContractDocument[]>([
@@ -58,6 +84,31 @@ function MessageThread({
 
   // 追加の契約書
   const [customContracts, setCustomContracts] = useState<ContractDocument[]>([]);
+
+  // ユーザーの投稿を取得
+  useEffect(() => {
+    const fetchUserPosts = async () => {
+      if (!user?.id || !showSaleModal) {
+        return;
+      }
+
+      try {
+        setIsLoadingPosts(true);
+        const posts = await postApi.getPosts({
+          author_user_id: user.id,
+          limit: 100,
+        });
+        setUserPosts(Array.isArray(posts) ? posts : []);
+      } catch (error) {
+        console.error('投稿の取得に失敗しました:', error);
+        setSaleError('投稿の取得に失敗しました');
+      } finally {
+        setIsLoadingPosts(false);
+      }
+    };
+
+    fetchUserPosts();
+  }, [user?.id, showSaleModal]);
 
   // 既存の契約書を取得
   useEffect(() => {
@@ -80,12 +131,14 @@ function MessageThread({
               console.log('[MessageThread] Found existing contract:', contract.id, existingDoc);
               return {
                 ...contract,
+                dbId: existingDoc.id, // データベースIDを保存
                 filePath: existingDoc.file_path,
                 signedUrl: existingDoc.signed_url,
                 preview: null, // 既存のものはsignedUrlを使用
                 file: null, // 既存のものはfileオブジェクトなし
                 contentType: existingDoc.content_type,
                 fileName: existingDoc.file_name,
+                signatures: existingDoc.signatures || [], // 署名情報を保存
               };
             }
             return contract;
@@ -96,6 +149,7 @@ function MessageThread({
           if (customDocs.length > 0) {
             const customContractsList: ContractDocument[] = customDocs.map((doc) => ({
               id: doc.id, // データベースのIDを使用
+              dbId: doc.id, // データベースIDを保存
               name: doc.file_name || 'その他の契約書',
               icon: FileText,
               file: null,
@@ -104,6 +158,7 @@ function MessageThread({
               signedUrl: doc.signed_url,
               contentType: doc.content_type,
               fileName: doc.file_name,
+              signatures: doc.signatures || [], // 署名情報を保存
             }));
             setCustomContracts(customContractsList);
           } else {
@@ -174,30 +229,40 @@ function MessageThread({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // プレビューを生成
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const preview = reader.result as string;
+    // PDFファイルのみを受け付けるバリデーション
+    if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+      setContractError('PDFファイルのみアップロード可能です。');
+      // エラーメッセージを3秒後に消す
+      setTimeout(() => {
+        setContractError(null);
+      }, 3000);
+      // ファイル入力をリセット
+      e.target.value = '';
+      return;
+    }
 
-      if (isCustom) {
-        setCustomContracts(prev =>
-          prev.map(contract =>
-            contract.id === contractId
-              ? { ...contract, file, preview }
-              : contract
-          )
-        );
-      } else {
-        setContracts(prev =>
-          prev.map(contract =>
-            contract.id === contractId
-              ? { ...contract, file, preview }
-              : contract
-          )
-        );
-      }
-    };
-    reader.readAsDataURL(file);
+    // エラーメッセージをクリア
+    setContractError(null);
+
+    // PDFファイルの場合はプレビューなしでファイル情報のみ保存
+    // PDFは画像としてプレビューできないため、常にpreview: nullとする
+    if (isCustom) {
+      setCustomContracts(prev =>
+        prev.map(contract =>
+          contract.id === contractId
+            ? { ...contract, file, preview: null }
+            : contract
+        )
+      );
+    } else {
+      setContracts(prev =>
+        prev.map(contract =>
+          contract.id === contractId
+            ? { ...contract, file, preview: null }
+            : contract
+        )
+      );
+    }
 
     // ストレージに保存
     if (!threadDetail?.id) {
@@ -212,22 +277,29 @@ function MessageThread({
       const uploadResponse = await messageApi.uploadContractDocument(file, threadDetail.id, contractType);
       
       if (uploadResponse.success && uploadResponse.data) {
-        const filePath = uploadResponse.data.file_path;
+        // アップロード後、契約書一覧を再取得してdbIdを取得
+        const contractDocs = await messageApi.getThreadContractDocuments(threadDetail.id);
+        const uploadedDoc = contractDocs.find(doc => 
+          isCustom 
+            ? doc.contract_type === 'custom' && doc.file_path === uploadResponse.data.file_path
+            : doc.contract_type === contractId && doc.file_path === uploadResponse.data.file_path
+        );
         
-        // 署名付きURLを取得
-        const { getImageUrl } = await import('@/lib/storage');
-        const signedUrl = await getImageUrl(filePath, 'contract-documents');
+        const filePath = uploadResponse.data.file_path;
+        const signedUrl = uploadResponse.data.signed_url;
 
         if (isCustom) {
           setCustomContracts(prev =>
             prev.map(contract =>
               contract.id === contractId
-                ? { 
-                    ...contract, 
-                    filePath, 
+                ? {
+                    ...contract,
+                    dbId: uploadedDoc?.id, // データベースIDを設定
+                    filePath,
                     signedUrl,
                     contentType: file.type,
                     fileName: file.name,
+                    signatures: uploadedDoc?.signatures || [], // 署名情報を設定
                   }
                 : contract
             )
@@ -236,12 +308,14 @@ function MessageThread({
           setContracts(prev =>
             prev.map(contract =>
               contract.id === contractId
-                ? { 
-                    ...contract, 
-                    filePath, 
+                ? {
+                    ...contract,
+                    dbId: uploadedDoc?.id, // データベースIDを設定
+                    filePath,
                     signedUrl,
                     contentType: file.type,
                     fileName: file.name,
+                    signatures: uploadedDoc?.signatures || [], // 署名情報を設定
                   }
                 : contract
             )
@@ -276,25 +350,19 @@ function MessageThread({
     setCustomContracts(prev => prev.filter(contract => contract.id !== contractId));
   };
 
-  // 契約書を削除
-  const handleRemoveContract = (contractId: string, isCustom: boolean) => {
-    if (isCustom) {
-      setCustomContracts(prev =>
-        prev.map(c =>
-          c.id === contractId
-            ? { ...c, file: null, preview: null, filePath: null, signedUrl: null }
-            : c
-        )
-      );
-    } else {
-      setContracts(prev =>
-        prev.map(c =>
-          c.id === contractId
-            ? { ...c, file: null, preview: null, filePath: null, signedUrl: null }
-            : c
-        )
-      );
+  // 契約書ページに遷移
+  const handleContractClick = (contract: ContractDocument) => {
+    // 契約書が設定されている場合のみ遷移
+    if (!contract.filePath && !contract.signedUrl) {
+      return;
     }
+
+    if (!threadDetail?.id || !contract.dbId) {
+      return;
+    }
+
+    // データベースIDを使用して遷移
+    router.push(`/messages/${threadDetail.id}/${contract.dbId}`);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -395,6 +463,7 @@ function MessageThread({
               size="sm"
               className="rounded-sm bg-transparent border-2 hover:opacity-80 gap-2"
               style={{ borderColor: '#E65D65', color: '#E65D65' }}
+              onClick={() => setShowSaleModal(true)}
             >
               売却する
               <svg
@@ -420,18 +489,26 @@ function MessageThread({
       {isContractExpanded && (
         <div className="absolute top-[73px] left-0 right-0 z-20 p-3 bg-white border-b border-gray-200 shadow-md overflow-y-auto max-h-64">
           <div className="max-w-4xl mx-auto">
+            {/* バリデーションエラーメッセージ */}
+            {contractError && (
+              <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-sm text-red-600">{contractError}</p>
+              </div>
+            )}
             <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-7 gap-2">
               {/* 標準契約書 */}
               {contracts.map((contract) => {
                 const IconComponent = contract.icon;
+                const hasContract = contract.filePath || contract.signedUrl;
+                const currentUserSigned = contract.signatures?.some(sig => sig.user_id === currentUserId) || false;
+                const otherUserSigned = contract.signatures?.some(sig => sig.user_id !== currentUserId) || false;
                 return (
                   <div key={contract.id} className="relative">
-                    <label
-                      className={`flex flex-col items-center justify-center aspect-square border-2 border-dashed rounded-lg cursor-pointer transition-colors overflow-hidden relative ${
-                        (contract.preview || contract.signedUrl) ? 'border-[#323232]' : 'border-gray-300 hover:bg-white'
-                      }`}
-                    >
-                      {(contract.preview || contract.signedUrl) ? (
+                    {hasContract ? (
+                      <div
+                        onClick={() => handleContractClick(contract)}
+                        className={`flex flex-col items-center justify-center aspect-square border-2 border-dashed rounded-lg cursor-pointer transition-colors overflow-hidden relative border-[#323232] hover:opacity-80`}
+                      >
                         <div className="absolute inset-0 p-2 flex flex-col">
                           <div className="flex-1 relative">
                             {contract.contentType && contract.contentType.startsWith('image/') ? (
@@ -452,34 +529,45 @@ function MessageThread({
                             <p className="text-xs font-semibold text-gray-900 truncate text-center">
                               {contract.name}
                             </p>
-                            <p className="text-[10px] text-gray-500 truncate text-center">
-                              {contract.file?.name || contract.fileName || (contract.filePath ? contract.filePath.split('/').pop() : '')}
-                            </p>
+                            {/* 署名状況インジケーター */}
+                            {currentUserSigned && otherUserSigned ? (
+                              <div className="flex items-center justify-center mt-1">
+                                <div className="flex items-center justify-center w-full py-1 rounded" style={{ backgroundColor: 'rgba(16, 185, 129, 0.2)' }}>
+                                  <Check className="w-4 h-4" style={{ color: '#10B981' }} />
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="flex items-center justify-center gap-1 mt-1">
+                                <div className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded ${currentUserSigned ? 'bg-green-100' : 'bg-gray-100'}`}>
+                                  <span className="text-[9px] font-bold" style={{ color: currentUserSigned ? '#10B981' : '#9CA3AF' }}>自分</span>
+                                  {currentUserSigned && <Check className="w-2.5 h-2.5" style={{ color: '#10B981' }} />}
+                                </div>
+                                <div className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded ${otherUserSigned ? 'bg-blue-100' : 'bg-gray-100'}`}>
+                                  <span className="text-[9px] font-bold" style={{ color: otherUserSigned ? '#3B82F6' : '#9CA3AF' }}>相手</span>
+                                  {otherUserSigned && <Check className="w-2.5 h-2.5" style={{ color: '#3B82F6' }} />}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </div>
-                      ) : (
+                      </div>
+                    ) : (
+                      <label
+                        className={`flex flex-col items-center justify-center aspect-square border-2 border-dashed rounded-lg cursor-pointer transition-colors overflow-hidden relative border-gray-300 hover:bg-white`}
+                      >
                         <div className="flex flex-col items-center justify-center gap-2 p-2">
                           <IconComponent className="w-8 h-8 text-gray-400" strokeWidth={1.5} />
                           <p className="text-xs font-semibold text-gray-600 text-center leading-tight">
                             {contract.name}
                           </p>
                         </div>
-                      )}
-                      <input
-                        type="file"
-                        className="hidden"
-                        accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx"
-                        onChange={handleContractFileSelect(contract.id, false)}
-                      />
-                    </label>
-                    {(contract.file || contract.filePath) && (
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveContract(contract.id, false)}
-                        className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors z-10"
-                      >
-                        ×
-                      </button>
+                        <input
+                          type="file"
+                          className="hidden"
+                          accept="application/pdf,.pdf"
+                          onChange={handleContractFileSelect(contract.id, false)}
+                        />
+                      </label>
                     )}
                   </div>
                 );
@@ -488,14 +576,16 @@ function MessageThread({
               {/* カスタム契約書 */}
               {customContracts.map((contract) => {
                 const IconComponent = contract.icon;
+                const hasContract = contract.filePath || contract.signedUrl;
+                const currentUserSigned = contract.signatures?.some(sig => sig.user_id === currentUserId) || false;
+                const otherUserSigned = contract.signatures?.some(sig => sig.user_id !== currentUserId) || false;
                 return (
                   <div key={contract.id} className="relative">
-                    <label
-                      className={`flex flex-col items-center justify-center aspect-square border-2 border-dashed rounded-lg cursor-pointer transition-colors overflow-hidden relative ${
-                        (contract.preview || contract.signedUrl) ? 'border-[#323232]' : 'border-gray-300 hover:bg-white'
-                      }`}
-                    >
-                      {(contract.preview || contract.signedUrl) ? (
+                    {hasContract ? (
+                      <div
+                        onClick={() => handleContractClick(contract)}
+                        className={`flex flex-col items-center justify-center aspect-square border-2 border-dashed rounded-lg cursor-pointer transition-colors overflow-hidden relative border-[#323232] hover:opacity-80`}
+                      >
                         <div className="absolute inset-0 p-2 flex flex-col">
                           <div className="flex-1 relative">
                             {contract.contentType && contract.contentType.startsWith('image/') ? (
@@ -516,40 +606,45 @@ function MessageThread({
                             <p className="text-xs font-semibold text-gray-900 truncate text-center">
                               {contract.name}
                             </p>
-                            <p className="text-[10px] text-gray-500 truncate text-center">
-                              {contract.file?.name || contract.fileName || (contract.filePath ? contract.filePath.split('/').pop() : '')}
-                            </p>
+                            {/* 署名状況インジケーター */}
+                            {currentUserSigned && otherUserSigned ? (
+                              <div className="flex items-center justify-center mt-1">
+                                <div className="flex items-center justify-center w-full py-1 rounded" style={{ backgroundColor: 'rgba(16, 185, 129, 0.2)' }}>
+                                  <Check className="w-4 h-4" style={{ color: '#10B981' }} />
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="flex items-center justify-center gap-1 mt-1">
+                                <div className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded ${currentUserSigned ? 'bg-green-100' : 'bg-gray-100'}`}>
+                                  <span className="text-[9px] font-bold" style={{ color: currentUserSigned ? '#10B981' : '#9CA3AF' }}>自分</span>
+                                  {currentUserSigned && <Check className="w-2.5 h-2.5" style={{ color: '#10B981' }} />}
+                                </div>
+                                <div className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded ${otherUserSigned ? 'bg-blue-100' : 'bg-gray-100'}`}>
+                                  <span className="text-[9px] font-bold" style={{ color: otherUserSigned ? '#3B82F6' : '#9CA3AF' }}>相手</span>
+                                  {otherUserSigned && <Check className="w-2.5 h-2.5" style={{ color: '#3B82F6' }} />}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </div>
-                      ) : (
+                      </div>
+                    ) : (
+                      <label
+                        className={`flex flex-col items-center justify-center aspect-square border-2 border-dashed rounded-lg cursor-pointer transition-colors overflow-hidden relative border-gray-300 hover:bg-white`}
+                      >
                         <div className="flex flex-col items-center justify-center gap-2 p-2">
                           <IconComponent className="w-8 h-8 text-gray-400" strokeWidth={1.5} />
                           <p className="text-xs font-semibold text-gray-600 text-center leading-tight">
                             {contract.name}
                           </p>
                         </div>
-                      )}
-                      <input
-                        type="file"
-                        className="hidden"
-                        accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx"
-                        onChange={handleContractFileSelect(contract.id, true)}
-                      />
-                    </label>
-                    {(contract.file || contract.filePath) && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (contract.file) {
-                            handleRemoveContract(contract.id, true);
-                          } else {
-                            handleRemoveCustomContract(contract.id);
-                          }
-                        }}
-                        className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors z-10"
-                      >
-                        ×
-                      </button>
+                        <input
+                          type="file"
+                          className="hidden"
+                          accept="application/pdf,.pdf"
+                          onChange={handleContractFileSelect(contract.id, true)}
+                        />
+                      </label>
                     )}
                   </div>
                 );
@@ -687,6 +782,218 @@ function MessageThread({
           </div>
         </form>
       </div>
+
+      {/* 売却モーダル */}
+      {showSaleModal && (
+        <div 
+          className="fixed inset-0 flex items-center justify-center z-50 py-12 sm:px-6"
+          style={{ backgroundColor: 'rgba(0, 0, 0, 0.2)' }}
+        >
+          <div className="bg-white py-8 px-4 sm:px-10 rounded-md w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h2 
+                className="text-lg font-bold text-center flex-1"
+                style={{ 
+                  color: '#323232',
+                  fontWeight: 900,
+                  fontSize: '1.125rem',
+                  letterSpacing: '0.02em'
+                }}
+              >
+                売却リクエストを作成
+              </h2>
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <button
+                    onMouseEnter={() => setShowSaleInfoTooltip(true)}
+                    onMouseLeave={() => setShowSaleInfoTooltip(false)}
+                    className="p-1.5 rounded-full hover:bg-gray-100 transition-colors"
+                    aria-label="情報"
+                  >
+                    <Info className="w-4 h-4 text-gray-500" />
+                  </button>
+                  {showSaleInfoTooltip && (
+                    <div 
+                      className="absolute right-0 top-full mt-2 w-64 bg-white border-2 border-gray-300 rounded-lg shadow-lg p-3 z-50"
+                      onMouseEnter={() => setShowSaleInfoTooltip(true)}
+                      onMouseLeave={() => setShowSaleInfoTooltip(false)}
+                    >
+                      <p className="text-sm text-gray-700 font-bold">
+                        これはアプリを売る側の操作です
+                      </p>
+                      {/* 上向きの矢印 */}
+                      <div className="absolute right-4 bottom-full -mb-1 w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent border-b-white"></div>
+                      <div className="absolute right-4 bottom-full w-0 h-0 border-l-[5px] border-r-[5px] border-b-[5px] border-transparent border-b-gray-300"></div>
+                    </div>
+                  )}
+                </div>
+                <button
+                  onClick={() => {
+                    setShowSaleModal(false);
+                    setSelectedPostId('');
+                    setSalePrice('');
+                    setSaleError(null);
+                  }}
+                  className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+                >
+                  <X className="w-5 h-5 text-gray-500" />
+                </button>
+              </div>
+            </div>
+
+            {saleError && (
+              <div className="rounded-md bg-red-50 p-4 mb-6">
+                <div className="text-sm text-red-700">{saleError}</div>
+              </div>
+            )}
+
+            <form className="space-y-6" onSubmit={(e) => e.preventDefault()}>
+              {/* プロダクト選択 */}
+              <div>
+                <label htmlFor="post-select" className="block text-sm font-medium text-gray-700">
+                  売却するプロダクト
+                </label>
+                <div className="mt-1">
+                  {isLoadingPosts ? (
+                    <div className="p-4 text-center text-gray-500 text-sm">読み込み中...</div>
+                  ) : userPosts.length === 0 ? (
+                    <div className="p-4 text-center text-gray-500 text-sm">
+                      投稿したプロダクトがありません
+                    </div>
+                  ) : (
+                    <select
+                      id="post-select"
+                      value={selectedPostId}
+                      onChange={(e) => setSelectedPostId(e.target.value)}
+                      className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none sm:text-sm text-gray-900"
+                      style={{
+                        '--tw-ring-color': '#4285FF'
+                      } as React.CSSProperties}
+                      onFocus={(e) => {
+                        e.currentTarget.style.borderColor = '#4285FF'
+                        e.currentTarget.style.outline = '2px solid #4285FF'
+                        e.currentTarget.style.outlineOffset = '0px'
+                      }}
+                      onBlur={(e) => {
+                        e.currentTarget.style.borderColor = '#D1D5DB'
+                        e.currentTarget.style.outline = 'none'
+                      }}
+                    >
+                      <option value="">選択してください</option>
+                      {userPosts.map((post) => (
+                        <option key={post.id} value={post.id}>
+                          {post.title}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              </div>
+
+              {/* 値段設定 */}
+              <div>
+                <label htmlFor="price-input" className="block text-sm font-medium text-gray-700">
+                  希望価格（円）
+                </label>
+                <div className="mt-1">
+                  <input
+                    id="price-input"
+                    type="number"
+                    value={salePrice}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value === '' || /^\d+$/.test(value)) {
+                        setSalePrice(value);
+                      }
+                    }}
+                    placeholder="例: 1000000"
+                    min="1"
+                    className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none sm:text-sm text-gray-900"
+                    style={{
+                      '--tw-ring-color': '#4285FF'
+                    } as React.CSSProperties}
+                    onFocus={(e) => {
+                      e.currentTarget.style.borderColor = '#4285FF'
+                      e.currentTarget.style.outline = '2px solid #4285FF'
+                      e.currentTarget.style.outlineOffset = '0px'
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.borderColor = '#D1D5DB'
+                      e.currentTarget.style.outline = 'none'
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* 送信ボタン */}
+              <div className="space-y-3">
+                <Button
+                  type="button"
+                  onClick={async () => {
+                    if (!selectedPostId || !salePrice || !threadDetail?.id) {
+                      setSaleError('プロダクトと価格を入力してください');
+                      return;
+                    }
+
+                    const price = parseInt(salePrice);
+                    if (isNaN(price) || price <= 0) {
+                      setSaleError('有効な価格を入力してください');
+                      return;
+                    }
+
+                    try {
+                      setIsSubmittingSale(true);
+                      setSaleError(null);
+
+                      await messageApi.createSaleRequest({
+                        thread_id: threadDetail.id,
+                        post_id: selectedPostId,
+                        price: price,
+                      });
+
+                      setShowSaleModal(false);
+                      setSelectedPostId('');
+                      setSalePrice('');
+                      setSaleError(null);
+                      alert('売却リクエストを作成しました');
+                    } catch (error: any) {
+                      console.error('売却リクエストの作成に失敗しました:', error);
+                      setSaleError(error.message || '売却リクエストの作成に失敗しました');
+                    } finally {
+                      setIsSubmittingSale(false);
+                    }
+                  }}
+                  variant="primary"
+                  className="w-full"
+                  disabled={isSubmittingSale || !selectedPostId || !salePrice}
+                  isLoading={isSubmittingSale}
+                  loadingText="送信中..."
+                  style={{
+                    backgroundColor: '#E65D65',
+                    color: '#fff'
+                  }}
+                >
+                  送信
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() => {
+                    setShowSaleModal(false);
+                    setSelectedPostId('');
+                    setSalePrice('');
+                    setSaleError(null);
+                  }}
+                  variant="outline"
+                  className="w-full"
+                  disabled={isSubmittingSale}
+                >
+                  キャンセル
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -8,7 +8,7 @@ interface MessagesLayoutProps {
 
 export default function MessagesLayout({ children }: MessagesLayoutProps) {
   return (
-    <div className="h-[calc(100vh-4rem)] bg-white">
+    <div className="min-h-[calc(100vh-4rem)] bg-white">
       {children}
     </div>
   );

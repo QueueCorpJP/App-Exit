@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Search, SlidersHorizontal, X, ChevronDown, ChevronUp } from 'lucide-react';
+import { SearchCheck, SlidersHorizontal, X, ChevronDown, ChevronUp } from 'lucide-react';
 import { getImageUrls } from '@/lib/storage';
 import ProjectCard from '@/components/ui/ProjectCard';
 import { postApi, Post, AuthorProfile } from '@/lib/api-client';
@@ -107,10 +107,10 @@ export default function ProjectsListPage() {
     }
   }, [searchParams]);
 
-  // 初回のみ全データを取得して技術スタックリストを作成し、データも表示
+  // 初回は空のリストを表示（検索するまでデータを取得しない）
   useEffect(() => {
     if (isInitialLoad) {
-      fetchInitialData();
+      setLoading(false);
       setIsInitialLoad(false);
     }
   }, []);
@@ -137,43 +137,6 @@ export default function ProjectsListPage() {
     applySortingAndProfitFilter();
   }, [projects, sortBy, appliedProfitMarginMin, appliedStatuses]);
 
-  const fetchInitialData = async () => {
-    setLoading(true);
-    try {
-      // 初回は全データを取得
-      const response = await postApi.getPosts({});
-      // レスポンスはPost[]型（api-client.tsのrequestメソッドでdata.dataを返すため）
-      const data = Array.isArray(response) ? response : [];
-
-      // データが配列でない場合は早期リターン
-      if (!Array.isArray(data)) {
-        console.warn('Invalid data format received:', response);
-        setProjects([]);
-        setFilteredProjects([]);
-        setAvailableTechStacks([]);
-        return;
-      }
-
-      // 技術スタックのリストを収集（データが空でも実行）
-      const techStackSet = new Set<string>();
-      data.forEach(post => {
-        if (post.tech_stack && Array.isArray(post.tech_stack)) {
-          post.tech_stack.forEach((tech: string) => techStackSet.add(tech));
-        }
-      });
-      setAvailableTechStacks(Array.from(techStackSet).sort());
-
-      // データを表示用に変換（空の場合は空配列を設定）
-      await processPostsData(data);
-    } catch (error) {
-      console.error('Failed to fetch initial data:', error);
-      setProjects([]);
-      setFilteredProjects([]);
-      setAvailableTechStacks([]);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const processPostsData = async (data: any[]) => {
     if (data.length === 0) {
@@ -275,6 +238,15 @@ export default function ProjectsListPage() {
         await processPostsData([]);
         return;
       }
+
+      // 技術スタックのリストを収集（検索結果から更新）
+      const techStackSet = new Set<string>(availableTechStacks);
+      data.forEach(post => {
+        if (post.tech_stack && Array.isArray(post.tech_stack)) {
+          post.tech_stack.forEach((tech: string) => techStackSet.add(tech));
+        }
+      });
+      setAvailableTechStacks(Array.from(techStackSet).sort());
 
       await processPostsData(data);
     } catch (error) {
@@ -422,12 +394,12 @@ export default function ProjectsListPage() {
     <div className="min-h-screen" style={{ backgroundColor: '#F9F8F7' }}>
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* フィルターエリア（上部） */}
-        <div className="bg-white rounded-lg p-4 sm:p-6 mb-6 border border-gray-200">
+        <div className="rounded-lg p-4 sm:p-6 mb-6 bg-white border border-gray-200">
           {/* フィルターヘッダー */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0 mb-6">
             <div className="flex items-center gap-2 sm:gap-3">
               <SlidersHorizontal size={20} className="sm:w-[22px] sm:h-[22px]" style={{ color: '#E65D65' }} />
-              <h2 className="text-lg sm:text-xl font-bold" style={{ color: '#323232' }}>検索条件</h2>
+              <h2 className="text-lg sm:text-xl font-bold text-gray-500">検索</h2>
               {activeFilterCount > 0 && (
                 <span className="px-2 sm:px-3 py-1 text-xs font-bold rounded-full" style={{ backgroundColor: '#E65D65', color: '#fff' }}>
                   {activeFilterCount}
@@ -438,15 +410,15 @@ export default function ProjectsListPage() {
               {activeFilterCount > 0 && (
                 <button
                   onClick={clearAllFilters}
-                  className="text-xs sm:text-sm py-1.5 sm:py-2 px-3 sm:px-4 rounded-md border-2 hover:bg-gray-50 transition-colors font-semibold whitespace-nowrap"
+                  className="text-xs sm:text-sm py-1.5 sm:py-2 px-3 sm:px-4 rounded-md border-2 hover:opacity-80 transition-opacity font-bold whitespace-nowrap"
                   style={{ borderColor: '#E65D65', color: '#E65D65' }}
                 >
-                  すべてクリア
+                  クリア
                 </button>
               )}
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className="p-1.5 sm:p-2 hover:bg-gray-100 rounded-md transition-colors"
+                className="p-1.5 sm:p-2 hover:opacity-80 rounded-md transition-opacity text-gray-500"
                 title={showFilters ? 'フィルターを閉じる' : 'フィルターを開く'}
               >
                 {showFilters ? <ChevronUp size={20} className="sm:w-[22px] sm:h-[22px]" /> : <ChevronDown size={20} className="sm:w-[22px] sm:h-[22px]" />}
@@ -458,44 +430,38 @@ export default function ProjectsListPage() {
           {!showFilters && activeFilterCount > 0 && (
             <div className="flex flex-wrap gap-2 mt-4">
               {searchKeyword && (
-                <span className="px-2 sm:px-3 py-1 bg-gray-100 rounded-full text-xs sm:text-sm flex items-center gap-1 sm:gap-2">
-                  <span className="text-gray-600">キーワード:</span>
-                  <span className="font-semibold truncate max-w-[120px] sm:max-w-none">{searchKeyword}</span>
+                <span className="px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm flex items-center gap-1 sm:gap-2 border" style={{ backgroundColor: '#fff', borderColor: '#9CA3AF' }}>
+                  <span className="font-bold truncate max-w-[120px] sm:max-w-none text-gray-500">{searchKeyword}</span>
                 </span>
               )}
               {appliedCategories.map((cat) => (
-                <span key={cat} className="px-2 sm:px-3 py-1 bg-gray-100 rounded-full text-xs sm:text-sm flex items-center gap-1 sm:gap-2">
-                  <span className="text-gray-600">カテゴリ:</span>
-                  <span className="font-semibold truncate max-w-[100px] sm:max-w-none">{cat}</span>
+                <span key={cat} className="px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm flex items-center gap-1 sm:gap-2 border" style={{ backgroundColor: '#fff', borderColor: '#9CA3AF' }}>
+                  <span className="font-bold truncate max-w-[100px] sm:max-w-none text-gray-500">{cat}</span>
                 </span>
               ))}
               {appliedPostTypes.map((type) => (
-                <span key={type} className="px-2 sm:px-3 py-1 bg-gray-100 rounded-full text-xs sm:text-sm flex items-center gap-1 sm:gap-2">
-                  <span className="text-gray-600">タイプ:</span>
-                  <span className="font-semibold">
+                <span key={type} className="px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm flex items-center gap-1 sm:gap-2 border" style={{ backgroundColor: '#fff', borderColor: '#9CA3AF' }}>
+                  <span className="font-bold text-gray-500">
                     {type === 'transaction' ? '取引' : type === 'board' ? '掲示板' : 'シークレット'}
                   </span>
                 </span>
               ))}
               {appliedStatuses.map((status) => (
-                <span key={status} className="px-2 sm:px-3 py-1 bg-gray-100 rounded-full text-xs sm:text-sm flex items-center gap-1 sm:gap-2">
-                  <span className="text-gray-600">ステータス:</span>
-                  <span className="font-semibold">{status}</span>
+                <span key={status} className="px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm flex items-center gap-1 sm:gap-2 border" style={{ backgroundColor: '#fff', borderColor: '#9CA3AF' }}>
+                  <span className="font-bold text-gray-500">{status}</span>
                 </span>
               ))}
               {(appliedPriceMin || appliedPriceMax) && (
-                <span className="px-2 sm:px-3 py-1 bg-gray-100 rounded-full text-xs sm:text-sm flex items-center gap-1 sm:gap-2">
-                  <span className="text-gray-600">価格:</span>
-                  <span className="font-semibold whitespace-nowrap">
+                <span className="px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm flex items-center gap-1 sm:gap-2 border" style={{ backgroundColor: '#fff', borderColor: '#9CA3AF' }}>
+                  <span className="font-bold whitespace-nowrap text-gray-500">
                     {appliedPriceMin && `${Number(appliedPriceMin).toLocaleString()}円〜`}
                     {appliedPriceMax && `${Number(appliedPriceMax).toLocaleString()}円`}
                   </span>
                 </span>
               )}
               {appliedTechStack.map((tech) => (
-                <span key={tech} className="px-2 sm:px-3 py-1 bg-gray-100 rounded-full text-xs sm:text-sm flex items-center gap-1 sm:gap-2">
-                  <span className="text-gray-600">技術:</span>
-                  <span className="font-semibold truncate max-w-[100px] sm:max-w-none">{tech}</span>
+                <span key={tech} className="px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm flex items-center gap-1 sm:gap-2 border" style={{ backgroundColor: '#fff', borderColor: '#9CA3AF' }}>
+                  <span className="font-bold truncate max-w-[100px] sm:max-w-none text-gray-500">{tech}</span>
                 </span>
               ))}
             </div>
@@ -512,19 +478,16 @@ export default function ProjectsListPage() {
             <div className="space-y-4 sm:space-y-6">
               {/* キーワード検索（全幅） */}
               <div>
-                <label className="block text-sm font-semibold mb-2" style={{ color: '#323232' }}>
-                  キーワード検索
-                </label>
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                  <SearchCheck className="absolute left-3 top-1/2 transform -translate-y-1/2" style={{ color: '#E65D65' }} size={20} />
                   <input
                     type="text"
-                    placeholder="タイトル、説明文..."
+                    placeholder="検索"
                     value={searchInput}
                     onChange={(e) => setSearchInput(e.target.value)}
                     onKeyDown={handleSearchKeyDown}
-                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:ring-2 text-sm sm:text-base"
-                    style={{ '--tw-ring-color': '#E65D65' } as React.CSSProperties}
+                    className="w-full pl-11 pr-3 py-3 border rounded-sm focus:outline-none focus:ring-2 text-sm sm:text-base font-bold"
+                    style={{ '--tw-ring-color': '#E65D65', borderColor: '#D1D5DB' } as React.CSSProperties}
                   />
                 </div>
               </div>
@@ -533,8 +496,8 @@ export default function ProjectsListPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                 {/* 投稿タイプ */}
                 <div>
-                  <label className="block text-sm font-semibold mb-2" style={{ color: '#323232' }}>
-                    投稿タイプ
+                  <label className="block text-sm font-bold mb-2 text-gray-500">
+                    タイプ
                   </label>
                   <div className="space-y-2">
                     {[
@@ -550,7 +513,7 @@ export default function ProjectsListPage() {
                           className="w-4 h-4 rounded"
                           style={{ accentColor: '#E65D65' }}
                         />
-                        <span className="text-sm text-gray-700">{type.label}</span>
+                        <span className="text-sm font-bold text-gray-500">{type.label}</span>
                       </label>
                     ))}
                   </div>
@@ -558,8 +521,8 @@ export default function ProjectsListPage() {
 
                 {/* ステータス */}
                 <div>
-                  <label className="block text-sm font-semibold mb-2" style={{ color: '#323232' }}>
-                    ステータス
+                  <label className="block text-sm font-bold mb-2 text-gray-500">
+                    状態
                   </label>
                   <div className="space-y-2">
                     {['募集中', '成約済み'].map(status => (
@@ -571,7 +534,7 @@ export default function ProjectsListPage() {
                           className="w-4 h-4 rounded"
                           style={{ accentColor: '#E65D65' }}
                         />
-                        <span className="text-sm text-gray-700">{status}</span>
+                        <span className="text-sm font-bold text-gray-500">{status}</span>
                       </label>
                     ))}
                   </div>
@@ -579,7 +542,7 @@ export default function ProjectsListPage() {
 
                 {/* カテゴリ */}
                 <div>
-                  <label className="block text-sm font-semibold mb-2" style={{ color: '#323232' }}>
+                  <label className="block text-sm font-bold mb-2 text-gray-500">
                     カテゴリ
                   </label>
                   <div className="space-y-2 max-h-32 overflow-y-auto pr-2">
@@ -592,7 +555,7 @@ export default function ProjectsListPage() {
                           className="w-4 h-4 rounded flex-shrink-0"
                           style={{ accentColor: '#E65D65' }}
                         />
-                        <span className="text-sm text-gray-700">{category}</span>
+                        <span className="text-sm font-bold text-gray-500">{category}</span>
                       </label>
                     ))}
                   </div>
@@ -600,8 +563,8 @@ export default function ProjectsListPage() {
 
                 {/* 価格帯 */}
                 <div>
-                  <label className="block text-sm font-semibold mb-2" style={{ color: '#323232' }}>
-                    価格帯（円）
+                  <label className="block text-sm font-bold mb-2 text-gray-500">
+                    価格
                   </label>
                   <div className="flex items-center gap-2">
                     <input
@@ -609,16 +572,16 @@ export default function ProjectsListPage() {
                       placeholder="最小"
                       value={priceMin}
                       onChange={(e) => setPriceMin(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:ring-2 text-sm"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:ring-2 text-sm font-bold text-gray-500"
                       style={{ '--tw-ring-color': '#E65D65' } as React.CSSProperties}
                     />
-                    <span className="text-gray-500 text-sm whitespace-nowrap">〜</span>
+                    <span className="text-sm font-bold whitespace-nowrap text-gray-500">〜</span>
                     <input
                       type="number"
                       placeholder="最大"
                       value={priceMax}
                       onChange={(e) => setPriceMax(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:ring-2 text-sm"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:ring-2 text-sm font-bold text-gray-500"
                       style={{ '--tw-ring-color': '#E65D65' } as React.CSSProperties}
                     />
                   </div>
@@ -626,8 +589,8 @@ export default function ProjectsListPage() {
 
                 {/* 月商 */}
                 <div>
-                  <label className="block text-sm font-semibold mb-2" style={{ color: '#323232' }}>
-                    月商（円）
+                  <label className="block text-sm font-bold mb-2 text-gray-500">
+                    月商
                   </label>
                   <div className="flex items-center gap-2">
                     <input
@@ -635,16 +598,16 @@ export default function ProjectsListPage() {
                       placeholder="最小"
                       value={revenueMin}
                       onChange={(e) => setRevenueMin(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:ring-2 text-sm"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:ring-2 text-sm font-bold text-gray-500"
                       style={{ '--tw-ring-color': '#E65D65' } as React.CSSProperties}
                     />
-                    <span className="text-gray-500 text-sm whitespace-nowrap">〜</span>
+                    <span className="text-sm font-bold whitespace-nowrap text-gray-500">〜</span>
                     <input
                       type="number"
                       placeholder="最大"
                       value={revenueMax}
                       onChange={(e) => setRevenueMax(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:ring-2 text-sm"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:ring-2 text-sm font-bold text-gray-500"
                       style={{ '--tw-ring-color': '#E65D65' } as React.CSSProperties}
                     />
                   </div>
@@ -652,15 +615,15 @@ export default function ProjectsListPage() {
 
                 {/* 利益率 */}
                 <div>
-                  <label className="block text-sm font-semibold mb-2" style={{ color: '#323232' }}>
-                    利益率（%以上）
+                  <label className="block text-sm font-bold mb-2 text-gray-500">
+                    利益率
                   </label>
                   <input
                     type="number"
-                    placeholder="例: 30"
+                    placeholder="30"
                     value={profitMarginMin}
                     onChange={(e) => setProfitMarginMin(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:ring-2 text-sm"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:ring-2 text-sm font-bold text-gray-500"
                     style={{ '--tw-ring-color': '#E65D65' } as React.CSSProperties}
                   />
                 </div>
@@ -668,12 +631,12 @@ export default function ProjectsListPage() {
                 {/* 技術スタック */}
                 {availableTechStacks.length > 0 && (
                   <div className="md:col-span-2 lg:col-span-3">
-                    <label className="block text-sm font-semibold mb-2" style={{ color: '#323232' }}>
-                      技術スタック
+                    <label className="block text-sm font-bold mb-2 text-gray-500">
+                      技術
                     </label>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 max-h-40 overflow-y-auto p-3 bg-gray-50 rounded-md border border-gray-200">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 max-h-40 overflow-y-auto p-3 rounded-md border border-gray-200">
                       {availableTechStacks.map(tech => (
-                        <label key={tech} className="flex items-center gap-2 cursor-pointer hover:bg-white p-2 rounded transition-colors">
+                        <label key={tech} className="flex items-center gap-2 cursor-pointer hover:opacity-80 p-2 rounded transition-opacity">
                           <input
                             type="checkbox"
                             checked={selectedTechStack.includes(tech)}
@@ -681,7 +644,7 @@ export default function ProjectsListPage() {
                             className="w-4 h-4 rounded flex-shrink-0"
                             style={{ accentColor: '#E65D65' }}
                           />
-                          <span className="text-sm text-gray-700 truncate">{tech}</span>
+                          <span className="text-sm font-bold truncate text-gray-500">{tech}</span>
                         </label>
                       ))}
                     </div>
@@ -693,10 +656,10 @@ export default function ProjectsListPage() {
               <div className="flex justify-center pt-2 sm:pt-4">
                 <button
                   onClick={handleApplyFilters}
-                  className="w-full sm:w-auto px-6 sm:px-8 py-2.5 sm:py-3 rounded-sm text-white font-semibold hover:opacity-90 transition-opacity text-sm sm:text-base"
+                  className="w-full sm:w-auto px-6 sm:px-8 py-2.5 sm:py-3 rounded-sm text-white font-bold hover:opacity-90 transition-opacity text-sm sm:text-base"
                   style={{ backgroundColor: '#E65D65' }}
                 >
-                  この条件で検索
+                  検索
                 </button>
               </div>
             </div>
@@ -705,25 +668,25 @@ export default function ProjectsListPage() {
 
         {/* ソートと結果数 */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-          <p className="text-gray-600">
-            {loading ? '読み込み中...' : `${filteredProjects.length}件のプロダクト`}
+          <p className="font-bold text-gray-500">
+            {loading ? '読み込み中...' : `${filteredProjects.length}件`}
           </p>
           <div className="flex items-center gap-2">
-            <label className="text-sm text-gray-600">並び替え:</label>
+            <label className="text-sm font-bold text-gray-500">並び替え</label>
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as SortOption)}
-              className="px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:ring-2 text-sm"
+              className="px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:ring-2 text-sm font-bold text-gray-500"
               style={{ '--tw-ring-color': '#E65D65' } as React.CSSProperties}
             >
               <option value="newest">新着順</option>
               <option value="oldest">古い順</option>
-              <option value="price-high">価格が高い順</option>
-              <option value="price-low">価格が低い順</option>
-              <option value="revenue-high">月商が高い順</option>
-              <option value="revenue-low">月商が低い順</option>
-              <option value="profit-high">利益率が高い順</option>
-              <option value="profit-low">利益率が低い順</option>
+              <option value="price-high">価格高</option>
+              <option value="price-low">価格低</option>
+              <option value="revenue-high">月商高</option>
+              <option value="revenue-low">月商低</option>
+              <option value="profit-high">利益率高</option>
+              <option value="profit-low">利益率低</option>
             </select>
           </div>
         </div>
@@ -737,18 +700,25 @@ export default function ProjectsListPage() {
 
         {/* プロジェクト一覧 */}
         {!loading && filteredProjects.length === 0 && (
-          <div className="text-center py-12 bg-white rounded-sm">
-            <Search className="mx-auto mb-4 text-gray-400" size={48} />
-            <p className="text-lg font-semibold mb-2" style={{ color: '#323232' }}>該当するプロダクトが見つかりませんでした</p>
-            <p className="text-gray-500 mb-4">検索条件を変更してお試しください</p>
-            {activeFilterCount > 0 && (
-              <button
-                onClick={clearAllFilters}
-                className="px-6 py-2 rounded-sm text-white hover:opacity-90 transition-opacity"
-                style={{ backgroundColor: '#E65D65' }}
-              >
-                フィルターをクリア
-              </button>
+          <div className="text-center py-12 rounded-sm">
+            <SearchCheck className="mx-auto mb-4" style={{ color: '#E65D65' }} size={48} />
+            {activeFilterCount === 0 ? (
+              <>
+                <p className="text-lg font-bold mb-2 text-gray-500">検索してください</p>
+                <p className="font-bold text-gray-500">条件を設定して検索</p>
+              </>
+            ) : (
+              <>
+                <p className="text-lg font-bold mb-2 text-gray-500">見つかりませんでした</p>
+                <p className="font-bold mb-4 text-gray-500">条件を変更してください</p>
+                <button
+                  onClick={clearAllFilters}
+                  className="px-6 py-2 rounded-sm text-white hover:opacity-90 transition-opacity font-bold"
+                  style={{ backgroundColor: '#E65D65' }}
+                >
+                  クリア
+                </button>
+              </>
             )}
           </div>
         )}

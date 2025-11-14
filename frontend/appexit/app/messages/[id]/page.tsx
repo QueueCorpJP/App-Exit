@@ -1,4 +1,5 @@
 import MessagePage from '@/components/pages/MessagePage';
+import { use } from 'react';
 
 interface PageProps {
   params: Promise<{
@@ -6,8 +7,8 @@ interface PageProps {
   }>;
 }
 
-export default async function Messages({ params }: PageProps) {
-  const { id } = await params;
+export default function Messages({ params }: PageProps) {
+  const { id } = use(params);
 
   return (
       <MessagePage threadId={id} />

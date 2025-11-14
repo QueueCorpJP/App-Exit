@@ -102,6 +102,32 @@ func SetupRoutes(cfg *config.Config) http.Handler {
 	mux.HandleFunc("/api/messages", auth(server.HandleMessages))
 	fmt.Println("[ROUTES] Registered: /api/messages (with auth)")
 
+	// Contract routes (protected)
+	mux.HandleFunc("/api/contracts/", func(w http.ResponseWriter, r *http.Request) {
+		path := r.URL.Path
+		if strings.HasSuffix(path, "/update") && r.Method == http.MethodPut {
+			auth(server.UpdateContract)(w, r)
+		} else if strings.HasSuffix(path, "/sign") && r.Method == http.MethodPost {
+			auth(server.AddContractSignature)(w, r)
+		} else {
+			http.NotFound(w, r)
+		}
+	})
+	fmt.Println("[ROUTES] Registered: /api/contracts/ (with auth)")
+
+	// Sale request routes (protected)
+	mux.HandleFunc("/api/sale-requests", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			auth(server.GetSaleRequests)(w, r)
+		case http.MethodPost:
+			auth(server.CreateSaleRequest)(w, r)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
+	fmt.Println("[ROUTES] Registered: /api/sale-requests (with auth)")
+
 	// Post routes
 	// IMPORTANT: Register /api/posts/metadata BEFORE /api/posts/ to prevent it from being treated as an ID
 	mux.HandleFunc("/api/posts/metadata", func(w http.ResponseWriter, r *http.Request) {
@@ -112,6 +138,8 @@ func SetupRoutes(cfg *config.Config) http.Handler {
 			http.Error(w, "Not found", http.StatusNotFound)
 		}
 	})
+	// Board sidebar endpoint (must be registered before /api/posts/)
+	mux.HandleFunc("/api/posts/board/sidebar", server.HandleBoardSidebar)
 	mux.HandleFunc("/api/posts", server.HandlePostsRoute)
 	mux.HandleFunc("/api/posts/", server.HandlePostByIDRoute)
 	fmt.Println("[ROUTES] Registered: /api/posts/metadata (with optional auth)")
@@ -178,9 +206,18 @@ func (s *Server) HandlePostsRoute(w http.ResponseWriter, r *http.Request) {
 		auth := middleware.AuthWithSupabase(s.config.SupabaseJWTSecret, s.supabase)
 		auth(s.HandlePosts)(w, r)
 	} else {
-		// GET is public
-		fmt.Println("[ROUTES] ℹ️ GET request - no auth required")
-		s.HandlePosts(w, r)
+		// GET: Check if author_user_id is specified - if so, require auth
+		authorUserID := r.URL.Query().Get("author_user_id")
+		if authorUserID != "" {
+			// author_user_id specified - require authentication
+			fmt.Println("[ROUTES] ✓ GET request with author_user_id - applying auth middleware")
+			auth := middleware.AuthWithSupabase(s.config.SupabaseJWTSecret, s.supabase)
+			auth(s.HandlePostsWithAuth)(w, r)
+		} else {
+			// GET without author_user_id is public
+			fmt.Println("[ROUTES] ℹ️ GET request - no auth required")
+			s.HandlePosts(w, r)
+		}
 	}
 	fmt.Printf("========== ROUTE HANDLER END ==========\n\n")
 }

@@ -76,6 +76,10 @@ func ValidateStruct(s interface{}) error {
 		return validateUpdateReplyRequest(v)
 	case *models.UpdateReplyRequest:
 		return validateUpdateReplyRequest(*v)
+	case models.CreateSaleRequestRequest:
+		return validateCreateSaleRequestRequest(v)
+	case *models.CreateSaleRequestRequest:
+		return validateCreateSaleRequestRequest(*v)
 	default:
 		return fmt.Errorf("validation not implemented for type %T", s)
 	}
@@ -346,6 +350,25 @@ func validateUpdateReplyRequest(req models.UpdateReplyRequest) error {
 	}
 	if len(req.Content) > 5000 {
 		return fmt.Errorf("content must be at most 5000 characters long")
+	}
+
+	return nil
+}
+
+func validateCreateSaleRequestRequest(req models.CreateSaleRequestRequest) error {
+	// Validate thread_id is required
+	if err := ValidateRequired("thread_id", req.ThreadID); err != nil {
+		return err
+	}
+
+	// Validate post_id is required
+	if err := ValidateRequired("post_id", req.PostID); err != nil {
+		return err
+	}
+
+	// Validate price is required and positive
+	if req.Price < 1 {
+		return fmt.Errorf("price must be at least 1")
 	}
 
 	return nil
