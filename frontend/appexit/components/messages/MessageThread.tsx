@@ -66,6 +66,7 @@ function MessageThread({
   const [isSubmittingSale, setIsSubmittingSale] = useState(false);
   const [saleError, setSaleError] = useState<string | null>(null);
   const [showSaleInfoTooltip, setShowSaleInfoTooltip] = useState(false);
+  const [isSaleButtonHovered, setIsSaleButtonHovered] = useState(false);
 
   // 契約書セクションの展開状態
   const [isContractExpanded, setIsContractExpanded] = useState(false);
@@ -411,7 +412,14 @@ function MessageThread({
                 </svg>
               </button>
             )}
-            <div className="relative">
+            <button
+              onClick={() => {
+                if (otherParticipant?.id) {
+                  router.push(`/users/${otherParticipant.id}`);
+                }
+              }}
+              className="relative hover:opacity-80 transition-opacity cursor-pointer"
+            >
               <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
                 {otherParticipant?.icon_url ? (
                   <img
@@ -423,12 +431,19 @@ function MessageThread({
                   <span>👤</span>
                 )}
               </div>
-            </div>
-            <div className="hidden md:block">
+            </button>
+            <button
+              onClick={() => {
+                if (otherParticipant?.id) {
+                  router.push(`/users/${otherParticipant.id}`);
+                }
+              }}
+              className="hidden md:block hover:opacity-80 transition-opacity cursor-pointer"
+            >
               <h2 className="font-semibold" title={otherParticipant?.display_name || 'ユーザー'}>
                 {otherParticipant?.display_name ? truncateDisplayName(otherParticipant.display_name, 'header') : 'ユーザー'}
               </h2>
-            </div>
+            </button>
           </div>
 
           {/* 中央：契約書状況 */}
@@ -461,9 +476,15 @@ function MessageThread({
             <Button
               variant="outline"
               size="sm"
-              className="rounded-sm bg-transparent border-2 hover:opacity-80 gap-2"
-              style={{ borderColor: '#E65D65', color: '#E65D65' }}
+              className="rounded-sm bg-transparent border-2 gap-2"
+              style={{
+                borderColor: isSaleButtonHovered ? '#D14C54' : '#E65D65',
+                color: isSaleButtonHovered ? '#D14C54' : '#E65D65',
+                transition: 'all 0.2s ease'
+              }}
               onClick={() => setShowSaleModal(true)}
+              onMouseEnter={() => setIsSaleButtonHovered(true)}
+              onMouseLeave={() => setIsSaleButtonHovered(false)}
             >
               売却する
               <svg
@@ -755,7 +776,17 @@ function MessageThread({
                 onChange={(e) => setNewMessage(e.target.value)}
                 placeholder="新しいメッセージを作成"
                 disabled={isSending || isLoadingMessages}
-                className="w-full px-4 py-3 pr-20 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none disabled:opacity-50"
+                className="w-full px-4 py-3 pr-20 border border-gray-300 rounded-full focus:outline-none resize-none disabled:opacity-50"
+                style={{ '--tw-ring-color': '#E65D65' } as React.CSSProperties}
+                onFocus={(e) => {
+                  e.currentTarget.style.borderColor = '#E65D65'
+                  e.currentTarget.style.outline = '2px solid #E65D65'
+                  e.currentTarget.style.outlineOffset = '0px'
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.borderColor = '#D1D5DB'
+                  e.currentTarget.style.outline = 'none'
+                }}
               />
               <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex gap-2">
                 <label className={`p-1 hover:bg-gray-100 rounded-full ${isLoadingMessages ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
@@ -867,11 +898,11 @@ function MessageThread({
                       onChange={(e) => setSelectedPostId(e.target.value)}
                       className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none sm:text-sm text-gray-900"
                       style={{
-                        '--tw-ring-color': '#4285FF'
+                        '--tw-ring-color': '#E65D65'
                       } as React.CSSProperties}
                       onFocus={(e) => {
-                        e.currentTarget.style.borderColor = '#4285FF'
-                        e.currentTarget.style.outline = '2px solid #4285FF'
+                        e.currentTarget.style.borderColor = '#E65D65'
+                        e.currentTarget.style.outline = '2px solid #E65D65'
                         e.currentTarget.style.outlineOffset = '0px'
                       }}
                       onBlur={(e) => {
@@ -910,11 +941,11 @@ function MessageThread({
                     min="1"
                     className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none sm:text-sm text-gray-900"
                     style={{
-                      '--tw-ring-color': '#4285FF'
+                      '--tw-ring-color': '#E65D65'
                     } as React.CSSProperties}
                     onFocus={(e) => {
-                      e.currentTarget.style.borderColor = '#4285FF'
-                      e.currentTarget.style.outline = '2px solid #4285FF'
+                      e.currentTarget.style.borderColor = '#E65D65'
+                      e.currentTarget.style.outline = '2px solid #E65D65'
                       e.currentTarget.style.outlineOffset = '0px'
                     }}
                     onBlur={(e) => {

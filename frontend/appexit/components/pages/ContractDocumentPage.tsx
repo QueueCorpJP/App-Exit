@@ -501,27 +501,26 @@ export default function ContractDocumentPage({ threadId, contractId }: ContractD
       <div className="w-full px-4 py-6">
         <div className="max-w-4xl mx-auto">
         {/* 契約書情報 */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-          <div className="flex items-start gap-4">
-            <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
-              <FileText className="w-8 h-8 text-gray-400" />
-            </div>
+        <div className="mb-6">
+          <div className="flex items-start justify-between">
             <div className="flex-1">
-              <h2 className="text-lg font-semibold mb-1" style={{ color: '#323232' }}>{contract.file_name}</h2>
-              <div className="text-sm text-gray-500 space-y-1">
-                <p>種類: {getContractTypeName(contract.contract_type)}</p>
-                <p>サイズ: {formatFileSize(contract.file_size)}</p>
-                <p>アップロード日時: {formatDate(contract.created_at)}</p>
+              <h2 className="text-lg font-semibold mb-3" style={{ color: '#323232' }}>{contract.file_name}</h2>
+              <div className="flex items-center gap-6 text-sm text-gray-500">
+                <span>種類: {getContractTypeName(contract.contract_type)}</span>
+                <span>サイズ: {formatFileSize(contract.file_size)}</span>
                 {contract.signatures && contract.signatures.length > 0 && (
-                  <p>署名数: {contract.signatures.length}名</p>
+                  <span>署名数: {contract.signatures.length}名</span>
                 )}
               </div>
+            </div>
+            <div className="text-sm text-gray-500 text-right">
+              {formatDate(contract.created_at)}
             </div>
           </div>
         </div>
 
         {/* プレビュー/署名エリア */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
           <h3 className="text-lg font-semibold mb-4" style={{ color: '#323232' }}>
             契約書プレビュー
           </h3>

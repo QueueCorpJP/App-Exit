@@ -19,6 +19,9 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     className = '',
     as: Component = 'button',
     children,
+    onMouseEnter,
+    onMouseLeave,
+    style: propsStyle,
     ...props
   }, ref) => {
     const baseClasses = 'inline-flex items-center justify-center font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:cursor-not-allowed rounded-lg'
@@ -81,7 +84,8 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
           ...inlineStyle,
           ...(variant === 'primary' && !disabled && !isLoading && {
             '--tw-ring-color': '#4285FF'
-          })
+          }),
+          ...propsStyle
         }}
         onMouseEnter={(e: React.MouseEvent<HTMLButtonElement>) => {
           if (variant === 'primary' && !disabled && !isLoading) {
@@ -91,6 +95,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
             e.currentTarget.style.color = '#3367D6'
             e.currentTarget.style.backgroundColor = '#E8F0FE'
           }
+          onMouseEnter?.(e)
         }}
         onMouseLeave={(e: React.MouseEvent<HTMLButtonElement>) => {
           if (variant === 'primary' && !disabled && !isLoading) {
@@ -100,6 +105,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
             e.currentTarget.style.color = '#4285FF'
             e.currentTarget.style.backgroundColor = 'transparent'
           }
+          onMouseLeave?.(e)
         }}
         {...props}
       >

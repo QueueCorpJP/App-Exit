@@ -98,22 +98,35 @@ export default function ProjectsListPage() {
   const [availableTechStacks, setAvailableTechStacks] = useState<string[]>([]);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
 
-  // URLパラメータから検索キーワードを取得
-  useEffect(() => {
-    const searchQuery = searchParams.get('search');
-    if (searchQuery) {
-      setSearchKeyword(searchQuery);
-      setSearchInput(searchQuery);
-    }
-  }, [searchParams]);
-
-  // 初回は空のリストを表示（検索するまでデータを取得しない）
+  // 初期ロード処理
   useEffect(() => {
     if (isInitialLoad) {
-      setLoading(false);
+      const searchQuery = searchParams.get('search');
+      if (searchQuery) {
+        // URLパラメータから検索キーワードがある場合は、すぐに検索を実行
+        setSearchInput(searchQuery);
+        setSearchKeyword(searchQuery);
+        setShowFilters(true); // 検索フィールドを開く
+      } else {
+        // URLパラメータがない場合は空のリストを表示
+        setLoading(false);
+      }
       setIsInitialLoad(false);
     }
-  }, []);
+  }, [isInitialLoad, searchParams]);
+
+  // URLパラメータの変更を監視（ヘッダーからの検索に対応）
+  useEffect(() => {
+    if (!isInitialLoad) {
+      const searchQuery = searchParams.get('search');
+      if (searchQuery && searchQuery !== searchKeyword) {
+        // URLパラメータが変更された場合、検索を更新
+        setSearchInput(searchQuery);
+        setSearchKeyword(searchQuery);
+        setShowFilters(true); // 検索フィールドを開く
+      }
+    }
+  }, [searchParams]);
 
   // フィルター変更時にバックエンドから再取得（appliedフィルターを使用）
   useEffect(() => {

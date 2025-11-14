@@ -27,7 +27,7 @@ func Recovery(next http.Handler) http.Handler {
 				log.Printf("[PANIC] Request: %s %s\n", r.Method, r.URL.Path)
 				log.Printf("[PANIC] Request URL: %s\n", r.URL.String())
 				log.Printf("[PANIC] Remote Addr: %s\n", r.RemoteAddr)
-				log.Printf("[PANIC] Headers: %v\n", r.Header)
+				log.Printf("[PANIC] Headers: %v\n", redactHeaders(r.Header))
 				
 				// Check if response was already written
 				if w.Header().Get("Content-Type") != "" {
