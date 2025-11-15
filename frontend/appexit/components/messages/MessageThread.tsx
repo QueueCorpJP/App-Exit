@@ -436,37 +436,114 @@ function MessageThread({
   const otherParticipant = threadDetail ? getOtherParticipant() : null;
   
   // 売却リクエストの状態を判定
-  const currentUserSaleRequest = saleRequests.find(req => req.user_id === currentUserId && req.status === 'pending');
-  const otherUserSaleRequest = saleRequests.find(req => req.user_id !== currentUserId && req.status === 'pending');
+  const currentUserSaleRequest = saleRequests.find(req => req.user_id === currentUserId && (req.status === 'pending' || req.status === 'active'));
+  const otherUserSaleRequest = saleRequests.find(req => req.user_id !== currentUserId && (req.status === 'pending' || req.status === 'active'));
+
+  // 返金処理中の状態
+  const [isRefunding, setIsRefunding] = useState(false);
+  const [refundError, setRefundError] = useState<string | null>(null);
+
+  // 返金処理
+  const handleRefund = async (saleRequestId: string) => {
+    if (!confirm('本当に返金しますか？この操作は取り消せません。')) {
+      return;
+    }
+
+    try {
+      setIsRefunding(true);
+      setRefundError(null);
+
+      await messageApi.refundSaleRequest({
+        sale_request_id: saleRequestId,
+        reason: 'requested_by_customer',
+      });
+
+      // 売却リクエストを再取得
+      if (threadDetail?.id) {
+        const requests = await messageApi.getSaleRequests(threadDetail.id);
+        setSaleRequests(Array.isArray(requests) ? requests : []);
+      }
+
+      alert('返金が完了しました');
+    } catch (error: any) {
+      console.error('返金に失敗しました:', error);
+      let errorMessage = '返金に失敗しました';
+      if (error.response && error.response.data && error.response.data.error) {
+        errorMessage = error.response.data.error;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      setRefundError(errorMessage);
+      alert(errorMessage);
+    } finally {
+      setIsRefunding(false);
+    }
+  };
   
   // ボタンの表示を判定
   const getSaleButtonConfig = () => {
     if (currentUserSaleRequest) {
       // 自分が売却リクエストを出している場合
-      return {
-        text: '売却中',
-        color: '#E65D65',
-        hoverColor: '#D14C54',
-        textColor: '#FFFFFF',
-        backgroundColor: '#E65D65',
-        hoverBackgroundColor: '#D14C54',
-        borderColor: '#E65D65',
-        hoverBorderColor: '#D14C54',
-        disabled: true,
-      };
+      if (currentUserSaleRequest.status === 'active') {
+        // 決済完了済み - 返金ボタンを表示
+        return {
+          text: '返金する',
+          color: '#E65D65',
+          hoverColor: '#D14C54',
+          textColor: '#E65D65',
+          backgroundColor: 'transparent',
+          hoverBackgroundColor: 'transparent',
+          borderColor: '#E65D65',
+          hoverBorderColor: '#D14C54',
+          disabled: false,
+          isRefund: true,
+        };
+      } else {
+        // 決済待ち
+        return {
+          text: '売却中（決済待ち）',
+          color: '#E65D65',
+          hoverColor: '#D14C54',
+          textColor: '#FFFFFF',
+          backgroundColor: '#E65D65',
+          hoverBackgroundColor: '#D14C54',
+          borderColor: '#E65D65',
+          hoverBorderColor: '#D14C54',
+          disabled: true,
+          isRefund: false,
+        };
+      }
     } else if (otherUserSaleRequest) {
       // 相手が売却リクエストを出している場合
-      return {
-        text: '買収する',
-        color: '#E65D65',
-        hoverColor: '#D14C54',
-        textColor: '#E65D65',
-        backgroundColor: 'transparent',
-        hoverBackgroundColor: 'transparent',
-        borderColor: '#E65D65',
-        hoverBorderColor: '#D14C54',
-        disabled: false,
-      };
+      if (otherUserSaleRequest.status === 'active') {
+        // 既に決済済み - 返金ボタンを表示
+        return {
+          text: '返金する',
+          color: '#E65D65',
+          hoverColor: '#D14C54',
+          textColor: '#E65D65',
+          backgroundColor: 'transparent',
+          hoverBackgroundColor: 'transparent',
+          borderColor: '#E65D65',
+          hoverBorderColor: '#D14C54',
+          disabled: false,
+          isRefund: true,
+        };
+      } else {
+        // 決済待ち
+        return {
+          text: '買収する',
+          color: '#E65D65',
+          hoverColor: '#D14C54',
+          textColor: '#E65D65',
+          backgroundColor: 'transparent',
+          hoverBackgroundColor: 'transparent',
+          borderColor: '#E65D65',
+          hoverBorderColor: '#D14C54',
+          disabled: false,
+          isRefund: false,
+        };
+      }
     } else {
       // デフォルト
       return {
@@ -479,6 +556,7 @@ function MessageThread({
         borderColor: '#E65D65',
         hoverBorderColor: '#D14C54',
         disabled: false,
+        isRefund: false,
       };
     }
   };
@@ -576,7 +654,16 @@ function MessageThread({
               }}
               onClick={() => {
                 if (!saleButtonConfig.disabled) {
-                  setShowSaleModal(true);
+                  if (saleButtonConfig.isRefund) {
+                    // 返金処理
+                    const saleRequest = currentUserSaleRequest || otherUserSaleRequest;
+                    if (saleRequest) {
+                      handleRefund(saleRequest.id);
+                    }
+                  } else {
+                    // 売却/買収モーダルを開く
+                    setShowSaleModal(true);
+                  }
                 }
               }}
               onMouseEnter={() => setIsSaleButtonHovered(true)}
@@ -1089,7 +1176,14 @@ function MessageThread({
                       setSaleError(null);
                     } catch (error: any) {
                       console.error('売却リクエストの作成に失敗しました:', error);
-                      setSaleError(error.message || '売却リクエストの作成に失敗しました');
+                      // バックエンドからのエラーメッセージを優先的に表示
+                      let errorMessage = '売却リクエストの作成に失敗しました';
+                      if (error.response && error.response.data && error.response.data.error) {
+                        errorMessage = error.response.data.error;
+                      } else if (error.message) {
+                        errorMessage = error.message;
+                      }
+                      setSaleError(errorMessage);
                     } finally {
                       setIsSubmittingSale(false);
                     }

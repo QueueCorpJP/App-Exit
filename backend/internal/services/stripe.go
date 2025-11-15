@@ -10,6 +10,8 @@ import (
 	"github.com/stripe/stripe-go/v76/account"
 	"github.com/stripe/stripe-go/v76/accountlink"
 	"github.com/stripe/stripe-go/v76/balance"
+	"github.com/stripe/stripe-go/v76/paymentintent"
+	"github.com/stripe/stripe-go/v76/refund"
 	"github.com/stripe/stripe-go/v76/transfer"
 	"github.com/stripe/stripe-go/v76/webhook"
 	"github.com/yourusername/appexit-backend/config"
@@ -234,5 +236,119 @@ func (s *StripeService) ConstructWebhookEvent(payload []byte, signature string) 
 	}
 
 	return event, nil
+}
+
+// CreatePaymentIntent はC2C決済用のPayment Intentを作成
+// 売り手のStripe Connectアカウントに自動的に送金されるように設定
+func (s *StripeService) CreatePaymentIntent(
+	ctx context.Context,
+	amount int64,
+	currency string,
+	sellerAccountID string,
+	saleRequestID string,
+	applicationFeeAmount int64, // プラットフォーム手数料
+) (*stripe.PaymentIntent, error) {
+	params := &stripe.PaymentIntentParams{
+		Amount:   stripe.Int64(amount),
+		Currency: stripe.String(currency),
+		Metadata: map[string]string{
+			"sale_request_id": saleRequestID,
+			"platform":        "appexit",
+		},
+		// 自動的な支払い方法の確認を有効化
+		AutomaticPaymentMethods: &stripe.PaymentIntentAutomaticPaymentMethodsParams{
+			Enabled: stripe.Bool(true),
+		},
+		// 売り手のConnect Accountに転送
+		TransferData: &stripe.PaymentIntentTransferDataParams{
+			Destination: stripe.String(sellerAccountID),
+		},
+	}
+
+	// プラットフォーム手数料を設定（オプション）
+	if applicationFeeAmount > 0 {
+		params.ApplicationFeeAmount = stripe.Int64(applicationFeeAmount)
+	}
+
+	pi, err := paymentintent.New(params)
+	if err != nil {
+		log.Printf("[STRIPE] Failed to create payment intent: %v", err)
+		return nil, fmt.Errorf("failed to create payment intent: %w", err)
+	}
+
+	log.Printf("[STRIPE] Created payment intent: %s (amount: %d %s, seller: %s)",
+		pi.ID, amount, currency, sellerAccountID)
+	return pi, nil
+}
+
+// GetPaymentIntent はPayment Intentを取得
+func (s *StripeService) GetPaymentIntent(
+	ctx context.Context,
+	paymentIntentID string,
+) (*stripe.PaymentIntent, error) {
+	pi, err := paymentintent.Get(paymentIntentID, nil)
+	if err != nil {
+		log.Printf("[STRIPE] Failed to get payment intent: %v", err)
+		return nil, fmt.Errorf("failed to get payment intent: %w", err)
+	}
+
+	return pi, nil
+}
+
+// CreateRefund は返金を作成
+// amount: 返金額（nil = 全額返金）
+// reason: 返金理由（"duplicate", "fraudulent", "requested_by_customer"）
+func (s *StripeService) CreateRefund(
+	ctx context.Context,
+	paymentIntentID string,
+	amount *int64,
+	reason string,
+	metadata map[string]string,
+) (*stripe.Refund, error) {
+	params := &stripe.RefundParams{
+		PaymentIntent: stripe.String(paymentIntentID),
+	}
+
+	// 部分返金の場合
+	if amount != nil {
+		params.Amount = stripe.Int64(*amount)
+	}
+
+	// 返金理由
+	if reason != "" {
+		params.Reason = stripe.String(reason)
+	}
+
+	// メタデータ
+	if metadata != nil {
+		params.Metadata = metadata
+	}
+
+	// Idempotency Keyを設定（二重返金防止）
+	params.SetIdempotencyKey(fmt.Sprintf("refund_%s", paymentIntentID))
+
+	ref, err := refund.New(params)
+	if err != nil {
+		log.Printf("[STRIPE] Failed to create refund: %v", err)
+		return nil, fmt.Errorf("failed to create refund: %w", err)
+	}
+
+	log.Printf("[STRIPE] Created refund: %s for payment_intent: %s (amount: %d)",
+		ref.ID, paymentIntentID, ref.Amount)
+	return ref, nil
+}
+
+// GetRefund は返金情報を取得
+func (s *StripeService) GetRefund(
+	ctx context.Context,
+	refundID string,
+) (*stripe.Refund, error) {
+	ref, err := refund.Get(refundID, nil)
+	if err != nil {
+		log.Printf("[STRIPE] Failed to get refund: %v", err)
+		return nil, fmt.Errorf("failed to get refund: %w", err)
+	}
+
+	return ref, nil
 }
 

@@ -14,14 +14,15 @@ const (
 
 // SaleRequest represents a sale request in the sale_requests table
 type SaleRequest struct {
-	ID        string            `json:"id"`
-	ThreadID  string            `json:"thread_id"`
-	UserID    string            `json:"user_id"`
-	PostID    string            `json:"post_id"`
-	Price     int64             `json:"price"`
-	Status    SaleRequestStatus  `json:"status"`
-	CreatedAt time.Time         `json:"created_at"`
-	UpdatedAt time.Time         `json:"updated_at"`
+	ID              string            `json:"id"`
+	ThreadID        string            `json:"thread_id"`
+	UserID          string            `json:"user_id"`
+	PostID          string            `json:"post_id"`
+	Price           int64             `json:"price"`
+	Status          SaleRequestStatus `json:"status"`
+	PaymentIntentID string            `json:"payment_intent_id,omitempty"`
+	CreatedAt       time.Time         `json:"created_at"`
+	UpdatedAt       time.Time         `json:"updated_at"`
 }
 
 // CreateSaleRequestRequest is used to create a new sale request

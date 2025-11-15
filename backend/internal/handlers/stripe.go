@@ -594,6 +594,7 @@ func (h *StripeHandler) HandleStripeWebhook(w http.ResponseWriter, r *http.Reque
 
 	// イベントタイプに応じて処理
 	switch event.Type {
+	// Connect Account イベント
 	case "account.updated":
 		h.handleAccountUpdated(event)
 	case "account.external_account.created":
@@ -602,6 +603,37 @@ func (h *StripeHandler) HandleStripeWebhook(w http.ResponseWriter, r *http.Reque
 		h.handleExternalAccountDeleted(event)
 	case "account.external_account.updated":
 		h.handleExternalAccountUpdated(event)
+
+	// Payment Intent イベント（プラットフォームアカウント）
+	case "payment_intent.succeeded":
+		h.handlePaymentIntentSucceeded(event)
+	case "payment_intent.payment_failed":
+		h.handlePaymentIntentFailed(event)
+	case "payment_intent.canceled":
+		h.handlePaymentIntentCanceled(event)
+
+	// Charge イベント（プラットフォームアカウント）
+	case "charge.succeeded":
+		h.handleChargeSucceeded(event)
+	case "charge.failed":
+		h.handleChargeFailed(event)
+	case "charge.refunded":
+		h.handleChargeRefunded(event)
+
+	// Application Fee イベント（手数料）
+	case "application_fee.created":
+		h.handleApplicationFeeCreated(event)
+	case "application_fee.refunded":
+		h.handleApplicationFeeRefunded(event)
+
+	// Transfer イベント
+	case "transfer.created":
+		h.handleTransferCreated(event)
+	case "transfer.updated":
+		h.handleTransferUpdated(event)
+	case "transfer.failed":
+		h.handleTransferFailed(event)
+
 	default:
 		log.Printf("[STRIPE WEBHOOK] Unhandled event type: %s", event.Type)
 	}
@@ -716,4 +748,241 @@ func (h *StripeHandler) handleExternalAccountDeleted(event interface{}) {
 func (h *StripeHandler) handleExternalAccountUpdated(event interface{}) {
 	log.Printf("[STRIPE WEBHOOK] External account updated")
 	// 必要に応じて処理を追加
+}
+
+// handlePaymentIntentSucceeded は決済成功イベントを処理
+func (h *StripeHandler) handlePaymentIntentSucceeded(event interface{}) {
+	log.Printf("[STRIPE WEBHOOK] Payment intent succeeded")
+
+	// イベントデータからPayment Intent IDを取得
+	eventData, ok := event.(map[string]interface{})
+	if !ok {
+		log.Printf("[STRIPE WEBHOOK] Failed to parse event data")
+		return
+	}
+
+	data, ok := eventData["data"].(map[string]interface{})
+	if !ok {
+		log.Printf("[STRIPE WEBHOOK] Failed to parse event.data")
+		return
+	}
+
+	object, ok := data["object"].(map[string]interface{})
+	if !ok {
+		log.Printf("[STRIPE WEBHOOK] Failed to parse event.data.object")
+		return
+	}
+
+	paymentIntentID, ok := object["id"].(string)
+	if !ok {
+		log.Printf("[STRIPE WEBHOOK] Payment Intent ID not found")
+		return
+	}
+
+	log.Printf("[STRIPE WEBHOOK] Processing payment_intent.succeeded: %s", paymentIntentID)
+
+	// sale_requestsテーブルを更新（ステータスをactiveに）
+	updateData := map[string]interface{}{
+		"status":     "active",
+		"updated_at": time.Now(),
+	}
+
+	_, err := h.supabaseService.GetServiceClient().
+		From("sale_requests").
+		Update(updateData, "", "").
+		Eq("payment_intent_id", paymentIntentID).
+		ExecuteTo(nil)
+
+	if err != nil {
+		log.Printf("[STRIPE WEBHOOK] Failed to update sale_request: %v", err)
+	} else {
+		log.Printf("[STRIPE WEBHOOK] Successfully updated sale_request for payment_intent: %s", paymentIntentID)
+	}
+}
+
+// handlePaymentIntentFailed は決済失敗イベントを処理
+func (h *StripeHandler) handlePaymentIntentFailed(event interface{}) {
+	log.Printf("[STRIPE WEBHOOK] Payment intent failed")
+
+	eventData, ok := event.(map[string]interface{})
+	if !ok {
+		return
+	}
+
+	data, ok := eventData["data"].(map[string]interface{})
+	if !ok {
+		return
+	}
+
+	object, ok := data["object"].(map[string]interface{})
+	if !ok {
+		return
+	}
+
+	paymentIntentID, ok := object["id"].(string)
+	if !ok {
+		return
+	}
+
+	log.Printf("[STRIPE WEBHOOK] Processing payment_intent.payment_failed: %s", paymentIntentID)
+
+	// sale_requestsテーブルを更新（ステータスはpendingのまま、エラーログを記録）
+	// 実際のアプリでは、エラー通知などを実装する
+	log.Printf("[STRIPE WEBHOOK] Payment failed for payment_intent: %s", paymentIntentID)
+}
+
+// handlePaymentIntentCanceled は決済キャンセルイベントを処理
+func (h *StripeHandler) handlePaymentIntentCanceled(event interface{}) {
+	log.Printf("[STRIPE WEBHOOK] Payment intent canceled")
+
+	eventData, ok := event.(map[string]interface{})
+	if !ok {
+		return
+	}
+
+	data, ok := eventData["data"].(map[string]interface{})
+	if !ok {
+		return
+	}
+
+	object, ok := data["object"].(map[string]interface{})
+	if !ok {
+		return
+	}
+
+	paymentIntentID, ok := object["id"].(string)
+	if !ok {
+		return
+	}
+
+	log.Printf("[STRIPE WEBHOOK] Processing payment_intent.canceled: %s", paymentIntentID)
+
+	// sale_requestsテーブルを更新（ステータスをcancelledに）
+	updateData := map[string]interface{}{
+		"status":     "cancelled",
+		"updated_at": time.Now(),
+	}
+
+	_, err := h.supabaseService.GetServiceClient().
+		From("sale_requests").
+		Update(updateData, "", "").
+		Eq("payment_intent_id", paymentIntentID).
+		ExecuteTo(nil)
+
+	if err != nil {
+		log.Printf("[STRIPE WEBHOOK] Failed to update sale_request: %v", err)
+	} else {
+		log.Printf("[STRIPE WEBHOOK] Successfully cancelled sale_request for payment_intent: %s", paymentIntentID)
+	}
+}
+
+// handleChargeSucceeded は課金成功イベントを処理
+func (h *StripeHandler) handleChargeSucceeded(event interface{}) {
+	log.Printf("[STRIPE WEBHOOK] Charge succeeded")
+	// 必要に応じて処理を追加（例：メール通知など）
+}
+
+// handleChargeFailed は課金失敗イベントを処理
+func (h *StripeHandler) handleChargeFailed(event interface{}) {
+	log.Printf("[STRIPE WEBHOOK] Charge failed")
+	// 必要に応じて処理を追加（例：エラー通知など）
+}
+
+// handleChargeRefunded は返金イベントを処理
+func (h *StripeHandler) handleChargeRefunded(event interface{}) {
+	log.Printf("[STRIPE WEBHOOK] Charge refunded")
+
+	eventData, ok := event.(map[string]interface{})
+	if !ok {
+		return
+	}
+
+	data, ok := eventData["data"].(map[string]interface{})
+	if !ok {
+		return
+	}
+
+	object, ok := data["object"].(map[string]interface{})
+	if !ok {
+		return
+	}
+
+	// Payment Intent IDを取得
+	paymentIntentID := ""
+	if paymentIntent, ok := object["payment_intent"].(string); ok {
+		paymentIntentID = paymentIntent
+	}
+
+	if paymentIntentID == "" {
+		log.Printf("[STRIPE WEBHOOK] No payment_intent in charge.refunded event")
+		return
+	}
+
+	log.Printf("[STRIPE WEBHOOK] Processing charge.refunded for payment_intent: %s", paymentIntentID)
+
+	// sale_requestsテーブルを更新（ステータスをcancelledに）
+	updateData := map[string]interface{}{
+		"status":     "cancelled",
+		"updated_at": time.Now(),
+	}
+
+	_, err := h.supabaseService.GetServiceClient().
+		From("sale_requests").
+		Update(updateData, "", "").
+		Eq("payment_intent_id", paymentIntentID).
+		ExecuteTo(nil)
+
+	if err != nil {
+		log.Printf("[STRIPE WEBHOOK] Failed to update sale_request: %v", err)
+	} else {
+		log.Printf("[STRIPE WEBHOOK] Successfully cancelled sale_request for refunded payment_intent: %s", paymentIntentID)
+	}
+}
+
+// handleApplicationFeeCreated は手数料作成イベントを処理
+func (h *StripeHandler) handleApplicationFeeCreated(event interface{}) {
+	eventData, ok := event.(map[string]interface{})
+	if !ok {
+		return
+	}
+
+	data, ok := eventData["data"].(map[string]interface{})
+	if !ok {
+		return
+	}
+
+	object, ok := data["object"].(map[string]interface{})
+	if !ok {
+		return
+	}
+
+	amount, _ := object["amount"].(float64)
+	currency, _ := object["currency"].(string)
+
+	log.Printf("[STRIPE WEBHOOK] Application fee created: %.0f %s", amount, currency)
+	// 必要に応じて手数料の記録を保存
+}
+
+// handleApplicationFeeRefunded は手数料返金イベントを処理
+func (h *StripeHandler) handleApplicationFeeRefunded(event interface{}) {
+	log.Printf("[STRIPE WEBHOOK] Application fee refunded")
+	// 必要に応じて処理を追加
+}
+
+// handleTransferCreated は送金作成イベントを処理
+func (h *StripeHandler) handleTransferCreated(event interface{}) {
+	log.Printf("[STRIPE WEBHOOK] Transfer created")
+	// 必要に応じて処理を追加
+}
+
+// handleTransferUpdated は送金更新イベントを処理
+func (h *StripeHandler) handleTransferUpdated(event interface{}) {
+	log.Printf("[STRIPE WEBHOOK] Transfer updated")
+	// 必要に応じて処理を追加
+}
+
+// handleTransferFailed は送金失敗イベントを処理
+func (h *StripeHandler) handleTransferFailed(event interface{}) {
+	log.Printf("[STRIPE WEBHOOK] Transfer failed")
+	// 必要に応じて処理を追加（例：エラー通知など）
 }

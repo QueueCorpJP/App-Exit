@@ -11,14 +11,16 @@ import (
 )
 
 type Server struct {
-	config   *config.Config
-	supabase *services.SupabaseService
+	config        *config.Config
+	supabase      *services.SupabaseService
+	stripeService *services.StripeService
 }
 
 func NewServer(cfg *config.Config) *Server {
 	return &Server{
-		config:   cfg,
-		supabase: services.NewSupabaseService(cfg),
+		config:        cfg,
+		supabase:      services.NewSupabaseService(cfg),
+		stripeService: services.NewStripeService(cfg),
 	}
 }
 
@@ -27,10 +29,6 @@ func SetupRoutes(cfg *config.Config) http.Handler {
 	mux := http.NewServeMux()
 
 	fmt.Println("[ROUTES] Setting up routes...")
-
-	// Create auth middleware with Supabase JWT secret and SupabaseService (will be recreated as needed)
-	// Create Stripe service
-	stripeService := services.NewStripeService(cfg)
 
 	// Health check
 	mux.HandleFunc("/health", server.HealthCheck)
@@ -116,6 +114,13 @@ func SetupRoutes(cfg *config.Config) http.Handler {
 	fmt.Println("[ROUTES] Registered: /api/contracts/ (with auth)")
 
 	// Sale request routes (protected)
+	mux.HandleFunc("/api/sale-requests/refund", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			auth(server.RefundSaleRequest)(w, r)
+		} else {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
 	mux.HandleFunc("/api/sale-requests", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
@@ -127,6 +132,7 @@ func SetupRoutes(cfg *config.Config) http.Handler {
 		}
 	})
 	fmt.Println("[ROUTES] Registered: /api/sale-requests (with auth)")
+	fmt.Println("[ROUTES] Registered: /api/sale-requests/refund (with auth)")
 
 	// Post routes
 	// IMPORTANT: Register /api/posts/metadata BEFORE /api/posts/ to prevent it from being treated as an ID
@@ -169,7 +175,7 @@ func SetupRoutes(cfg *config.Config) http.Handler {
 	fmt.Println("[ROUTES] Registered: /api/storage/signed-urls")
 
 	// Stripe routes (protected)
-	stripeHandler := NewStripeHandler(cfg, server.supabase, stripeService)
+	stripeHandler := NewStripeHandler(cfg, server.supabase, server.stripeService)
 	mux.HandleFunc("/api/stripe/account-status", auth(stripeHandler.HandleGetAccountStatus))
 	mux.HandleFunc("/api/stripe/create-account", auth(stripeHandler.HandleCreateAccount))
 	mux.HandleFunc("/api/stripe/create-onboarding-link", auth(stripeHandler.HandleCreateOnboardingLink))

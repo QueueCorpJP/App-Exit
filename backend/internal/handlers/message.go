@@ -1977,6 +1977,36 @@ func (s *Server) CreateSaleRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// 売り手（ユーザー）のStripeアカウントを確認
+	var sellerProfile []struct {
+		StripeAccountID           string `json:"stripe_account_id"`
+		StripeOnboardingCompleted bool   `json:"stripe_onboarding_completed"`
+	}
+	_, err = client.From("profiles").
+		Select("stripe_account_id,stripe_onboarding_completed", "", false).
+		Eq("id", userID).
+		ExecuteTo(&sellerProfile)
+
+	if err != nil || len(sellerProfile) == 0 {
+		log.Printf("[CreateSaleRequest] Failed to get seller profile: %v", err)
+		response.Error(w, http.StatusInternalServerError, "Failed to verify seller account")
+		return
+	}
+
+	// Stripeアカウントが登録されているか確認
+	if sellerProfile[0].StripeAccountID == "" {
+		log.Printf("[CreateSaleRequest] Seller does not have a Stripe account")
+		response.Error(w, http.StatusBadRequest, "Stripe account not registered. Please complete your payment settings in your profile.")
+		return
+	}
+
+	// Stripeオンボーディングが完了しているか確認
+	if !sellerProfile[0].StripeOnboardingCompleted {
+		log.Printf("[CreateSaleRequest] Seller's Stripe onboarding is not completed")
+		response.Error(w, http.StatusBadRequest, "Stripe account verification not completed. Please complete the verification process in your payment settings.")
+		return
+	}
+
 	// 既存の売却リクエストをチェック（同じスレッドとプロダクトの組み合わせ）
 	var existingRequest []struct {
 		ID string `json:"id"`
@@ -1993,21 +2023,45 @@ func (s *Server) CreateSaleRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Stripe Payment Intentを作成（C2C決済用）
+	ctx := r.Context()
+	// プラットフォーム手数料: 10%
+	applicationFeeAmount := req.Price / 10
+
+	paymentIntent, err := s.stripeService.CreatePaymentIntent(
+		ctx,
+		req.Price,
+		"jpy", // 日本円
+		sellerProfile[0].StripeAccountID,
+		"", // sale_request_idは後で設定
+		applicationFeeAmount,
+	)
+
+	if err != nil {
+		log.Printf("[CreateSaleRequest] Failed to create Stripe Payment Intent: %v", err)
+		response.Error(w, http.StatusInternalServerError, "Failed to create payment intent")
+		return
+	}
+
+	log.Printf("[CreateSaleRequest] Created Payment Intent: %s", paymentIntent.ID)
+
 	// 売却リクエストを作成
 	type saleRequestInsert struct {
-		ThreadID string `json:"thread_id"`
-		UserID   string `json:"user_id"`
-		PostID   string `json:"post_id"`
-		Price    int64  `json:"price"`
-		Status   string `json:"status"`
+		ThreadID        string `json:"thread_id"`
+		UserID          string `json:"user_id"`
+		PostID          string `json:"post_id"`
+		Price           int64  `json:"price"`
+		Status          string `json:"status"`
+		PaymentIntentID string `json:"payment_intent_id"`
 	}
 
 	insertData := saleRequestInsert{
-		ThreadID: req.ThreadID,
-		UserID:   userID,
-		PostID:   req.PostID,
-		Price:    req.Price,
-		Status:   string(models.SaleRequestStatusPending),
+		ThreadID:        req.ThreadID,
+		UserID:          userID,
+		PostID:          req.PostID,
+		Price:           req.Price,
+		Status:          string(models.SaleRequestStatusPending),
+		PaymentIntentID: paymentIntent.ID,
 	}
 
 	var createdRequests []models.SaleRequest
@@ -2028,6 +2082,141 @@ func (s *Server) CreateSaleRequest(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response.Success(w, http.StatusCreated, createdRequests[0])
+}
+
+// RefundSaleRequest refunds a sale request
+func (s *Server) RefundSaleRequest(w http.ResponseWriter, r *http.Request) {
+	userID, ok := utils.RequireUserID(r, w)
+	if !ok {
+		return
+	}
+
+	var req struct {
+		SaleRequestID string  `json:"sale_request_id"`
+		Amount        *int64  `json:"amount,omitempty"` // nil = 全額返金
+		Reason        string  `json:"reason,omitempty"` // "requested_by_customer", "duplicate", "fraudulent"
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.Error(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	if req.SaleRequestID == "" {
+		response.Error(w, http.StatusBadRequest, "sale_request_id is required")
+		return
+	}
+
+	client, err := s.supabase.GetImpersonateClient(userID)
+	if err != nil {
+		log.Printf("[RefundSaleRequest] Failed to get impersonate client: %v", err)
+		response.Error(w, http.StatusInternalServerError, "Failed to process refund")
+		return
+	}
+
+	// 売却リクエストを取得
+	var saleRequests []struct {
+		ID              string `json:"id"`
+		UserID          string `json:"user_id"`
+		ThreadID        string `json:"thread_id"`
+		PaymentIntentID string `json:"payment_intent_id"`
+		Price           int64  `json:"price"`
+		Status          string `json:"status"`
+	}
+
+	_, err = client.From("sale_requests").
+		Select("*", "", false).
+		Eq("id", req.SaleRequestID).
+		ExecuteTo(&saleRequests)
+
+	if err != nil || len(saleRequests) == 0 {
+		log.Printf("[RefundSaleRequest] Sale request not found: %v", err)
+		response.Error(w, http.StatusNotFound, "Sale request not found")
+		return
+	}
+
+	saleRequest := saleRequests[0]
+
+	// 売り手本人または買い手のみ返金可能（権限チェック）
+	// スレッドの参加者であることを確認
+	var participantCheck []struct {
+		UserID string `json:"user_id"`
+	}
+	_, err = client.From("thread_participants").
+		Select("user_id", "", false).
+		Eq("thread_id", saleRequest.ThreadID).
+		Eq("user_id", userID).
+		ExecuteTo(&participantCheck)
+
+	if err != nil || len(participantCheck) == 0 {
+		log.Printf("[RefundSaleRequest] User is not authorized: %v", err)
+		response.Error(w, http.StatusForbidden, "You are not authorized to refund this sale request")
+		return
+	}
+
+	// ステータスチェック（activeのみ返金可能）
+	if saleRequest.Status != "active" {
+		response.Error(w, http.StatusBadRequest, "Only active sale requests can be refunded")
+		return
+	}
+
+	// Payment Intent IDチェック
+	if saleRequest.PaymentIntentID == "" {
+		response.Error(w, http.StatusBadRequest, "No payment intent found for this sale request")
+		return
+	}
+
+	// 返金理由のデフォルト設定
+	reason := req.Reason
+	if reason == "" {
+		reason = "requested_by_customer"
+	}
+
+	// Stripe返金を実行
+	ctx := r.Context()
+	metadata := map[string]string{
+		"sale_request_id": req.SaleRequestID,
+		"user_id":         userID,
+	}
+
+	refund, err := s.stripeService.CreateRefund(
+		ctx,
+		saleRequest.PaymentIntentID,
+		req.Amount, // nil = 全額返金
+		reason,
+		metadata,
+	)
+
+	if err != nil {
+		log.Printf("[RefundSaleRequest] Failed to create Stripe refund: %v", err)
+		response.Error(w, http.StatusInternalServerError, "Failed to process refund")
+		return
+	}
+
+	log.Printf("[RefundSaleRequest] Created refund: %s for sale_request: %s", refund.ID, req.SaleRequestID)
+
+	// sale_requestsテーブルを更新（ステータスをcancelledに）
+	updateData := map[string]interface{}{
+		"status":     "cancelled",
+		"updated_at": time.Now(),
+	}
+
+	_, err = client.From("sale_requests").
+		Update(updateData, "", "").
+		Eq("id", req.SaleRequestID).
+		ExecuteTo(nil)
+
+	if err != nil {
+		log.Printf("[RefundSaleRequest] Failed to update sale_request status: %v", err)
+		// Stripe返金は既に完了しているので、エラーにはしない
+	}
+
+	response.Success(w, http.StatusOK, map[string]interface{}{
+		"refund_id": refund.ID,
+		"amount":    refund.Amount,
+		"status":    refund.Status,
+		"message":   "Refund processed successfully",
+	})
 }
 
 // GetSaleRequests retrieves sale requests for a thread

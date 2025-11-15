@@ -658,6 +658,10 @@ export const messageApi = {
   // 売却リクエストを取得
   getSaleRequests: (threadId: string) =>
     apiClient.get<SaleRequest[]>('/api/sale-requests', { params: { thread_id: threadId } }),
+
+  // 売却リクエストを返金
+  refundSaleRequest: (data: { sale_request_id: string; amount?: number; reason?: string }) =>
+    apiClient.post<{ refund_id: string; amount: number; status: string; message: string }>('/api/sale-requests/refund', data),
 };
 
 /**
