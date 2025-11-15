@@ -9,6 +9,25 @@ import (
 	"github.com/yourusername/appexit-backend/pkg/response"
 )
 
+// redactHeaders creates a copy of headers with sensitive values redacted
+func redactHeaders(headers http.Header) http.Header {
+	redacted := make(http.Header)
+	sensitiveHeaders := map[string]bool{
+		"Authorization": true,
+		"Cookie":        true,
+		"X-Api-Key":     true,
+	}
+
+	for key, values := range headers {
+		if sensitiveHeaders[key] {
+			redacted[key] = []string{"[REDACTED]"}
+		} else {
+			redacted[key] = values
+		}
+	}
+	return redacted
+}
+
 // Recovery middleware recovers from panics and returns a proper error response
 func Recovery(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

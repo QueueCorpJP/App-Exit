@@ -3,12 +3,17 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Button from '@/components/ui/Button'
-import { profileApi, type Profile } from '@/lib/api-client'
+import { profileApi, type Profile, postApi, type Post } from '@/lib/api-client'
 import { uploadAvatarImage } from '@/lib/storage'
 import { Camera, CreditCard, CheckCircle2 } from 'lucide-react'
+import ProjectCard from '@/components/ui/ProjectCard'
+import { useAuth } from '@/lib/auth-context'
+
+type TabType = 'profile' | 'watching' | 'myposts';
 
 export default function ProfileSettingsPage() {
   const router = useRouter()
+  const { user } = useAuth()
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string>('')
@@ -22,9 +27,29 @@ export default function ProfileSettingsPage() {
   const [avatarPreview, setAvatarPreview] = useState<string>('')
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
 
+  const [activeTab, setActiveTab] = useState<TabType>('profile')
+  const [watchingPosts, setWatchingPosts] = useState<Post[]>([])
+  const [myPosts, setMyPosts] = useState<Post[]>([])
+  const [isLoadingPosts, setIsLoadingPosts] = useState(false)
+  const [hasMoreWatching, setHasMoreWatching] = useState(true)
+  const [hasMoreMyPosts, setHasMoreMyPosts] = useState(true)
+  const [watchingOffset, setWatchingOffset] = useState(0)
+  const [myPostsOffset, setMyPostsOffset] = useState(0)
+  const POSTS_PER_PAGE = 12
+
   useEffect(() => {
     loadProfile()
   }, [])
+
+  useEffect(() => {
+    if (user?.id && activeTab === 'watching') {
+      console.log('[ProfileSettings] User ID detected, loading watching posts:', user.id)
+      loadWatchingPosts()
+    } else if (user?.id && activeTab === 'myposts') {
+      console.log('[ProfileSettings] User ID detected, loading my posts:', user.id)
+      loadMyPosts()
+    }
+  }, [user?.id, activeTab])
 
   const loadProfile = async () => {
     try {
@@ -49,6 +74,133 @@ export default function ProfileSettingsPage() {
       setError('プロフィールの取得に失敗しました')
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const loadWatchingPosts = async (loadMore = false) => {
+    if (!user?.id) {
+      console.log('[ProfileSettings] No user ID, skipping posts load')
+      return
+    }
+
+    try {
+      console.log('[ProfileSettings] Loading active views for user:', user.id)
+      setIsLoadingPosts(true)
+
+      const offset = loadMore ? watchingOffset : 0
+      const { createClient } = await import('@/lib/supabase')
+      const supabase = createClient()
+
+      // ページネーション付きでアクティブビューを取得
+      const { data: activeViews, error: activeViewError } = await supabase
+        .from('product_active_views')
+        .select('post_id, created_at')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .range(offset, offset + POSTS_PER_PAGE - 1)
+
+      if (activeViewError) {
+        console.error('[ProfileSettings] Failed to load active views:', activeViewError)
+        if (!loadMore) setWatchingPosts([])
+        return
+      }
+
+      console.log('[ProfileSettings] Active views:', activeViews)
+
+      if (!activeViews || activeViews.length === 0) {
+        console.log('[ProfileSettings] No more active views found')
+        setHasMoreWatching(false)
+        if (!loadMore) setWatchingPosts([])
+        return
+      }
+
+      // これ以上データがないかチェック
+      if (activeViews.length < POSTS_PER_PAGE) {
+        setHasMoreWatching(false)
+      }
+
+      // アクティブビューの投稿IDを取得
+      const postIds = activeViews.map(av => av.post_id)
+      console.log('[ProfileSettings] Post IDs from active views:', postIds)
+
+      // 投稿の詳細を一括取得（N+1問題を回避、必要なフィールドのみ取得）
+      const { data: posts, error: postsError } = await supabase
+        .from('posts')
+        .select(`
+          id,
+          title,
+          category,
+          image_url,
+          image_path,
+          desired_price,
+          monthly_revenue,
+          monthly_cost,
+          profit_margin,
+          status,
+          updated_at,
+          active_view_count
+        `)
+        .in('id', postIds)
+
+      if (postsError) {
+        console.error('[ProfileSettings] Failed to load posts:', postsError)
+        if (!loadMore) setWatchingPosts([])
+        return
+      }
+
+      console.log('[ProfileSettings] Loaded watching posts:', posts)
+
+      if (loadMore) {
+        setWatchingPosts(prev => [...prev, ...(posts || [])])
+        setWatchingOffset(offset + POSTS_PER_PAGE)
+      } else {
+        setWatchingPosts(posts || [])
+        setWatchingOffset(POSTS_PER_PAGE)
+      }
+    } catch (err) {
+      console.error('[ProfileSettings] Failed to load watched posts:', err)
+      if (!loadMore) setWatchingPosts([])
+    } finally {
+      setIsLoadingPosts(false)
+    }
+  }
+
+  const loadMyPosts = async (loadMore = false) => {
+    if (!user?.id) {
+      console.log('[ProfileSettings] No user ID, skipping my posts load')
+      return
+    }
+
+    try {
+      console.log('[ProfileSettings] Loading my posts for user:', user.id)
+      setIsLoadingPosts(true)
+
+      const offset = loadMore ? myPostsOffset : 0
+      const posts = await postApi.getPosts({
+        author_user_id: user.id,
+        limit: POSTS_PER_PAGE,
+        offset: offset
+      })
+
+      console.log('[ProfileSettings] Loaded my posts:', posts)
+
+      // これ以上データがないかチェック
+      if (!posts || posts.length < POSTS_PER_PAGE) {
+        setHasMoreMyPosts(false)
+      }
+
+      if (loadMore) {
+        setMyPosts(prev => [...prev, ...(posts || [])])
+        setMyPostsOffset(offset + POSTS_PER_PAGE)
+      } else {
+        setMyPosts(posts || [])
+        setMyPostsOffset(POSTS_PER_PAGE)
+      }
+    } catch (err) {
+      console.error('[ProfileSettings] Failed to load my posts:', err)
+      if (!loadMore) setMyPosts([])
+    } finally {
+      setIsLoadingPosts(false)
     }
   }
 
@@ -167,20 +319,59 @@ export default function ProfileSettingsPage() {
     )
   }
 
+  const displayPosts = activeTab === 'watching' ? watchingPosts : myPosts;
+
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#F9F8F7' }}>
       <div className="max-w-3xl mx-auto px-4 py-8">
         <h1 className="text-lg text-center mb-8" style={{ color: '#323232', fontWeight: 900 }}>
-          プロフィール設定
+          プロフィール
         </h1>
 
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-sm mb-6">
-            {error}
-          </div>
-        )}
+        {/* タブナビゲーション */}
+        <div className="flex border-b border-gray-200 bg-white rounded-t-sm mb-6">
+          <button
+            onClick={() => setActiveTab('profile')}
+            className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
+              activeTab === 'profile'
+                ? 'text-gray-900 border-b-2 border-gray-900'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            プロフィール設定
+          </button>
+          <button
+            onClick={() => setActiveTab('watching')}
+            className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
+              activeTab === 'watching'
+                ? 'text-gray-900 border-b-2 border-gray-900'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            ウォッチ中 ({watchingPosts.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('myposts')}
+            className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
+              activeTab === 'myposts'
+                ? 'text-gray-900 border-b-2 border-gray-900'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            投稿 ({myPosts.length})
+          </button>
+        </div>
 
-        <form onSubmit={handleSubmit} className="bg-white p-8 rounded-sm">
+        {/* プロフィール設定タブ */}
+        {activeTab === 'profile' && (
+          <>
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-sm mb-6">
+                {error}
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} className="bg-white p-8 rounded-sm">
           {/* アバター画像 */}
           <div className="mb-8">
             <label className="block text-sm font-semibold text-gray-700 mb-4">
@@ -447,6 +638,85 @@ export default function ProfileSettingsPage() {
                 {profile.stripe_account_id && profile.stripe_onboarding_completed ? '設定を確認' : profile.stripe_account_id ? '本人確認を完了' : '設定を開始'}
               </Button>
             </div>
+          </div>
+        )}
+          </>
+        )}
+
+        {/* ウォッチ中/投稿タブ */}
+        {(activeTab === 'watching' || activeTab === 'myposts') && (
+          <div>
+            {displayPosts.length > 0 && (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {displayPosts.map((post) => (
+                    <ProjectCard
+                      key={post.id}
+                      id={post.id}
+                      title={post.title}
+                      category={post.category || ''}
+                      image={post.image_url || ''}
+                      imagePath={post.image_path || null}
+                      price={post.desired_price || 0}
+                      monthlyRevenue={post.monthly_revenue}
+                      monthlyCost={post.monthly_cost}
+                      profitMargin={post.profit_margin}
+                      status={post.status}
+                      updatedAt={post.updated_at}
+                      authorProfile={post.author_profile}
+                      activeViewCount={post.active_view_count}
+                    />
+                  ))}
+                </div>
+
+                {/* もっと読み込むボタン */}
+                {((activeTab === 'watching' && hasMoreWatching) || (activeTab === 'myposts' && hasMoreMyPosts)) && (
+                  <div className="flex justify-center mt-8">
+                    <Button
+                      onClick={() => {
+                        if (activeTab === 'watching') {
+                          loadWatchingPosts(true)
+                        } else {
+                          loadMyPosts(true)
+                        }
+                      }}
+                      disabled={isLoadingPosts}
+                      variant="outline"
+                      className="px-8"
+                    >
+                      {isLoadingPosts ? '読み込み中...' : 'もっと読み込む'}
+                    </Button>
+                  </div>
+                )}
+              </>
+            )}
+
+            {isLoadingPosts && displayPosts.length === 0 && (
+              <div className="flex items-center justify-center py-12">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-600"></div>
+                <p className="ml-3 text-gray-600">読み込み中...</p>
+              </div>
+            )}
+
+            {!isLoadingPosts && displayPosts.length === 0 && (
+              <div className="bg-white p-8 rounded-sm text-center">
+                <p className="text-gray-500">
+                  {activeTab === 'watching'
+                    ? 'まだプロダクトをウォッチしていません'
+                    : 'まだプロダクトを投稿していません'}
+                </p>
+                <Button
+                  onClick={() => router.push(activeTab === 'watching' ? '/' : '/projects/new')}
+                  className="mt-4"
+                  style={{
+                    backgroundColor: '#E65D65',
+                    color: '#fff'
+                  }}
+                >
+                  {activeTab === 'watching' ? 'プロダクトを探す' : 'プロダクトを投稿する'}
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </div>

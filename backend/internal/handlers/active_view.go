@@ -109,15 +109,19 @@ func (s *Server) CreateActiveView(w http.ResponseWriter, r *http.Request, postID
 	}
 
 	// Get the updated count of active views for this post
-	var allViews []models.ProductActiveView
+	// Use minimal select to reduce data transfer (only fetch IDs)
+	type CountRow struct {
+		ID string `json:"id"`
+	}
+	var countRows []CountRow
 	_, err = client.From("product_active_views").
 		Select("id", "", false).
 		Eq("post_id", postID).
-		ExecuteTo(&allViews)
+		ExecuteTo(&countRows)
 
 	activeViewCount := 0
 	if err == nil {
-		activeViewCount = len(allViews)
+		activeViewCount = len(countRows)
 	}
 
 	fmt.Printf("[CREATE ACTIVE VIEW] ✓ Successfully created active view (new count: %d)\n", activeViewCount)
@@ -183,15 +187,19 @@ func (s *Server) DeleteActiveView(w http.ResponseWriter, r *http.Request, postID
 	}
 
 	// Get the updated count of active views for this post
-	var allViews []models.ProductActiveView
+	// Use minimal select to reduce data transfer (only fetch IDs)
+	type CountRow struct {
+		ID string `json:"id"`
+	}
+	var countRows []CountRow
 	_, err = client.From("product_active_views").
 		Select("id", "", false).
 		Eq("post_id", postID).
-		ExecuteTo(&allViews)
+		ExecuteTo(&countRows)
 
 	activeViewCount := 0
 	if err == nil {
-		activeViewCount = len(allViews)
+		activeViewCount = len(countRows)
 	}
 
 	fmt.Printf("[DELETE ACTIVE VIEW] ✓ Successfully deleted active view (new count: %d)\n", activeViewCount)

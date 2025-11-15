@@ -67,6 +67,10 @@ function MessageThread({
   const [saleError, setSaleError] = useState<string | null>(null);
   const [showSaleInfoTooltip, setShowSaleInfoTooltip] = useState(false);
   const [isSaleButtonHovered, setIsSaleButtonHovered] = useState(false);
+  
+  // 売却リクエストの状態
+  const [saleRequests, setSaleRequests] = useState<any[]>([]);
+  const [isLoadingSaleRequests, setIsLoadingSaleRequests] = useState(false);
 
   // 契約書セクションの展開状態
   const [isContractExpanded, setIsContractExpanded] = useState(false);
@@ -110,6 +114,43 @@ function MessageThread({
 
     fetchUserPosts();
   }, [user?.id, showSaleModal]);
+  
+  // 売却リクエストを取得
+  useEffect(() => {
+    const fetchSaleRequests = async () => {
+      if (!threadDetail?.id) {
+        return;
+      }
+      
+      try {
+        setIsLoadingSaleRequests(true);
+        const requests = await messageApi.getSaleRequests(threadDetail.id);
+        setSaleRequests(Array.isArray(requests) ? requests : []);
+      } catch (error) {
+        console.error('売却リクエストの取得に失敗しました:', error);
+      } finally {
+        setIsLoadingSaleRequests(false);
+      }
+    };
+    
+    fetchSaleRequests();
+    
+    // 5秒ごとに売却リクエストを再取得（リアルタイム更新）
+    const intervalId = setInterval(() => {
+      if (threadDetail?.id) {
+        messageApi.getSaleRequests(threadDetail.id)
+          .then(requests => {
+            setSaleRequests(Array.isArray(requests) ? requests : []);
+          })
+          .catch(error => {
+            console.error('売却リクエストの取得に失敗しました:', error);
+          });
+      }
+    }, 5000);
+    
+    // クリーンアップ
+    return () => clearInterval(intervalId);
+  }, [threadDetail?.id]);
 
   // 既存の契約書を取得
   useEffect(() => {
@@ -393,6 +434,56 @@ function MessageThread({
   };
 
   const otherParticipant = threadDetail ? getOtherParticipant() : null;
+  
+  // 売却リクエストの状態を判定
+  const currentUserSaleRequest = saleRequests.find(req => req.user_id === currentUserId && req.status === 'pending');
+  const otherUserSaleRequest = saleRequests.find(req => req.user_id !== currentUserId && req.status === 'pending');
+  
+  // ボタンの表示を判定
+  const getSaleButtonConfig = () => {
+    if (currentUserSaleRequest) {
+      // 自分が売却リクエストを出している場合
+      return {
+        text: '売却中',
+        color: '#E65D65',
+        hoverColor: '#D14C54',
+        textColor: '#FFFFFF',
+        backgroundColor: '#E65D65',
+        hoverBackgroundColor: '#D14C54',
+        borderColor: '#E65D65',
+        hoverBorderColor: '#D14C54',
+        disabled: true,
+      };
+    } else if (otherUserSaleRequest) {
+      // 相手が売却リクエストを出している場合
+      return {
+        text: '買収する',
+        color: '#E65D65',
+        hoverColor: '#D14C54',
+        textColor: '#E65D65',
+        backgroundColor: 'transparent',
+        hoverBackgroundColor: 'transparent',
+        borderColor: '#E65D65',
+        hoverBorderColor: '#D14C54',
+        disabled: false,
+      };
+    } else {
+      // デフォルト
+      return {
+        text: '売却する',
+        color: '#E65D65',
+        hoverColor: '#D14C54',
+        textColor: '#E65D65',
+        backgroundColor: 'transparent',
+        hoverBackgroundColor: 'transparent',
+        borderColor: '#E65D65',
+        hoverBorderColor: '#D14C54',
+        disabled: false,
+      };
+    }
+  };
+  
+  const saleButtonConfig = getSaleButtonConfig();
 
   return (
     <div className="flex-1 md:flex-1 w-full md:w-auto flex flex-col h-full overflow-hidden bg-white relative">
@@ -415,7 +506,7 @@ function MessageThread({
             <button
               onClick={() => {
                 if (otherParticipant?.id) {
-                  router.push(`/users/${otherParticipant.id}`);
+                  router.push(`/profiles/${otherParticipant.id}`);
                 }
               }}
               className="relative hover:opacity-80 transition-opacity cursor-pointer"
@@ -435,7 +526,7 @@ function MessageThread({
             <button
               onClick={() => {
                 if (otherParticipant?.id) {
-                  router.push(`/users/${otherParticipant.id}`);
+                  router.push(`/profiles/${otherParticipant.id}`);
                 }
               }}
               className="hidden md:block hover:opacity-80 transition-opacity cursor-pointer"
@@ -476,17 +567,23 @@ function MessageThread({
             <Button
               variant="outline"
               size="sm"
-              className="rounded-sm bg-transparent border-2 gap-2"
+              className="rounded-sm border-2 gap-2"
               style={{
-                borderColor: isSaleButtonHovered ? '#D14C54' : '#E65D65',
-                color: isSaleButtonHovered ? '#D14C54' : '#E65D65',
+                borderColor: isSaleButtonHovered && !saleButtonConfig.disabled ? saleButtonConfig.hoverBorderColor : saleButtonConfig.borderColor,
+                color: saleButtonConfig.disabled ? saleButtonConfig.textColor : (isSaleButtonHovered ? saleButtonConfig.hoverColor : saleButtonConfig.color),
+                backgroundColor: saleButtonConfig.disabled ? saleButtonConfig.backgroundColor : (isSaleButtonHovered ? saleButtonConfig.hoverBackgroundColor : saleButtonConfig.backgroundColor),
                 transition: 'all 0.2s ease'
               }}
-              onClick={() => setShowSaleModal(true)}
+              onClick={() => {
+                if (!saleButtonConfig.disabled) {
+                  setShowSaleModal(true);
+                }
+              }}
               onMouseEnter={() => setIsSaleButtonHovered(true)}
               onMouseLeave={() => setIsSaleButtonHovered(false)}
+              disabled={saleButtonConfig.disabled}
             >
-              売却する
+              {saleButtonConfig.text}
               <svg
                 className="w-5 h-5"
                 fill="none"
@@ -982,11 +1079,14 @@ function MessageThread({
                         price: price,
                       });
 
+                      // 売却リクエストのリストを再取得
+                      const requests = await messageApi.getSaleRequests(threadDetail.id);
+                      setSaleRequests(Array.isArray(requests) ? requests : []);
+
                       setShowSaleModal(false);
                       setSelectedPostId('');
                       setSalePrice('');
                       setSaleError(null);
-                      alert('売却リクエストを作成しました');
                     } catch (error: any) {
                       console.error('売却リクエストの作成に失敗しました:', error);
                       setSaleError(error.message || '売却リクエストの作成に失敗しました');
@@ -1000,9 +1100,11 @@ function MessageThread({
                   isLoading={isSubmittingSale}
                   loadingText="送信中..."
                   style={{
-                    backgroundColor: '#E65D65',
+                    backgroundColor: isSaleButtonHovered ? '#D14C54' : '#E65D65',
                     color: '#fff'
                   }}
+                  onMouseEnter={() => setIsSaleButtonHovered(true)}
+                  onMouseLeave={() => setIsSaleButtonHovered(false)}
                 >
                   送信
                 </Button>

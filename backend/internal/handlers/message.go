@@ -8,6 +8,7 @@ import (
 	"mime"
 	"net/http"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -313,6 +314,22 @@ func (s *Server) GetThreads(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// ページネーションパラメータ
+	limit := 50 // デフォルト50件
+	offset := 0
+
+	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
+		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 && l <= 100 {
+			limit = l
+		}
+	}
+
+	if offsetStr := r.URL.Query().Get("offset"); offsetStr != "" {
+		if o, err := strconv.Atoi(offsetStr); err == nil && o >= 0 {
+			offset = o
+		}
+	}
+
 	client, err := s.supabase.GetImpersonateClient(userID)
 	if err != nil {
 		log.Printf("[GetThreads] Failed to get impersonate client: %v", err)
@@ -352,6 +369,8 @@ func (s *Server) GetThreads(w http.ResponseWriter, r *http.Request) {
 	_, err = serviceClient.From("threads").
 		Select("id, created_by, related_post_id, created_at", "", false).
 		In("id", threadIDList).
+		Order("created_at", nil). // 新しいスレッドから取得
+		Range(offset, offset+limit-1, "").
 		ExecuteTo(&threadRows)
 
 	if err != nil {
@@ -904,6 +923,22 @@ func (s *Server) GetMessages(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// ページネーションパラメータ
+	limit := 50 // デフォルト50件
+	offset := 0
+
+	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
+		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 && l <= 100 {
+			limit = l
+		}
+	}
+
+	if offsetStr := r.URL.Query().Get("offset"); offsetStr != "" {
+		if o, err := strconv.Atoi(offsetStr); err == nil && o >= 0 {
+			offset = o
+		}
+	}
+
 	client, err := s.supabase.GetImpersonateClient(userID)
 	if err != nil {
 		log.Printf("[GetMessages] Failed to get impersonate client: %v", err)
@@ -915,7 +950,8 @@ func (s *Server) GetMessages(w http.ResponseWriter, r *http.Request) {
 	_, err = client.From("messages").
 		Select("id, thread_id, sender_user_id, type, text, created_at", "", false).
 		Eq("thread_id", threadID).
-		Order("created_at", nil).
+		Order("created_at", nil). // 新しいメッセージから取得
+		Range(offset, offset+limit-1, "").
 		ExecuteTo(&messageRows)
 
 	if err != nil {
