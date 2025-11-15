@@ -103,5 +103,5 @@ export default async function NewBoardPost() {
   const initialPosts = await getPosts();
   const sidebarData = await getSidebarData();
 
-  return <PostBoardPage initialPosts={initialPosts} sidebarData={sidebarData} />;
+  return <PostBoardPage initialPosts={initialPosts} sidebarData={sidebarData ?? undefined} />;
 }

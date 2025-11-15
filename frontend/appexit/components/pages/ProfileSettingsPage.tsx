@@ -88,8 +88,7 @@ export default function ProfileSettingsPage() {
       setIsLoadingPosts(true)
 
       const offset = loadMore ? watchingOffset : 0
-      const { createClient } = await import('@/lib/supabase')
-      const supabase = createClient()
+      const { supabase } = await import('@/lib/supabase')
 
       // ページネーション付きでアクティブビューを取得
       const { data: activeViews, error: activeViewError } = await supabase
@@ -138,7 +137,11 @@ export default function ProfileSettingsPage() {
           profit_margin,
           status,
           updated_at,
-          active_view_count
+          active_view_count,
+          author_user_id,
+          type,
+          is_active,
+          created_at
         `)
         .in('id', postIds)
 
@@ -150,11 +153,13 @@ export default function ProfileSettingsPage() {
 
       console.log('[ProfileSettings] Loaded watching posts:', posts)
 
+      const typedPosts = (posts || []) as Post[]
+
       if (loadMore) {
-        setWatchingPosts(prev => [...prev, ...(posts || [])])
+        setWatchingPosts(prev => [...prev, ...typedPosts])
         setWatchingOffset(offset + POSTS_PER_PAGE)
       } else {
-        setWatchingPosts(posts || [])
+        setWatchingPosts(typedPosts)
         setWatchingOffset(POSTS_PER_PAGE)
       }
     } catch (err) {
