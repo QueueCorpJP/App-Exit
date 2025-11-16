@@ -8,6 +8,7 @@ import (
 )
 
 var emailRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
+var phoneRegex = regexp.MustCompile(`^\+?[1-9]\d{1,14}$`) // E.164形式の電話番号
 
 func ValidateEmail(email string) error {
 	if !emailRegex.MatchString(email) {
@@ -19,6 +20,16 @@ func ValidateEmail(email string) error {
 func ValidatePassword(password string) error {
 	if len(password) < 8 {
 		return fmt.Errorf("password must be at least 8 characters long")
+	}
+	return nil
+}
+
+func ValidatePhoneNumber(phone string) error {
+	if phone == "" {
+		return nil // 電話番号は任意
+	}
+	if !phoneRegex.MatchString(phone) {
+		return fmt.Errorf("invalid phone number format (E.164 format required, e.g., +819012345678)")
 	}
 	return nil
 }
@@ -369,6 +380,11 @@ func validateCreateSaleRequestRequest(req models.CreateSaleRequestRequest) error
 	// Validate price is required and positive
 	if req.Price < 1 {
 		return fmt.Errorf("price must be at least 1")
+	}
+
+	// Validate phone number if provided
+	if err := ValidatePhoneNumber(req.PhoneNumber); err != nil {
+		return err
 	}
 
 	return nil

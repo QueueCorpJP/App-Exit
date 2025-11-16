@@ -19,6 +19,7 @@ type SaleRequest struct {
 	UserID          string            `json:"user_id"`
 	PostID          string            `json:"post_id"`
 	Price           int64             `json:"price"`
+	PhoneNumber     string            `json:"phone_number,omitempty"`
 	Status          SaleRequestStatus `json:"status"`
 	PaymentIntentID string            `json:"payment_intent_id,omitempty"`
 	CreatedAt       time.Time         `json:"created_at"`
@@ -27,9 +28,10 @@ type SaleRequest struct {
 
 // CreateSaleRequestRequest is used to create a new sale request
 type CreateSaleRequestRequest struct {
-	ThreadID string `json:"thread_id" validate:"required"`
-	PostID   string `json:"post_id" validate:"required"`
-	Price    int64  `json:"price" validate:"required,min=1"`
+	ThreadID    string `json:"thread_id" validate:"required"`
+	PostID      string `json:"post_id" validate:"required"`
+	Price       int64  `json:"price" validate:"required,min=1"`
+	PhoneNumber string `json:"phone_number,omitempty" validate:"omitempty,e164"`
 }
 
 // SaleRequestWithPost includes sale request with post information

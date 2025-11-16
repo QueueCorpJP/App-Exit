@@ -652,7 +652,7 @@ export const messageApi = {
   },
 
   // 売却リクエストを作成
-  createSaleRequest: (data: { thread_id: string; post_id: string; price: number }) =>
+  createSaleRequest: (data: { thread_id: string; post_id: string; price: number; phone_number?: string }) =>
     apiClient.post<SaleRequest>('/api/sale-requests', data),
 
   // 売却リクエストを取得
@@ -662,6 +662,10 @@ export const messageApi = {
   // 売却リクエストを返金
   refundSaleRequest: (data: { sale_request_id: string; amount?: number; reason?: string }) =>
     apiClient.post<{ refund_id: string; amount: number; status: string; message: string }>('/api/sale-requests/refund', data),
+
+  // 売却リクエストを確定（決済処理）
+  confirmSaleRequest: (data: { sale_request_id: string }) =>
+    apiClient.post<{ client_secret: string; amount: number; sale_request_id: string; payment_intent_id: string }>('/api/sale-requests/confirm', data),
 };
 
 /**
@@ -673,9 +677,12 @@ export interface SaleRequest {
   user_id: string;
   post_id: string;
   price: number;
+  phone_number?: string;
   status: 'pending' | 'active' | 'completed' | 'cancelled';
+  payment_intent_id?: string;
   created_at: string;
   updated_at: string;
+  post?: Post; // 投稿情報（SaleRequestWithPostの場合）
 }
 
 /**

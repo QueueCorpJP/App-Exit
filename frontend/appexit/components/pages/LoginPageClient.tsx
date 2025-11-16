@@ -22,14 +22,19 @@ export default function LoginPageClient({ error: serverError }: LoginPageClientP
     setIsLoading(true);
     try {
       const redirectUrl = typeof window !== 'undefined' ? `${window.location.origin}/login` : undefined;
+      console.log('[LOGIN] Starting OAuth login:', { method, redirectUrl });
+
       const result = await loginWithOAuth({ method, redirect_url: redirectUrl });
+      console.log('[LOGIN] OAuth response:', result);
+
       if (result.type === 'oauth' && result.provider_url) {
+        console.log('[LOGIN] Redirecting to provider:', result.provider_url);
         window.location.href = result.provider_url;
         return;
       }
       throw new Error('OAuthの初期化に失敗しました');
     } catch (err) {
-      console.error('OAuth login error:', err);
+      console.error('[LOGIN] OAuth login error:', err);
       setError(err instanceof Error ? err.message : 'OAuthログインに失敗しました');
     } finally {
       setIsLoading(false);

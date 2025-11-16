@@ -62,6 +62,7 @@ function MessageThread({
   const [userPosts, setUserPosts] = useState<Post[]>([]);
   const [selectedPostId, setSelectedPostId] = useState<string>('');
   const [salePrice, setSalePrice] = useState<string>('');
+  const [phoneNumber, setPhoneNumber] = useState<string>('');
   const [isLoadingPosts, setIsLoadingPosts] = useState(false);
   const [isSubmittingSale, setIsSubmittingSale] = useState(false);
   const [saleError, setSaleError] = useState<string | null>(null);
@@ -436,114 +437,37 @@ function MessageThread({
   const otherParticipant = threadDetail ? getOtherParticipant() : null;
   
   // 売却リクエストの状態を判定
-  const currentUserSaleRequest = saleRequests.find(req => req.user_id === currentUserId && (req.status === 'pending' || req.status === 'active'));
-  const otherUserSaleRequest = saleRequests.find(req => req.user_id !== currentUserId && (req.status === 'pending' || req.status === 'active'));
-
-  // 返金処理中の状態
-  const [isRefunding, setIsRefunding] = useState(false);
-  const [refundError, setRefundError] = useState<string | null>(null);
-
-  // 返金処理
-  const handleRefund = async (saleRequestId: string) => {
-    if (!confirm('本当に返金しますか？この操作は取り消せません。')) {
-      return;
-    }
-
-    try {
-      setIsRefunding(true);
-      setRefundError(null);
-
-      await messageApi.refundSaleRequest({
-        sale_request_id: saleRequestId,
-        reason: 'requested_by_customer',
-      });
-
-      // 売却リクエストを再取得
-      if (threadDetail?.id) {
-        const requests = await messageApi.getSaleRequests(threadDetail.id);
-        setSaleRequests(Array.isArray(requests) ? requests : []);
-      }
-
-      alert('返金が完了しました');
-    } catch (error: any) {
-      console.error('返金に失敗しました:', error);
-      let errorMessage = '返金に失敗しました';
-      if (error.response && error.response.data && error.response.data.error) {
-        errorMessage = error.response.data.error;
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-      setRefundError(errorMessage);
-      alert(errorMessage);
-    } finally {
-      setIsRefunding(false);
-    }
-  };
+  const currentUserSaleRequest = saleRequests.find(req => req.user_id === currentUserId && req.status === 'pending');
+  const otherUserSaleRequest = saleRequests.find(req => req.user_id !== currentUserId && req.status === 'pending');
   
   // ボタンの表示を判定
   const getSaleButtonConfig = () => {
     if (currentUserSaleRequest) {
       // 自分が売却リクエストを出している場合
-      if (currentUserSaleRequest.status === 'active') {
-        // 決済完了済み - 返金ボタンを表示
-        return {
-          text: '返金する',
-          color: '#E65D65',
-          hoverColor: '#D14C54',
-          textColor: '#E65D65',
-          backgroundColor: 'transparent',
-          hoverBackgroundColor: 'transparent',
-          borderColor: '#E65D65',
-          hoverBorderColor: '#D14C54',
-          disabled: false,
-          isRefund: true,
-        };
-      } else {
-        // 決済待ち
-        return {
-          text: '売却中（決済待ち）',
-          color: '#E65D65',
-          hoverColor: '#D14C54',
-          textColor: '#FFFFFF',
-          backgroundColor: '#E65D65',
-          hoverBackgroundColor: '#D14C54',
-          borderColor: '#E65D65',
-          hoverBorderColor: '#D14C54',
-          disabled: true,
-          isRefund: false,
-        };
-      }
+      return {
+        text: '売却中',
+        color: '#E65D65',
+        hoverColor: '#D14C54',
+        textColor: '#FFFFFF',
+        backgroundColor: '#E65D65',
+        hoverBackgroundColor: '#D14C54',
+        borderColor: '#E65D65',
+        hoverBorderColor: '#D14C54',
+        disabled: true,
+      };
     } else if (otherUserSaleRequest) {
       // 相手が売却リクエストを出している場合
-      if (otherUserSaleRequest.status === 'active') {
-        // 既に決済済み - 返金ボタンを表示
-        return {
-          text: '返金する',
-          color: '#E65D65',
-          hoverColor: '#D14C54',
-          textColor: '#E65D65',
-          backgroundColor: 'transparent',
-          hoverBackgroundColor: 'transparent',
-          borderColor: '#E65D65',
-          hoverBorderColor: '#D14C54',
-          disabled: false,
-          isRefund: true,
-        };
-      } else {
-        // 決済待ち
-        return {
-          text: '買収する',
-          color: '#E65D65',
-          hoverColor: '#D14C54',
-          textColor: '#E65D65',
-          backgroundColor: 'transparent',
-          hoverBackgroundColor: 'transparent',
-          borderColor: '#E65D65',
-          hoverBorderColor: '#D14C54',
-          disabled: false,
-          isRefund: false,
-        };
-      }
+      return {
+        text: '買収する',
+        color: '#E65D65',
+        hoverColor: '#D14C54',
+        textColor: '#E65D65',
+        backgroundColor: 'transparent',
+        hoverBackgroundColor: 'transparent',
+        borderColor: '#E65D65',
+        hoverBorderColor: '#D14C54',
+        disabled: false,
+      };
     } else {
       // デフォルト
       return {
@@ -556,7 +480,6 @@ function MessageThread({
         borderColor: '#E65D65',
         hoverBorderColor: '#D14C54',
         disabled: false,
-        isRefund: false,
       };
     }
   };
@@ -654,16 +577,7 @@ function MessageThread({
               }}
               onClick={() => {
                 if (!saleButtonConfig.disabled) {
-                  if (saleButtonConfig.isRefund) {
-                    // 返金処理
-                    const saleRequest = currentUserSaleRequest || otherUserSaleRequest;
-                    if (saleRequest) {
-                      handleRefund(saleRequest.id);
-                    }
-                  } else {
-                    // 売却/買収モーダルを開く
-                    setShowSaleModal(true);
-                  }
+                  setShowSaleModal(true);
                 }
               }}
               onMouseEnter={() => setIsSaleButtonHovered(true)}
@@ -998,8 +912,8 @@ function MessageThread({
         </form>
       </div>
 
-      {/* 売却モーダル */}
-      {showSaleModal && (
+      {/* 売却モーダル（売却側） */}
+      {showSaleModal && !otherUserSaleRequest && (
         <div 
           className="fixed inset-0 flex items-center justify-center z-50 py-12 sm:px-6"
           style={{ backgroundColor: 'rgba(0, 0, 0, 0.2)' }}
@@ -1047,6 +961,7 @@ function MessageThread({
                     setShowSaleModal(false);
                     setSelectedPostId('');
                     setSalePrice('');
+                    setPhoneNumber('');
                     setSaleError(null);
                   }}
                   className="p-1 hover:bg-gray-100 rounded-full transition-colors"
@@ -1140,6 +1055,38 @@ function MessageThread({
                 </div>
               </div>
 
+              {/* 電話番号 */}
+              <div>
+                <label htmlFor="phone-input" className="block text-sm font-medium text-gray-700">
+                  電話番号（任意）
+                </label>
+                <div className="mt-1">
+                  <input
+                    id="phone-input"
+                    type="tel"
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    placeholder="例: +819012345678"
+                    className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none sm:text-sm text-gray-900"
+                    style={{
+                      '--tw-ring-color': '#E65D65'
+                    } as React.CSSProperties}
+                    onFocus={(e) => {
+                      e.currentTarget.style.borderColor = '#E65D65'
+                      e.currentTarget.style.outline = '2px solid #E65D65'
+                      e.currentTarget.style.outlineOffset = '0px'
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.borderColor = '#D1D5DB'
+                      e.currentTarget.style.outline = 'none'
+                    }}
+                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    国際形式（E.164）で入力してください（例: +819012345678）
+                  </p>
+                </div>
+              </div>
+
               {/* 送信ボタン */}
               <div className="space-y-3">
                 <Button
@@ -1164,6 +1111,7 @@ function MessageThread({
                         thread_id: threadDetail.id,
                         post_id: selectedPostId,
                         price: price,
+                        phone_number: phoneNumber || undefined,
                       });
 
                       // 売却リクエストのリストを再取得
@@ -1173,17 +1121,11 @@ function MessageThread({
                       setShowSaleModal(false);
                       setSelectedPostId('');
                       setSalePrice('');
+                      setPhoneNumber('');
                       setSaleError(null);
                     } catch (error: any) {
                       console.error('売却リクエストの作成に失敗しました:', error);
-                      // バックエンドからのエラーメッセージを優先的に表示
-                      let errorMessage = '売却リクエストの作成に失敗しました';
-                      if (error.response && error.response.data && error.response.data.error) {
-                        errorMessage = error.response.data.error;
-                      } else if (error.message) {
-                        errorMessage = error.message;
-                      }
-                      setSaleError(errorMessage);
+                      setSaleError(error.message || '売却リクエストの作成に失敗しました');
                     } finally {
                       setIsSubmittingSale(false);
                     }
@@ -1208,6 +1150,7 @@ function MessageThread({
                     setShowSaleModal(false);
                     setSelectedPostId('');
                     setSalePrice('');
+                    setPhoneNumber('');
                     setSaleError(null);
                   }}
                   variant="outline"
@@ -1218,6 +1161,150 @@ function MessageThread({
                 </Button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* 買収モーダル（買収側） */}
+      {showSaleModal && otherUserSaleRequest && (
+        <div
+          className="fixed inset-0 flex items-center justify-center z-50 py-12 sm:px-6"
+          style={{ backgroundColor: 'rgba(0, 0, 0, 0.2)' }}
+        >
+          <div className="bg-white py-8 px-4 sm:px-10 rounded-md w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h2
+                className="text-lg font-bold text-center flex-1"
+                style={{
+                  color: '#323232',
+                  fontWeight: 900,
+                  fontSize: '1.125rem',
+                  letterSpacing: '0.02em'
+                }}
+              >
+                売却情報
+              </h2>
+              <button
+                onClick={() => {
+                  setShowSaleModal(false);
+                  setSaleError(null);
+                }}
+                className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+
+            {saleError && (
+              <div className="rounded-md bg-red-50 p-4 mb-6">
+                <div className="text-sm text-red-700">{saleError}</div>
+              </div>
+            )}
+
+            <div className="space-y-6">
+              {/* プロダクト名 */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  プロダクト名
+                </label>
+                <div className="p-3 bg-gray-50 rounded-md">
+                  <p className="text-gray-900">{otherUserSaleRequest.post?.title || '情報なし'}</p>
+                </div>
+              </div>
+
+              {/* 価格 */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  価格
+                </label>
+                <div className="p-3 bg-gray-50 rounded-md">
+                  <p className="text-gray-900 font-bold text-lg">
+                    {otherUserSaleRequest.price ? `¥${otherUserSaleRequest.price.toLocaleString()}` : '情報なし'}
+                  </p>
+                </div>
+              </div>
+
+              {/* 電話番号 */}
+              {otherUserSaleRequest.phone_number && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    電話番号
+                  </label>
+                  <div className="p-3 bg-gray-50 rounded-md">
+                    <p className="text-gray-900">{otherUserSaleRequest.phone_number}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* メールアドレス（売却者のプロフィール情報から取得する場合） */}
+              {otherParticipant?.email && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    メールアドレス
+                  </label>
+                  <div className="p-3 bg-gray-50 rounded-md">
+                    <p className="text-gray-900">{otherParticipant.email}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* 買収ボタン */}
+              <div className="space-y-3">
+                <Button
+                  type="button"
+                  onClick={async () => {
+                    if (!otherUserSaleRequest?.id) {
+                      setSaleError('売却リクエストが見つかりません');
+                      return;
+                    }
+
+                    try {
+                      setIsSubmittingSale(true);
+                      setSaleError(null);
+
+                      // バックエンドからクライアントシークレットを取得
+                      const response = await messageApi.confirmSaleRequest({
+                        sale_request_id: otherUserSaleRequest.id,
+                      });
+
+                      // Stripe決済ページへリダイレクト
+                      // TODO: Stripe.jsを使った決済フローを実装
+                      // 一旦、決済ページへリダイレクトする処理を追加
+                      window.location.href = `/payment/checkout?client_secret=${response.client_secret}&sale_request_id=${response.sale_request_id}`;
+                    } catch (error: any) {
+                      console.error('決済処理に失敗しました:', error);
+                      setSaleError(error.message || '決済処理に失敗しました');
+                    } finally {
+                      setIsSubmittingSale(false);
+                    }
+                  }}
+                  variant="primary"
+                  className="w-full"
+                  disabled={isSubmittingSale}
+                  isLoading={isSubmittingSale}
+                  loadingText="処理中..."
+                  style={{
+                    backgroundColor: isSaleButtonHovered ? '#D14C54' : '#E65D65',
+                    color: '#fff'
+                  }}
+                  onMouseEnter={() => setIsSaleButtonHovered(true)}
+                  onMouseLeave={() => setIsSaleButtonHovered(false)}
+                >
+                  買収する
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() => {
+                    setShowSaleModal(false);
+                    setSaleError(null);
+                  }}
+                  variant="outline"
+                  className="w-full"
+                >
+                  閉じる
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
       )}

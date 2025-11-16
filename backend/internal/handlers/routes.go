@@ -114,6 +114,13 @@ func SetupRoutes(cfg *config.Config) http.Handler {
 	fmt.Println("[ROUTES] Registered: /api/contracts/ (with auth)")
 
 	// Sale request routes (protected)
+	mux.HandleFunc("/api/sale-requests/confirm", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			auth(server.ConfirmSaleRequest)(w, r)
+		} else {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
 	mux.HandleFunc("/api/sale-requests/refund", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
 			auth(server.RefundSaleRequest)(w, r)
@@ -132,6 +139,7 @@ func SetupRoutes(cfg *config.Config) http.Handler {
 		}
 	})
 	fmt.Println("[ROUTES] Registered: /api/sale-requests (with auth)")
+	fmt.Println("[ROUTES] Registered: /api/sale-requests/confirm (with auth)")
 	fmt.Println("[ROUTES] Registered: /api/sale-requests/refund (with auth)")
 
 	// Post routes

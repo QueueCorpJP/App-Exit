@@ -2051,6 +2051,7 @@ func (s *Server) CreateSaleRequest(w http.ResponseWriter, r *http.Request) {
 		UserID          string `json:"user_id"`
 		PostID          string `json:"post_id"`
 		Price           int64  `json:"price"`
+		PhoneNumber     string `json:"phone_number,omitempty"`
 		Status          string `json:"status"`
 		PaymentIntentID string `json:"payment_intent_id"`
 	}
@@ -2060,6 +2061,7 @@ func (s *Server) CreateSaleRequest(w http.ResponseWriter, r *http.Request) {
 		UserID:          userID,
 		PostID:          req.PostID,
 		Price:           req.Price,
+		PhoneNumber:     req.PhoneNumber,
 		Status:          string(models.SaleRequestStatusPending),
 		PaymentIntentID: paymentIntent.ID,
 	}
@@ -2267,10 +2269,10 @@ func (s *Server) GetSaleRequests(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// 売却リクエストを取得
-	var saleRequests []models.SaleRequest
+	// 売却リクエストを取得（投稿情報も含む）
+	var saleRequests []models.SaleRequestWithPost
 	_, err = client.From("sale_requests").
-		Select("*", "", false).
+		Select("*, post:posts(*)", "", false).
 		Eq("thread_id", threadID).
 		Order("created_at", nil).
 		ExecuteTo(&saleRequests)
@@ -2282,4 +2284,73 @@ func (s *Server) GetSaleRequests(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response.Success(w, http.StatusOK, saleRequests)
+}
+
+// ConfirmSaleRequest confirms a sale request and processes payment
+func (s *Server) ConfirmSaleRequest(w http.ResponseWriter, r *http.Request) {
+	userID, ok := utils.RequireUserID(r, w)
+	if !ok {
+		return
+	}
+
+	var req struct {
+		SaleRequestID string `json:"sale_request_id"`
+	}
+	if !utils.DecodeAndValidate(r, w, &req) {
+		return
+	}
+
+	client, err := s.supabase.GetImpersonateClient(userID)
+	if err != nil {
+		log.Printf("[ConfirmSaleRequest] Failed to get impersonate client: %v", err)
+		response.Error(w, http.StatusInternalServerError, "Failed to confirm sale request")
+		return
+	}
+
+	// 売却リクエストを取得
+	var saleRequests []models.SaleRequest
+	_, err = client.From("sale_requests").
+		Select("*", "", false).
+		Eq("id", req.SaleRequestID).
+		ExecuteTo(&saleRequests)
+
+	if err != nil || len(saleRequests) == 0 {
+		log.Printf("[ConfirmSaleRequest] Sale request not found: %v", err)
+		response.Error(w, http.StatusNotFound, "Sale request not found")
+		return
+	}
+
+	saleRequest := saleRequests[0]
+
+	// 売り手本人でないことを確認（買い手のみが確定できる）
+	if saleRequest.UserID == userID {
+		log.Printf("[ConfirmSaleRequest] Seller cannot confirm their own sale request")
+		response.Error(w, http.StatusForbidden, "You cannot confirm your own sale request")
+		return
+	}
+
+	// ステータスがpendingであることを確認
+	if saleRequest.Status != models.SaleRequestStatusPending {
+		log.Printf("[ConfirmSaleRequest] Sale request is not in pending status: %s", saleRequest.Status)
+		response.Error(w, http.StatusBadRequest, "Sale request is not in pending status")
+		return
+	}
+
+	// 買い手（現在のユーザー）のクライアントシークレットを取得して返す
+	// フロントエンドでStripe.jsを使って決済を完了させる
+	ctx := r.Context()
+	paymentIntent, err := s.stripeService.GetPaymentIntent(ctx, saleRequest.PaymentIntentID)
+	if err != nil {
+		log.Printf("[ConfirmSaleRequest] Failed to get payment intent: %v", err)
+		response.Error(w, http.StatusInternalServerError, "Failed to get payment intent")
+		return
+	}
+
+	// クライアントシークレットを返す
+	response.Success(w, http.StatusOK, map[string]interface{}{
+		"client_secret":    paymentIntent.ClientSecret,
+		"amount":           paymentIntent.Amount,
+		"sale_request_id":  saleRequest.ID,
+		"payment_intent_id": saleRequest.PaymentIntentID,
+	})
 }

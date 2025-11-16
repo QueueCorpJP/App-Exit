@@ -32,9 +32,23 @@ func (c *Config) IsSecureCookie() bool {
 }
 
 func LoadConfig() *Config {
+	env := getEnv("ENV", "development")
+
+	// ENV に応じて適切な Stripe キーを選択
+	var stripeSecretKey, stripePublicKey, stripeWebhookSecret string
+	if env == "production" {
+		stripeSecretKey = getEnv("STRIPE_LIVE_SECRET_KEY", "")
+		stripePublicKey = getEnv("STRIPE_LIVE_PUBLIC_KEY", "")
+		stripeWebhookSecret = getEnv("STRIPE_LIVE_WEBHOOK_SECRET", "")
+	} else {
+		stripeSecretKey = getEnv("STRIPE_TEST_SECRET_KEY", "")
+		stripePublicKey = getEnv("STRIPE_TEST_PUBLIC_KEY", "")
+		stripeWebhookSecret = getEnv("STRIPE_TEST_WEBHOOK_SECRET", "")
+	}
+
 	cfg := &Config{
 		ServerPort:         getEnv("PORT", "8080"),
-		Environment:        getEnv("ENV", "development"),
+		Environment:        env,
 		BackendURL:         getEnv("BACKEND_URL", "http://localhost:8080"),
 		FrontendURL:        getEnv("FRONTEND_URL", "http://localhost:3000"),
 		SupabaseURL:        getEnv("SUPABASE_URL", ""),
@@ -42,9 +56,9 @@ func LoadConfig() *Config {
 		SupabaseServiceKey: getEnv("SUPABASE_SERVICE_ROLE_KEY", ""),
 		SupabaseJWTSecret:  getEnv("SUPABASE_JWT_SECRET", ""),
 		AllowedOrigins:     parseAllowedOrigins(),
-		StripeSecretKey:    getEnv("STRIPE_SECRET_KEY", ""),
-		StripePublicKey:    getEnv("STRIPE_PUBLIC_KEY", ""),
-		StripeWebhookSecret: getEnv("STRIPE_WEBHOOK_SECRET", ""),
+		StripeSecretKey:    stripeSecretKey,
+		StripePublicKey:    stripePublicKey,
+		StripeWebhookSecret: stripeWebhookSecret,
 	}
 
 	// 必須の環境変数をチェック
