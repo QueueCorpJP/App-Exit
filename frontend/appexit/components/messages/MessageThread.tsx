@@ -1236,17 +1236,6 @@ function MessageThread({
                 </div>
               )}
 
-              {/* メールアドレス（売却者のプロフィール情報から取得する場合） */}
-              {otherParticipant?.email && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    メールアドレス
-                  </label>
-                  <div className="p-3 bg-gray-50 rounded-md">
-                    <p className="text-gray-900">{otherParticipant.email}</p>
-                  </div>
-                </div>
-              )}
 
               {/* 買収ボタン */}
               <div className="space-y-3">
