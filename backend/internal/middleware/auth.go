@@ -102,7 +102,7 @@ func AuthWithSupabase(supabaseJWTSecret string, supabaseService *services.Supaba
 
 			if err != nil {
 				fmt.Printf("[AUTH] ❌ ERROR: Token parsing failed: %v\n", err)
-				fmt.Printf("[AUTH] Token string (first 100 chars): %s...\n", tokenString[:min(100, len(tokenString))])
+				fmt.Printf("[AUTH] Token string length: %d\n", len(tokenString))
 				fmt.Printf("[AUTH] JWT Secret length: %d\n", len(supabaseJWTSecret))
 				fmt.Printf("========== AUTH MIDDLEWARE END (FAILED) ==========\n\n")
 				response.Error(w, http.StatusUnauthorized, "Token expired or invalid. Please refresh token.")
