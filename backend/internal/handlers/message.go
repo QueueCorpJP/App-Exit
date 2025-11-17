@@ -1104,23 +1104,27 @@ func (s *Server) SendMessage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 🔒 SECURITY: メッセージテキストをサニタイズ（XSS攻撃防止）
-	sanitizedText := utils.SanitizeText(utils.SanitizeInput{
-		Value:      req.Text,
-		MaxLength:  utils.MaxTextareaLength,
-		AllowHTML:  false,
-		StrictMode: false,
-	})
+	var sanitizedTextPtr *string
+	if req.Text != nil {
+		sanitizedText := utils.SanitizeText(utils.SanitizeInput{
+			Value:      *req.Text,
+			MaxLength:  utils.MaxTextareaLength,
+			AllowHTML:  false,
+			StrictMode: false,
+		})
 
-	if !sanitizedText.IsValid {
-		log.Printf("[SendMessage] Message contains potentially malicious content: %v", sanitizedText.Errors)
-		// 警告のみ、サニタイズ済みテキストを使用
+		if !sanitizedText.IsValid {
+			log.Printf("[SendMessage] Message contains potentially malicious content: %v", sanitizedText.Errors)
+			// 警告のみ、サニタイズ済みテキストを使用
+		}
+		sanitizedTextPtr = &sanitizedText.Sanitized
 	}
 
 	insertData := messageInsert{
 		ThreadID:     req.ThreadID,
 		SenderUserID: userID,
 		Type:         string(req.Type),
-		Text:         sanitizedText.Sanitized,
+		Text:         sanitizedTextPtr,
 	}
 
 	var messageResp []messageResponse
@@ -2250,7 +2254,7 @@ func (s *Server) VerifyPayment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 🔒 決済状態をチェック（activeまたはcompletedのみ許可）
-	if sr.Status != string(models.SaleRequestStatusActive) && sr.Status != string(models.SaleRequestStatusCompleted) {
+	if sr.Status != models.SaleRequestStatusActive && sr.Status != models.SaleRequestStatusCompleted {
 		log.Printf("[VerifyPayment] Invalid payment status: %s", sr.Status)
 		response.Error(w, http.StatusPaymentRequired, "Payment not completed")
 		return

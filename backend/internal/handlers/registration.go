@@ -188,17 +188,6 @@ func (s *Server) RegisterStep3(w http.ResponseWriter, r *http.Request) {
 	}
 	req.DisplayName = displayNameResult.Sanitized
 
-	// 🔒 SECURITY: ユーザー名をバリデート
-	if req.Username != nil && *req.Username != "" {
-		usernameResult := utils.SanitizeUsername(*req.Username)
-		if !usernameResult.IsValid {
-			response.Error(w, http.StatusBadRequest, fmt.Sprintf("ユーザー名に不正な文字が含まれています: %s", strings.Join(usernameResult.Errors, ", ")))
-			return
-		}
-		sanitizedUsername := usernameResult.Sanitized
-		req.Username = &sanitizedUsername
-	}
-
 	if strings.TrimSpace(req.DisplayName) == "" {
 		response.Error(w, http.StatusBadRequest, "表示名を入力してください")
 		return
