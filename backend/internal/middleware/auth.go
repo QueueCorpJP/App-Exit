@@ -76,6 +76,33 @@ func AuthWithSupabase(supabaseJWTSecret string, supabaseService *services.Supaba
 				}
 			}
 
+			// 1.6. r.Cookie()が失敗する場合は、Cookieヘッダーを手動でパース（Nginx経由の場合）
+			if tokenString == "" {
+				fmt.Printf("[AUTH] r.Cookie() failed, manually parsing Cookie header...\n")
+				cookieHeader := r.Header.Get("Cookie")
+				if cookieHeader != "" {
+					fmt.Printf("[AUTH] Raw Cookie header: %s\n", cookieHeader[:min(100, len(cookieHeader))])
+					// Cookie形式: "name1=value1; name2=value2; ..."
+					cookies := strings.Split(cookieHeader, ";")
+					for _, c := range cookies {
+						c = strings.TrimSpace(c)
+						parts := strings.SplitN(c, "=", 2)
+						if len(parts) == 2 {
+							name := strings.TrimSpace(parts[0])
+							value := strings.TrimSpace(parts[1])
+							if name == "access_token" && value != "" {
+								tokenString = value
+								fmt.Printf("[AUTH] ✓ Token found in manually parsed access_token (length: %d)\n", len(tokenString))
+								break
+							} else if name == "auth_token" && value != "" && tokenString == "" {
+								tokenString = value
+								fmt.Printf("[AUTH] ✓ Token found in manually parsed auth_token (length: %d)\n", len(tokenString))
+							}
+						}
+					}
+				}
+			}
+
 			// 2. Cookieが両方ない場合はAuthorizationヘッダーをチェック（後方互換）
 			if tokenString == "" {
 				fmt.Printf("[AUTH] No token found in cookies, checking Authorization header...\n")
