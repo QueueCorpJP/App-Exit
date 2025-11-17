@@ -39,14 +39,18 @@ func AuthWithSupabase(supabaseJWTSecret string, supabaseService *services.Supaba
 			fmt.Printf("[AUTH] Origin: %s\n", r.Header.Get("Origin"))
 			fmt.Printf("[AUTH] User-Agent: %s\n", r.Header.Get("User-Agent"))
 			fmt.Printf("[AUTH] All Headers:\n")
+			// List of sensitive headers to redact (case-insensitive)
+			sensitiveHeaders := map[string]struct{}{
+				"Authorization": {},
+				"Cookie":        {},
+				"Set-Cookie":    {},
+				"X-Api-Key":     {},
+				"X-Access-Token": {},
+			}
 			for key, values := range r.Header {
 				for _, value := range values {
-					if key == "Authorization" {
-						if len(value) > 20 {
-							fmt.Printf("[AUTH]   %s: %s...\n", key, value[:20])
-						} else {
-							fmt.Printf("[AUTH]   %s: %s\n", key, value)
-						}
+					if _, isSensitive := sensitiveHeaders[strings.Title(strings.ToLower(key))]; isSensitive {
+						fmt.Printf("[AUTH]   %s: [REDACTED]\n", key)
 					} else {
 						fmt.Printf("[AUTH]   %s: %s\n", key, value)
 					}
