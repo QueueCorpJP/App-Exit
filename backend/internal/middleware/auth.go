@@ -65,10 +65,20 @@ func AuthWithSupabase(supabaseJWTSecret string, supabaseService *services.Supaba
 			cookie, err := r.Cookie("access_token")
 			if err == nil && cookie.Value != "" {
 				tokenString = cookie.Value
-				fmt.Printf("[AUTH] ✓ Token found in cookie (length: %d)\n", len(tokenString))
+				fmt.Printf("[AUTH] ✓ Token found in access_token cookie (length: %d)\n", len(tokenString))
 			} else {
-				// 2. Cookieがない場合はAuthorizationヘッダーをチェック（後方互換）
-				fmt.Printf("[AUTH] Cookie not found, checking Authorization header...\n")
+				// 1.5. access_tokenがない場合はauth_tokenもチェック（後方互換）
+				fmt.Printf("[AUTH] access_token cookie not found, checking auth_token cookie...\n")
+				authTokenCookie, authTokenErr := r.Cookie("auth_token")
+				if authTokenErr == nil && authTokenCookie.Value != "" {
+					tokenString = authTokenCookie.Value
+					fmt.Printf("[AUTH] ✓ Token found in auth_token cookie (length: %d)\n", len(tokenString))
+				}
+			}
+
+			// 2. Cookieが両方ない場合はAuthorizationヘッダーをチェック（後方互換）
+			if tokenString == "" {
+				fmt.Printf("[AUTH] No token found in cookies, checking Authorization header...\n")
 				authHeader := r.Header.Get("Authorization")
 				if authHeader == "" {
 					fmt.Printf("[AUTH] ❌ ERROR: No authentication token found (neither cookie nor header)\n")
