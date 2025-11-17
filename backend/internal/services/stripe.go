@@ -247,14 +247,19 @@ func (s *StripeService) CreatePaymentIntent(
 	sellerAccountID string,
 	saleRequestID string,
 	applicationFeeAmount int64, // プラットフォーム手数料
+	metadata map[string]string, // 🔒 拡張メタデータ（追跡・監査用）
 ) (*stripe.PaymentIntent, error) {
+	// デフォルトメタデータを設定
+	if metadata == nil {
+		metadata = make(map[string]string)
+	}
+	metadata["sale_request_id"] = saleRequestID
+	metadata["platform"] = "appexit"
+
 	params := &stripe.PaymentIntentParams{
 		Amount:   stripe.Int64(amount),
 		Currency: stripe.String(currency),
-		Metadata: map[string]string{
-			"sale_request_id": saleRequestID,
-			"platform":        "appexit",
-		},
+		Metadata: metadata,
 		// 自動的な支払い方法の確認を有効化
 		AutomaticPaymentMethods: &stripe.PaymentIntentAutomaticPaymentMethodsParams{
 			Enabled: stripe.Bool(true),
@@ -268,6 +273,14 @@ func (s *StripeService) CreatePaymentIntent(
 	// プラットフォーム手数料を設定（オプション）
 	if applicationFeeAmount > 0 {
 		params.ApplicationFeeAmount = stripe.Int64(applicationFeeAmount)
+	}
+
+	// 🔒 SECURITY: Idempotency Keyを設定（二重課金防止）
+	// sale_request_idをベースにして一意なキーを生成
+	if saleRequestID != "" {
+		idempotencyKey := fmt.Sprintf("payment_intent_%s", saleRequestID)
+		params.SetIdempotencyKey(idempotencyKey)
+		log.Printf("[STRIPE] Using idempotency key: %s", idempotencyKey)
 	}
 
 	pi, err := paymentintent.New(params)

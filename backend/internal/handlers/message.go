@@ -1103,11 +1103,24 @@ func (s *Server) SendMessage(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// 🔒 SECURITY: メッセージテキストをサニタイズ（XSS攻撃防止）
+	sanitizedText := utils.SanitizeText(utils.SanitizeInput{
+		Value:      req.Text,
+		MaxLength:  utils.MaxTextareaLength,
+		AllowHTML:  false,
+		StrictMode: false,
+	})
+
+	if !sanitizedText.IsValid {
+		log.Printf("[SendMessage] Message contains potentially malicious content: %v", sanitizedText.Errors)
+		// 警告のみ、サニタイズ済みテキストを使用
+	}
+
 	insertData := messageInsert{
 		ThreadID:     req.ThreadID,
 		SenderUserID: userID,
 		Type:         string(req.Type),
-		Text:         req.Text,
+		Text:         sanitizedText.Sanitized,
 	}
 
 	var messageResp []messageResponse
@@ -1981,9 +1994,11 @@ func (s *Server) CreateSaleRequest(w http.ResponseWriter, r *http.Request) {
 	var sellerProfile []struct {
 		StripeAccountID           string `json:"stripe_account_id"`
 		StripeOnboardingCompleted bool   `json:"stripe_onboarding_completed"`
+		Username                  string `json:"username"`
+		Email                     string `json:"email"`
 	}
 	_, err = client.From("profiles").
-		Select("stripe_account_id,stripe_onboarding_completed", "", false).
+		Select("stripe_account_id,stripe_onboarding_completed,username,email", "", false).
 		Eq("id", userID).
 		ExecuteTo(&sellerProfile)
 
@@ -2023,18 +2038,108 @@ func (s *Server) CreateSaleRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// 🔒 セキュリティ: DBから投稿の正しい価格を取得（クライアントから送られた金額を信用しない）
+	var posts []struct {
+		Price int64 `json:"price"`
+	}
+	_, err = client.From("posts").
+		Select("price", "", false).
+		Eq("id", req.PostID).
+		ExecuteTo(&posts)
+
+	if err != nil || len(posts) == 0 {
+		log.Printf("[CreateSaleRequest] Failed to get post price: %v", err)
+		response.Error(w, http.StatusNotFound, "Post not found")
+		return
+	}
+
+	actualPrice := posts[0].Price
+
+	// 🔒 セキュリティ: クライアントから送られた金額と照合（整合性チェック）
+	if req.Price != actualPrice {
+		log.Printf("[SECURITY ALERT] Price mismatch detected: client=%d, actual=%d, user=%s, post=%s",
+			req.Price, actualPrice, userID, req.PostID)
+		response.Error(w, http.StatusBadRequest, "Price mismatch detected")
+		return
+	}
+
+	// 🔒 METADATA: スレッド参加者から買い手を特定（売り手以外の参加者）
+	var threadParticipants []struct {
+		UserID string `json:"user_id"`
+	}
+	_, err = client.From("thread_participants").
+		Select("user_id", "", false).
+		Eq("thread_id", req.ThreadID).
+		Neq("user_id", userID). // 売り手以外
+		ExecuteTo(&threadParticipants)
+
+	// 買い手情報を取得（スレッド参加者または作成者）
+	var buyerID string
+	if len(threadParticipants) > 0 {
+		buyerID = threadParticipants[0].UserID
+	} else {
+		// 参加者がいない場合はスレッド作成者を買い手とする
+		var threadInfo []struct {
+			CreatedBy string `json:"created_by"`
+		}
+		_, err = client.From("threads").
+			Select("created_by", "", false).
+			Eq("id", req.ThreadID).
+			ExecuteTo(&threadInfo)
+
+		if err != nil || len(threadInfo) == 0 || threadInfo[0].CreatedBy == userID {
+			log.Printf("[CreateSaleRequest] Could not find buyer in thread")
+			response.Error(w, http.StatusBadRequest, "No buyer found in thread")
+			return
+		}
+		buyerID = threadInfo[0].CreatedBy
+	}
+
+	// 買い手のプロフィールを取得
+	var buyerProfile []struct {
+		ID       string `json:"id"`
+		Username string `json:"username"`
+		Email    string `json:"email"`
+	}
+	_, err = client.From("profiles").
+		Select("id,username,email", "", false).
+		Eq("id", buyerID).
+		ExecuteTo(&buyerProfile)
+
+	if err != nil || len(buyerProfile) == 0 {
+		log.Printf("[CreateSaleRequest] Failed to get buyer profile: %v", err)
+		response.Error(w, http.StatusInternalServerError, "Failed to get buyer information")
+		return
+	}
+
 	// Stripe Payment Intentを作成（C2C決済用）
 	ctx := r.Context()
 	// プラットフォーム手数料: 10%
-	applicationFeeAmount := req.Price / 10
+	applicationFeeAmount := actualPrice / 10
 
+	// 🔒 METADATA: 充実化したメタデータで追跡・監査を可能にする
+	paymentMetadata := map[string]string{
+		"buyer_id":        buyerProfile[0].ID,
+		"buyer_username":  buyerProfile[0].Username,
+		"buyer_email":     buyerProfile[0].Email,
+		"seller_id":       userID, // 投稿作成者（売り手）
+		"seller_username": sellerProfile[0].Username,
+		"seller_email":    sellerProfile[0].Email,
+		"post_id":         req.PostID,
+		"thread_id":       req.ThreadID,
+		"price":           fmt.Sprintf("%d", actualPrice),
+		"currency":        "jpy",
+	}
+
+	// 🔒 セキュリティ: DB価格を使用（クライアント価格ではなく）
 	paymentIntent, err := s.stripeService.CreatePaymentIntent(
 		ctx,
-		req.Price,
-		"jpy", // 日本円
+		actualPrice, // DBから取得した正しい価格を使用
+		"jpy",       // 日本円
 		sellerProfile[0].StripeAccountID,
-		"", // sale_request_idは後で設定
+		"",                  // sale_request_idは後で設定
 		applicationFeeAmount,
+		paymentMetadata, // 🔒 充実化したメタデータを渡す
 	)
 
 	if err != nil {
@@ -2060,7 +2165,7 @@ func (s *Server) CreateSaleRequest(w http.ResponseWriter, r *http.Request) {
 		ThreadID:        req.ThreadID,
 		UserID:          userID,
 		PostID:          req.PostID,
-		Price:           req.Price,
+		Price:           actualPrice, // 🔒 DB価格を使用
 		PhoneNumber:     req.PhoneNumber,
 		Status:          string(models.SaleRequestStatusPending),
 		PaymentIntentID: paymentIntent.ID,
@@ -2084,6 +2189,74 @@ func (s *Server) CreateSaleRequest(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response.Success(w, http.StatusCreated, createdRequests[0])
+}
+
+// VerifyPayment 🔒 SECURITY: 決済の検証（決済完了ページアクセス時に必須）
+func (s *Server) VerifyPayment(w http.ResponseWriter, r *http.Request) {
+	userID, ok := utils.RequireUserID(r, w)
+	if !ok {
+		return
+	}
+
+	saleRequestID := r.URL.Query().Get("id")
+	paymentIntentID := r.URL.Query().Get("payment_intent")
+
+	if saleRequestID == "" || paymentIntentID == "" {
+		response.Error(w, http.StatusBadRequest, "id and payment_intent are required")
+		return
+	}
+
+	client, err := s.supabase.GetImpersonateClient(userID)
+	if err != nil {
+		log.Printf("[VerifyPayment] Failed to get impersonate client: %v", err)
+		response.Error(w, http.StatusInternalServerError, "Failed to verify payment")
+		return
+	}
+
+	// DBから sale_request を取得
+	var saleRequests []models.SaleRequest
+	_, err = client.From("sale_requests").
+		Select("*", "", false).
+		Eq("id", saleRequestID).
+		Eq("payment_intent_id", paymentIntentID).
+		ExecuteTo(&saleRequests)
+
+	if err != nil || len(saleRequests) == 0 {
+		log.Printf("[VerifyPayment] Payment not found: %v", err)
+		response.Error(w, http.StatusNotFound, "Payment not found")
+		return
+	}
+
+	sr := saleRequests[0]
+
+	// 🔒 ユーザーがこの取引の関係者かチェック（買い手 or スレッド参加者）
+	if sr.UserID != userID {
+		// スレッド参加者チェック
+		type participantCheck struct {
+			UserID string `json:"user_id"`
+		}
+		var participants []participantCheck
+		_, err = client.From("thread_participants").
+			Select("user_id", "", false).
+			Eq("thread_id", sr.ThreadID).
+			Eq("user_id", userID).
+			ExecuteTo(&participants)
+
+		if len(participants) == 0 {
+			log.Printf("[VerifyPayment] User not authorized: user=%s, sale_request=%s", userID, saleRequestID)
+			response.Error(w, http.StatusForbidden, "You are not authorized to view this payment")
+			return
+		}
+	}
+
+	// 🔒 決済状態をチェック（activeまたはcompletedのみ許可）
+	if sr.Status != string(models.SaleRequestStatusActive) && sr.Status != string(models.SaleRequestStatusCompleted) {
+		log.Printf("[VerifyPayment] Invalid payment status: %s", sr.Status)
+		response.Error(w, http.StatusPaymentRequired, "Payment not completed")
+		return
+	}
+
+	response.Success(w, http.StatusOK, sr)
 }
 
 // RefundSaleRequest refunds a sale request

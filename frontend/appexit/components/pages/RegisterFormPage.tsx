@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import Button from '@/components/ui/Button';
+import { sanitizeText, validateEmail, INPUT_LIMITS } from '@/lib/input-validator';
 
 interface RegisterFormPageProps {
   pageDict?: Record<string, any>;
@@ -39,6 +40,24 @@ export default function RegisterFormPage({ pageDict = {} }: RegisterFormPageProp
       return;
     }
 
+    // 🔒 SECURITY: メールアドレスをバリデート
+    const emailValidation = validateEmail(formData.email);
+    if (!emailValidation.isValid) {
+      setError(t('invalidEmail') || 'Invalid email address');
+      return;
+    }
+
+    // 🔒 SECURITY: 表示名をサニタイズ
+    const displayNameSanitized = sanitizeText(formData.displayName, INPUT_LIMITS.USERNAME, {
+      allowHTML: false,
+      strictMode: true,
+    });
+
+    if (!displayNameSanitized.isValid) {
+      setError(t('invalidContent') || 'Invalid content detected in display name');
+      return;
+    }
+
     if (formData.password !== formData.confirmPassword) {
       setError(t('registerPasswordMismatch'));
       return;
@@ -46,6 +65,12 @@ export default function RegisterFormPage({ pageDict = {} }: RegisterFormPageProp
 
     if (formData.password.length < 8) {
       setError(t('registerPasswordLength'));
+      return;
+    }
+
+    // パスワードの最大長チェック
+    if (formData.password.length > INPUT_LIMITS.PASSWORD) {
+      setError(t('passwordTooLong') || 'Password is too long');
       return;
     }
 
@@ -59,9 +84,9 @@ export default function RegisterFormPage({ pageDict = {} }: RegisterFormPageProp
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          email: formData.email,
+          email: emailValidation.sanitized,
           password: formData.password,
-          display_name: formData.displayName,
+          display_name: displayNameSanitized.sanitized,
         }),
         credentials: 'include', // HTTPOnly Cookieを送受信するために必要
       });
@@ -106,6 +131,7 @@ export default function RegisterFormPage({ pageDict = {} }: RegisterFormPageProp
               name="displayName"
               value={formData.displayName}
               onChange={handleChange}
+              maxLength={INPUT_LIMITS.USERNAME}
               className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#E65D65] focus:ring-opacity-50"
               placeholder={t('displayNamePlaceholder')}
               required
@@ -122,6 +148,7 @@ export default function RegisterFormPage({ pageDict = {} }: RegisterFormPageProp
               name="email"
               value={formData.email}
               onChange={handleChange}
+              maxLength={INPUT_LIMITS.EMAIL}
               className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#E65D65] focus:ring-opacity-50"
               placeholder="example@example.com"
               required
@@ -138,6 +165,7 @@ export default function RegisterFormPage({ pageDict = {} }: RegisterFormPageProp
               name="password"
               value={formData.password}
               onChange={handleChange}
+              maxLength={INPUT_LIMITS.PASSWORD}
               className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#E65D65] focus:ring-opacity-50"
               placeholder={t('registerFormPasswordPlaceholder')}
               required
@@ -154,6 +182,7 @@ export default function RegisterFormPage({ pageDict = {} }: RegisterFormPageProp
               name="confirmPassword"
               value={formData.confirmPassword}
               onChange={handleChange}
+              maxLength={INPUT_LIMITS.PASSWORD}
               className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#E65D65] focus:ring-opacity-50"
               placeholder={t('registerFormConfirmPlaceholder')}
               required

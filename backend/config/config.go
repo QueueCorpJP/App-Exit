@@ -96,6 +96,16 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("STRIPE_SECRET_KEY is required in production")
 	}
 
+	// 🔒 SECURITY: Webhook署名検証は必須（偽Webhookを防ぐため）
+	if c.StripeWebhookSecret == "" || c.StripeWebhookSecret == "whsec_PLEASE_SET_FROM_STRIPE_DASHBOARD" {
+		log.Printf("[WARNING] STRIPE_WEBHOOK_SECRET is not set. Webhook signature verification is DISABLED.")
+		log.Printf("[WARNING] This is a CRITICAL security risk. Set STRIPE_WEBHOOK_SECRET in .env immediately.")
+		// 開発環境では警告のみ、本番では起動停止
+		if c.Environment == "production" {
+			return fmt.Errorf("STRIPE_WEBHOOK_SECRET is required in production for security")
+		}
+	}
+
 	return nil
 }
 

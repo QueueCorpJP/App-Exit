@@ -147,9 +147,17 @@ func SetupRoutes(cfg *config.Config) http.Handler {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
 	})
+	mux.HandleFunc("/api/sale-requests/verify", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			auth(server.VerifyPayment)(w, r)
+		} else {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
 	fmt.Println("[ROUTES] Registered: /api/sale-requests (with auth)")
 	fmt.Println("[ROUTES] Registered: /api/sale-requests/confirm (with auth)")
 	fmt.Println("[ROUTES] Registered: /api/sale-requests/refund (with auth)")
+	fmt.Println("[ROUTES] Registered: /api/sale-requests/verify (with auth)")
 
 	// Post routes
 	// IMPORTANT: Register /api/posts/metadata BEFORE /api/posts/ to prevent it from being treated as an ID

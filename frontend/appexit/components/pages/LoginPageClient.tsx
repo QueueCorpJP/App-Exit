@@ -6,6 +6,7 @@ import { useTranslations, useLocale } from 'next-intl';
 import { useAuth } from '@/lib/auth-context';
 import Button from '@/components/ui/Button';
 import { loginWithBackend, loginWithOAuth, LoginMethod } from '@/lib/auth-api';
+import { validateEmail, INPUT_LIMITS } from '@/lib/input-validator';
 
 interface LoginPageClientProps {
   error?: string;
@@ -53,9 +54,24 @@ export default function LoginPageClient({ error: serverError }: LoginPageClientP
     const email = formData.get('email') as string;
     const password = formData.get('password') as string;
 
+    // 🔒 SECURITY: メールアドレスをバリデート
+    const emailValidation = validateEmail(email);
+    if (!emailValidation.isValid) {
+      setError(t('invalidEmail') || 'Invalid email address');
+      setIsLoading(false);
+      return;
+    }
+
+    // パスワード長チェック
+    if (password.length > INPUT_LIMITS.PASSWORD) {
+      setError(t('passwordTooLong') || 'Password is too long');
+      setIsLoading(false);
+      return;
+    }
+
     try {
       // バックエンドAPIでログイン（バックエンドがHTTPOnly Cookieを設定）
-      await loginWithBackend({ email, password });
+      await loginWithBackend({ email: emailValidation.sanitized, password });
 
       console.log('[LOGIN] Backend login successful, cookie set');
 
@@ -107,6 +123,7 @@ export default function LoginPageClient({ error: serverError }: LoginPageClientP
                   type="email"
                   autoComplete="email"
                   required
+                  maxLength={INPUT_LIMITS.EMAIL}
                   className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none sm:text-sm text-gray-900"
                   style={{
                     '--tw-ring-color': '#4285FF'
@@ -136,6 +153,7 @@ export default function LoginPageClient({ error: serverError }: LoginPageClientP
                   type="password"
                   autoComplete="current-password"
                   required
+                  maxLength={INPUT_LIMITS.PASSWORD}
                   className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none sm:text-sm text-gray-900"
                   style={{
                     '--tw-ring-color': '#4285FF'

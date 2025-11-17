@@ -9,6 +9,7 @@ import { Image as ImageIcon, X, FileText, File, Briefcase, Scale, Users, Info, C
 import Button from '@/components/ui/Button';
 import { truncateDisplayName } from '@/lib/text-utils';
 import { useAuth } from '@/lib/auth-context';
+import { sanitizeText, validatePhone, INPUT_LIMITS } from '@/lib/input-validator';
 
 interface MessageThreadProps {
   threadDetail: ThreadDetail | null;
@@ -426,7 +427,18 @@ function MessageThread({
     e.preventDefault();
     if ((!newMessage.trim() && !selectedImageFile) || isSending || isLoadingMessages) return;
 
-    const messageText = newMessage.trim();
+    // 🔒 SECURITY: メッセージテキストをサニタイズ
+    const sanitized = sanitizeText(newMessage.trim(), INPUT_LIMITS.TEXTAREA, {
+      allowHTML: false,
+      strictMode: false,
+    });
+
+    if (!sanitized.isValid) {
+      alert(t('invalidContent') || 'Invalid content detected. Please remove any potentially harmful code.');
+      return;
+    }
+
+    const messageText = sanitized.sanitized;
     const imageFile = selectedImageFile;
     setNewMessage('');
     setSelectedImageFile(null);
@@ -888,6 +900,7 @@ function MessageThread({
                 onChange={(e) => setNewMessage(e.target.value)}
                 placeholder="新しいメッセージを作成"
                 disabled={isSending || isLoadingMessages}
+                maxLength={INPUT_LIMITS.TEXTAREA}
                 className="w-full px-4 py-3 pr-20 border border-gray-300 rounded-full focus:outline-none resize-none disabled:opacity-50"
                 style={{ '--tw-ring-color': '#E65D65' } as React.CSSProperties}
                 onFocus={(e) => {
@@ -1081,6 +1094,7 @@ function MessageThread({
                     value={phoneNumber}
                     onChange={(e) => setPhoneNumber(e.target.value)}
                     placeholder="例: +819012345678"
+                    maxLength={INPUT_LIMITS.PHONE}
                     className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none sm:text-sm text-gray-900"
                     style={{
                       '--tw-ring-color': '#E65D65'
@@ -1115,6 +1129,15 @@ function MessageThread({
                     if (isNaN(price) || price <= 0) {
                       setSaleError('有効な価格を入力してください');
                       return;
+                    }
+
+                    // 🔒 SECURITY: 電話番号のバリデーション
+                    if (phoneNumber) {
+                      const phoneValidation = validatePhone(phoneNumber);
+                      if (!phoneValidation.isValid) {
+                        setSaleError('有効な電話番号を入力してください（例: +819012345678）');
+                        return;
+                      }
                     }
 
                     try {

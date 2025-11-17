@@ -10,6 +10,7 @@ import Image from 'next/image';
 import { useTranslations } from 'next-intl';
 import { useLocale } from 'next-intl';
 import { usePageDict } from '@/lib/page-dict';
+import { sanitizeText, INPUT_LIMITS } from '@/lib/input-validator';
 
 interface Post {
   id: string;
@@ -211,6 +212,28 @@ export default function PostBoardPage({ initialPosts = [], sidebarData, pageDict
       return;
     }
 
+    // 🔒 SECURITY: タイトルをサニタイズ
+    const titleSanitized = sanitizeText(formData.title, INPUT_LIMITS.TITLE, {
+      allowHTML: false,
+      strictMode: true,
+    });
+
+    if (!titleSanitized.isValid) {
+      setError(tp('invalidContent') || 'Invalid content detected in title');
+      return;
+    }
+
+    // 🔒 SECURITY: 本文をサニタイズ
+    const bodySanitized = sanitizeText(formData.body, INPUT_LIMITS.DESCRIPTION, {
+      allowHTML: false,
+      strictMode: false,
+    });
+
+    if (!bodySanitized.isValid) {
+      setError(tp('invalidContent') || 'Invalid content detected in body');
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
@@ -222,8 +245,8 @@ export default function PostBoardPage({ initialPosts = [], sidebarData, pageDict
 
       const payload = {
         type: 'board' as const,
-        title: formData.title,
-        body: formData.body.trim() || undefined,
+        title: titleSanitized.sanitized,
+        body: bodySanitized.sanitized.trim() || undefined,
         eyecatch_url: coverImagePath || undefined,
         is_active: true,
       };
@@ -272,8 +295,20 @@ export default function PostBoardPage({ initialPosts = [], sidebarData, pageDict
   const handleSubmitComment = async (postId: string) => {
     const text = commentInputs[postId]?.trim();
     if (!text) return;
+
+    // 🔒 SECURITY: コメント内容をサニタイズ
+    const sanitized = sanitizeText(text, INPUT_LIMITS.TEXTAREA, {
+      allowHTML: false,
+      strictMode: false,
+    });
+
+    if (!sanitized.isValid) {
+      alert(tp('invalidContent') || 'Invalid content detected. Please remove any potentially harmful code.');
+      return;
+    }
+
     try {
-      await commentApi.createComment(postId, { content: text });
+      await commentApi.createComment(postId, { content: sanitized.sanitized });
       setCommentInputs(prev => ({ ...prev, [postId]: '' }));
       // コメント一覧を再取得して最新のコメントを表示
       const comments = await commentApi.getPostComments(postId);
@@ -481,6 +516,7 @@ export default function PostBoardPage({ initialPosts = [], sidebarData, pageDict
                 required
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                maxLength={INPUT_LIMITS.TITLE}
                 className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder={tp('titlePlaceholder')}
               />
@@ -492,6 +528,7 @@ export default function PostBoardPage({ initialPosts = [], sidebarData, pageDict
                 rows={3}
                 value={formData.body}
                 onChange={(e) => setFormData({ ...formData, body: e.target.value })}
+                maxLength={INPUT_LIMITS.DESCRIPTION}
                 className="w-full px-4 py-2 pb-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder={tp('bodyPlaceholder')}
               />
@@ -683,6 +720,7 @@ export default function PostBoardPage({ initialPosts = [], sidebarData, pageDict
                             handleSubmitComment(post.id);
                           }
                         }}
+                        maxLength={INPUT_LIMITS.TEXTAREA}
                         placeholder={replyToUser ? tp('replyingTo').replace('{user}', replyToUser) : tp('addComment')}
                         className="flex-1 px-4 py-2.5 pr-12 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                       />

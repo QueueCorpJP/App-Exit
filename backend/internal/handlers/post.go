@@ -479,6 +479,62 @@ func (s *Server) CreatePost(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Validation error: %v", err), http.StatusBadRequest)
 		return
 	}
+
+	// 🔒 SECURITY: 入力値をサニタイズ（XSS、インジェクション攻撃防止）
+	titleResult := utils.SanitizeText(utils.SanitizeInput{
+		Value:      req.Title,
+		MaxLength:  utils.MaxTitleLength,
+		AllowHTML:  false,
+		StrictMode: true,
+	})
+	if !titleResult.IsValid {
+		fmt.Printf("[POST /api/posts] ❌ WARNING: Title contains potentially malicious content: %v\n", titleResult.Errors)
+	}
+	req.Title = titleResult.Sanitized
+
+	if req.Body != nil {
+		bodyResult := utils.SanitizeRichText(*req.Body, utils.MaxDescriptionLength)
+		if !bodyResult.IsValid {
+			fmt.Printf("[POST /api/posts] ❌ WARNING: Body contains potentially malicious content: %v\n", bodyResult.Errors)
+		}
+		sanitizedBody := bodyResult.Sanitized
+		req.Body = &sanitizedBody
+	}
+
+	if req.AppealText != nil {
+		appealResult := utils.SanitizeText(utils.SanitizeInput{
+			Value:      *req.AppealText,
+			MaxLength:  utils.MaxDescriptionLength,
+			AllowHTML:  false,
+			StrictMode: false,
+		})
+		if !appealResult.IsValid {
+			fmt.Printf("[POST /api/posts] ❌ WARNING: Appeal text contains potentially malicious content: %v\n", appealResult.Errors)
+		}
+		sanitizedAppeal := appealResult.Sanitized
+		req.AppealText = &sanitizedAppeal
+	}
+
+	// URLのサニタイゼーション
+	if req.EyecatchURL != nil {
+		eyecatchResult := utils.SanitizeURL(*req.EyecatchURL)
+		if !eyecatchResult.IsValid {
+			fmt.Printf("[POST /api/posts] ❌ ERROR: Invalid eyecatch URL: %v\n", eyecatchResult.Errors)
+			http.Error(w, "Invalid eyecatch URL", http.StatusBadRequest)
+			return
+		}
+		req.EyecatchURL = &eyecatchResult.Sanitized
+	}
+
+	if req.DashboardURL != nil {
+		dashboardResult := utils.SanitizeURL(*req.DashboardURL)
+		if !dashboardResult.IsValid {
+			fmt.Printf("[POST /api/posts] ❌ ERROR: Invalid dashboard URL: %v\n", dashboardResult.Errors)
+			http.Error(w, "Invalid dashboard URL", http.StatusBadRequest)
+			return
+		}
+		req.DashboardURL = &dashboardResult.Sanitized
+	}
 	
 	// Additional validation for transaction type
 	if req.Type == models.PostTypeTransaction {

@@ -334,12 +334,24 @@ func (s *Server) CreatePostComment(w http.ResponseWriter, r *http.Request, postI
 		return
 	}
 
+	// 🔒 SECURITY: コメント内容をサニタイズ（XSS攻撃防止）
+	contentResult := utils.SanitizeText(utils.SanitizeInput{
+		Value:      req.Content,
+		MaxLength:  utils.MaxTextareaLength,
+		AllowHTML:  false,
+		StrictMode: false,
+	})
+
+	if !contentResult.IsValid {
+		fmt.Printf("[CreatePostComment] WARNING: Comment contains malicious content: %v\n", contentResult.Errors)
+	}
+
 	client := s.supabase.GetAuthenticatedClient(impersonateJWT)
 
 	commentData := map[string]interface{}{
 		"post_id":  postID,
 		"user_id":  userID,
-		"content":  req.Content,
+		"content":  contentResult.Sanitized,
 	}
 
 	var createdComments []models.PostComment
@@ -522,8 +534,20 @@ func (s *Server) UpdateComment(w http.ResponseWriter, r *http.Request, commentID
 		return
 	}
 
+	// 🔒 SECURITY: コメント内容をサニタイズ
+	contentResult := utils.SanitizeText(utils.SanitizeInput{
+		Value:      req.Content,
+		MaxLength:  utils.MaxTextareaLength,
+		AllowHTML:  false,
+		StrictMode: false,
+	})
+
+	if !contentResult.IsValid {
+		fmt.Printf("[UpdateComment] WARNING: Comment contains malicious content: %v\n", contentResult.Errors)
+	}
+
 	updateData := map[string]interface{}{
-		"content": req.Content,
+		"content": contentResult.Sanitized,
 	}
 
 	_, _, err = client.From("post_comments").
@@ -672,12 +696,24 @@ func (s *Server) CreateCommentReply(w http.ResponseWriter, r *http.Request, comm
 		return
 	}
 
+	// 🔒 SECURITY: 返信内容をサニタイズ
+	contentResult := utils.SanitizeText(utils.SanitizeInput{
+		Value:      req.Content,
+		MaxLength:  utils.MaxTextareaLength,
+		AllowHTML:  false,
+		StrictMode: false,
+	})
+
+	if !contentResult.IsValid {
+		fmt.Printf("[CreateCommentReply] WARNING: Reply contains malicious content: %v\n", contentResult.Errors)
+	}
+
 	client := s.supabase.GetAuthenticatedClient(impersonateJWT)
 
 	replyData := map[string]interface{}{
 		"comment_id": commentID,
 		"user_id":    userID,
-		"content":    req.Content,
+		"content":    contentResult.Sanitized,
 	}
 
 	var createdReplies []models.CommentReply
@@ -767,8 +803,20 @@ func (s *Server) UpdateReply(w http.ResponseWriter, r *http.Request, replyID str
 		return
 	}
 
+	// 🔒 SECURITY: 返信内容をサニタイズ
+	contentResult := utils.SanitizeText(utils.SanitizeInput{
+		Value:      req.Content,
+		MaxLength:  utils.MaxTextareaLength,
+		AllowHTML:  false,
+		StrictMode: false,
+	})
+
+	if !contentResult.IsValid {
+		fmt.Printf("[UpdateReply] WARNING: Reply contains malicious content: %v\n", contentResult.Errors)
+	}
+
 	updateData := map[string]interface{}{
-		"content": req.Content,
+		"content": contentResult.Sanitized,
 	}
 
 	_, _, err = client.From("comment_replies").

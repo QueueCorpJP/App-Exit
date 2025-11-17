@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { commentApi, PostCommentWithDetails, CreateCommentRequest } from '@/lib/api-client';
 import StorageImage from '@/components/ui/StorageImage';
 import { useAuth } from '@/lib/auth-context';
+import { sanitizeText, INPUT_LIMITS } from '@/lib/input-validator';
 
 interface CommentSectionProps {
   postId: string;
@@ -45,15 +46,26 @@ export default function CommentSection({ postId }: CommentSectionProps) {
     }
   };
 
-  const handleSubmitComment = async () => {
+  const handleSubmitComment = useCallback(async () => {
     if (!commentContent.trim() || !user) {
+      return;
+    }
+
+    // 🔒 SECURITY: コメント内容をサニタイズ
+    const sanitized = sanitizeText(commentContent, INPUT_LIMITS.TEXTAREA, {
+      allowHTML: false,
+      strictMode: false,
+    });
+
+    if (!sanitized.isValid) {
+      alert(t('invalidContent') || 'Invalid content detected. Please remove any potentially harmful code.');
       return;
     }
 
     try {
       setSubmitting(true);
       const newComment = await commentApi.createComment(postId, {
-        content: commentContent.trim(),
+        content: sanitized.sanitized,
       });
       setComments([...comments, newComment]);
       setCommentContent('');
@@ -63,7 +75,7 @@ export default function CommentSection({ postId }: CommentSectionProps) {
     } finally {
       setSubmitting(false);
     }
-  };
+  }, [commentContent, user, postId, comments, t]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
@@ -72,7 +84,7 @@ export default function CommentSection({ postId }: CommentSectionProps) {
     }
   };
 
-  const handleToggleLike = async (commentId: string) => {
+  const handleToggleLike = useCallback(async (commentId: string) => {
     if (!user) {
       alert(t('loginRequired'));
       return;
@@ -94,7 +106,7 @@ export default function CommentSection({ postId }: CommentSectionProps) {
     } catch (error) {
       console.error('Failed to toggle like:', error);
     }
-  };
+  }, [user, comments, t]);
 
   const formatTimeAgo = (dateString: string) => {
     const date = new Date(dateString);
@@ -145,6 +157,7 @@ export default function CommentSection({ postId }: CommentSectionProps) {
                 placeholder={t('addComment')}
                 className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm resize-none"
                 rows={1}
+                maxLength={INPUT_LIMITS.TEXTAREA}
                 style={{ minHeight: '40px', maxHeight: '120px' }}
               />
               <button

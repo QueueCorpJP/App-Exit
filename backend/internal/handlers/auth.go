@@ -367,6 +367,31 @@ func (s *Server) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	}
 	fmt.Printf("[UPDATE PROFILE] ✓ Validation passed\n")
 
+	// 🔒 SECURITY: 入力値をサニタイズ
+	if req.DisplayName != nil {
+		displayNameResult := utils.SanitizeText(utils.SanitizeInput{
+			Value:      *req.DisplayName,
+			MaxLength:  utils.MaxUsernameLength,
+			AllowHTML:  false,
+			StrictMode: true,
+		})
+		if !displayNameResult.IsValid {
+			fmt.Printf("[UPDATE PROFILE] ❌ WARNING: Display name contains malicious content: %v\n", displayNameResult.Errors)
+		}
+		sanitized := displayNameResult.Sanitized
+		req.DisplayName = &sanitized
+	}
+
+	if req.IconURL != nil && *req.IconURL != "" {
+		iconURLResult := utils.SanitizeURL(*req.IconURL)
+		if !iconURLResult.IsValid {
+			fmt.Printf("[UPDATE PROFILE] ❌ ERROR: Invalid icon URL: %v\n", iconURLResult.Errors)
+			response.Error(w, http.StatusBadRequest, "Invalid icon URL")
+			return
+		}
+		req.IconURL = &iconURLResult.Sanitized
+	}
+
 	// 更新データを構築
 	updateData := make(map[string]interface{})
 	if req.DisplayName != nil {

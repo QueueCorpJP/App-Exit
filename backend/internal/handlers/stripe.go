@@ -590,7 +590,43 @@ func (h *StripeHandler) HandleStripeWebhook(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	log.Printf("[STRIPE WEBHOOK] Received event: %s", event.Type)
+	log.Printf("[STRIPE WEBHOOK] Received event: %s (ID: %s)", event.Type, event.ID)
+
+	// 🔒 SECURITY: Webhook再送攻撃対策（同じイベントIDの重複処理を防ぐ）
+	var existingEvents []struct {
+		ID string `json:"id"`
+	}
+	_, err = h.supabaseService.GetServiceClient().
+		From("stripe_webhook_events").
+		Select("id", "", false).
+		Eq("event_id", event.ID).
+		ExecuteTo(&existingEvents)
+
+	if err == nil && len(existingEvents) > 0 {
+		log.Printf("[STRIPE WEBHOOK] Duplicate event detected, skipping: %s", event.ID)
+		// Stripeには成功を返す（既に処理済み）
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]string{"status": "duplicate"})
+		return
+	}
+
+	// イベントを記録（重複防止用）
+	eventRecord := map[string]interface{}{
+		"event_id":   event.ID,
+		"event_type": event.Type,
+		"processed_at": time.Now(),
+		"created_at": time.Now(),
+	}
+
+	_, err = h.supabaseService.GetServiceClient().
+		From("stripe_webhook_events").
+		Insert(eventRecord, false, "", "", "").
+		ExecuteTo(nil)
+
+	if err != nil {
+		log.Printf("[STRIPE WEBHOOK] Warning: Failed to record event (proceeding anyway): %v", err)
+		// エラーでもWebhook処理は続行（重要なイベントを逃さないため）
+	}
 
 	// イベントタイプに応じて処理
 	switch event.Type {
@@ -611,6 +647,10 @@ func (h *StripeHandler) HandleStripeWebhook(w http.ResponseWriter, r *http.Reque
 		h.handlePaymentIntentFailed(event)
 	case "payment_intent.canceled":
 		h.handlePaymentIntentCanceled(event)
+	case "payment_intent.processing":
+		h.handlePaymentIntentProcessing(event)
+	case "payment_intent.requires_action":
+		h.handlePaymentIntentRequiresAction(event)
 
 	// Charge イベント（プラットフォームアカウント）
 	case "charge.succeeded":
@@ -873,6 +913,98 @@ func (h *StripeHandler) handlePaymentIntentCanceled(event interface{}) {
 		log.Printf("[STRIPE WEBHOOK] Failed to update sale_request: %v", err)
 	} else {
 		log.Printf("[STRIPE WEBHOOK] Successfully cancelled sale_request for payment_intent: %s", paymentIntentID)
+	}
+}
+
+// handlePaymentIntentProcessing は決済処理中イベントを処理
+// 🔒 SECURITY: 3Dセキュアなどの確認中の状態を記録
+func (h *StripeHandler) handlePaymentIntentProcessing(event interface{}) {
+	log.Printf("[STRIPE WEBHOOK] Payment intent processing")
+
+	eventData, ok := event.(map[string]interface{})
+	if !ok {
+		return
+	}
+
+	data, ok := eventData["data"].(map[string]interface{})
+	if !ok {
+		return
+	}
+
+	object, ok := data["object"].(map[string]interface{})
+	if !ok {
+		return
+	}
+
+	paymentIntentID, ok := object["id"].(string)
+	if !ok {
+		return
+	}
+
+	log.Printf("[STRIPE WEBHOOK] Processing payment_intent.processing: %s", paymentIntentID)
+
+	// sale_requestsテーブルを更新（ステータスはprocessingに）
+	updateData := map[string]interface{}{
+		"status":     "processing",
+		"updated_at": time.Now(),
+	}
+
+	_, err := h.supabaseService.GetServiceClient().
+		From("sale_requests").
+		Update(updateData, "", "").
+		Eq("payment_intent_id", paymentIntentID).
+		ExecuteTo(nil)
+
+	if err != nil {
+		log.Printf("[STRIPE WEBHOOK] Failed to update sale_request: %v", err)
+	} else {
+		log.Printf("[STRIPE WEBHOOK] Successfully updated sale_request to processing for payment_intent: %s", paymentIntentID)
+	}
+}
+
+// handlePaymentIntentRequiresAction は追加認証必要イベントを処理
+// 🔒 SECURITY: 3Dセキュアなどの追加認証が必要な状態を記録
+func (h *StripeHandler) handlePaymentIntentRequiresAction(event interface{}) {
+	log.Printf("[STRIPE WEBHOOK] Payment intent requires action")
+
+	eventData, ok := event.(map[string]interface{})
+	if !ok {
+		return
+	}
+
+	data, ok := eventData["data"].(map[string]interface{})
+	if !ok {
+		return
+	}
+
+	object, ok := data["object"].(map[string]interface{})
+	if !ok {
+		return
+	}
+
+	paymentIntentID, ok := object["id"].(string)
+	if !ok {
+		return
+	}
+
+	log.Printf("[STRIPE WEBHOOK] Processing payment_intent.requires_action: %s", paymentIntentID)
+
+	// sale_requestsテーブルを更新（ステータスはrequires_actionに）
+	updateData := map[string]interface{}{
+		"status":     "requires_action",
+		"updated_at": time.Now(),
+	}
+
+	_, err := h.supabaseService.GetServiceClient().
+		From("sale_requests").
+		Update(updateData, "", "").
+		Eq("payment_intent_id", paymentIntentID).
+		ExecuteTo(nil)
+
+	if err != nil {
+		log.Printf("[STRIPE WEBHOOK] Failed to update sale_request: %v", err)
+	} else {
+		log.Printf("[STRIPE WEBHOOK] Successfully updated sale_request to requires_action for payment_intent: %s", paymentIntentID)
 	}
 }
 

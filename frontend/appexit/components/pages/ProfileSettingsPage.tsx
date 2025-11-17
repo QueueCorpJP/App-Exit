@@ -9,6 +9,7 @@ import { uploadAvatarImage } from '@/lib/storage'
 import { Camera, CreditCard, CheckCircle2 } from 'lucide-react'
 import ProjectCard from '@/components/ui/ProjectCard'
 import { useAuth } from '@/lib/auth-context'
+import { sanitizeText, INPUT_LIMITS } from '@/lib/input-validator'
 
 type TabType = 'profile' | 'watching' | 'myposts';
 
@@ -273,6 +274,17 @@ export default function ProfileSettingsPage({ pageDict, locale: propLocale }: Pr
       return
     }
 
+    // 🔒 SECURITY: 表示名をサニタイズ
+    const sanitized = sanitizeText(displayName, INPUT_LIMITS.USERNAME, {
+      allowHTML: false,
+      strictMode: true,
+    })
+
+    if (!sanitized.isValid) {
+      alert(t('invalidContent') || 'Invalid content detected. Please remove any potentially harmful code.')
+      return
+    }
+
     setIsSaving(true)
     setError('')
 
@@ -283,8 +295,8 @@ export default function ProfileSettingsPage({ pageDict, locale: propLocale }: Pr
         age?: number
       } = {}
 
-      if (displayName !== profile?.display_name) {
-        updateData.display_name = displayName
+      if (sanitized.sanitized !== profile?.display_name) {
+        updateData.display_name = sanitized.sanitized
       }
       if (age !== profile?.age) {
         updateData.age = age
@@ -449,6 +461,7 @@ export default function ProfileSettingsPage({ pageDict, locale: propLocale }: Pr
               onChange={(e) => setDisplayName(e.target.value)}
               placeholder={t('displayNamePlaceholder')}
               required
+              maxLength={INPUT_LIMITS.USERNAME}
               className="w-full px-4 py-3 border border-gray-300 rounded-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
             <p className="text-xs text-gray-500 mt-1">

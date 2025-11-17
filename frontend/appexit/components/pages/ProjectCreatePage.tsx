@@ -7,6 +7,7 @@ import { useTranslations, useLocale } from 'next-intl';
 import { apiClient } from '@/lib/api-client';
 import { uploadImage } from '@/lib/storage';
 import { Image as ImageIcon, LayoutDashboard, Smartphone, LineChart } from 'lucide-react';
+import { sanitizeText, validateURL, INPUT_LIMITS } from '@/lib/input-validator';
 
 interface FormData {
   type: 'board' | 'transaction' | 'secret';
@@ -167,12 +168,48 @@ export default function ProjectCreatePage({ postType, pageTitle, pageSubtitle }:
     setIsSubmitting(true);
 
     try {
+      // 🔒 SECURITY: タイトルをサニタイズ
+      const titleSanitized = sanitizeText(formData.title, INPUT_LIMITS.TITLE, {
+        allowHTML: false,
+        strictMode: true,
+      });
+
+      if (!titleSanitized.isValid) {
+        alert(tForm('invalidContent') || 'Invalid content detected in title');
+        setIsSubmitting(false);
+        return;
+      }
+
+      // 🔒 SECURITY: 本文をサニタイズ
+      const bodySanitized = sanitizeText(formData.body, INPUT_LIMITS.DESCRIPTION, {
+        allowHTML: false,
+        strictMode: false,
+      });
+
+      if (!bodySanitized.isValid) {
+        alert(tForm('invalidContent') || 'Invalid content detected in body');
+        setIsSubmitting(false);
+        return;
+      }
+
+      // 🔒 SECURITY: アピールテキストをサニタイズ
+      const appealTextSanitized = sanitizeText(formData.appealText, INPUT_LIMITS.DESCRIPTION, {
+        allowHTML: false,
+        strictMode: false,
+      });
+
+      if (!appealTextSanitized.isValid) {
+        alert(tForm('invalidContent') || 'Invalid content detected in appeal text');
+        setIsSubmitting(false);
+        return;
+      }
+
       // Cookie認証（バックエンドが認証をチェック）
       console.log('[PROJECT-CREATE] Submitting project with Cookie authentication');
       console.log('[PROJECT-CREATE] Form data:', {
-        title: formData.title,
+        title: titleSanitized.sanitized,
         appCategories: formData.appCategories,
-        appealText: formData.appealText.length,
+        appealText: appealTextSanitized.sanitized.length,
         monthlyRevenue: formData.monthlyRevenue,
         monthlyCost: formData.monthlyCost,
         price: formData.price
@@ -232,8 +269,8 @@ export default function ProjectCreatePage({ postType, pageTitle, pageSubtitle }:
 
       const payload: any = {
         type: formData.type,
-        title: formData.title,
-        body: formData.body || null,
+        title: titleSanitized.sanitized,
+        body: bodySanitized.sanitized || null,
         price: formData.price ? parseInt(formData.price) * parseInt(formData.priceUnit) : null,
       };
 
@@ -272,7 +309,7 @@ export default function ProjectCreatePage({ postType, pageTitle, pageSubtitle }:
         payload.app_categories = formData.appCategories;
         payload.monthly_revenue = parseInt(formData.monthlyRevenue) * parseInt(formData.monthlyRevenueUnit);
         payload.monthly_cost = parseInt(formData.monthlyCost) * parseInt(formData.monthlyCostUnit);
-        payload.appeal_text = formData.appealText;
+        payload.appeal_text = appealTextSanitized.sanitized;
 
         // Optional fields for transaction
         if (formData.serviceUrls) {
