@@ -84,7 +84,16 @@ func SetupRoutes(cfg *config.Config) http.Handler {
 		fmt.Printf("[ROUTER] Request received: %s %s\n", r.Method, r.URL.Path)
 		fmt.Printf("[ROUTER] Full URL: %s\n", r.URL.String())
 		fmt.Printf("[ROUTER] Remote Addr: %s\n", r.RemoteAddr)
-		fmt.Printf("[ROUTER] Headers: %v\n", r.Header)
+		// Redact sensitive headers before logging
+		safeHeaders := make(http.Header)
+		for k, v := range r.Header {
+			lk := strings.ToLower(k)
+			if lk == "authorization" || lk == "cookie" || lk == "set-cookie" || lk == "x-api-key" {
+				continue // skip sensitive header
+			}
+			safeHeaders[k] = v
+		}
+		fmt.Printf("[ROUTER] Headers: %v\n", safeHeaders)
 		fmt.Printf("[ROUTER] Calling auth middleware...\n")
 		auth(server.HandleThreads)(w, r)
 		fmt.Printf("========== ROUTER END ==========\n\n")
