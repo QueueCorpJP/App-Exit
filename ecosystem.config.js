@@ -12,7 +12,7 @@ module.exports = {
       max_memory_restart: '500M',
       env: {
         PORT: '8080',
-        ENV: 'production',
+        ENV: 'development',
       },
       env_development: {
         PORT: '8080',
