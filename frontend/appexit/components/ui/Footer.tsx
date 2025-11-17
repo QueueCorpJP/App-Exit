@@ -1,56 +1,59 @@
 'use client'
 
 import Link from 'next/link'
+import { useTranslations, useLocale } from 'next-intl'
 
 export default function Footer() {
+  const t = useTranslations()
+  const locale = useLocale()
   return (
     <footer className="bg-gray-800 text-white">
       {/* メインフッターコンテンツ */}
       <div className="max-w-7xl mx-auto px-4 py-12">
         <div>
-          <h3 className="text-lg font-semibold mb-6">APPEXITについて</h3>
+          <h3 className="text-lg font-semibold mb-6">{t('footer.about')}</h3>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-8 gap-y-6 items-center">
-            <Link href="/about" className="text-gray-300 hover:text-white transition-colors text-sm flex items-center">
-              APPEXITとは
+            <Link href={`/${locale}/about`} className="text-gray-300 hover:text-white transition-colors text-sm flex items-center">
+              {t('footer.about')}
             </Link>
-            <Link href="/safety" className="text-gray-300 hover:text-white transition-colors text-sm flex items-center">
-              あんしん・安全への取り組み
+            <Link href={`/${locale}/safety`} className="text-gray-300 hover:text-white transition-colors text-sm flex items-center">
+              {t('footer.safety')}
             </Link>
-            <Link href="/help" className="text-gray-300 hover:text-white transition-colors text-sm flex items-center">
-              ヘルプ
+            <Link href={`/${locale}/help`} className="text-gray-300 hover:text-white transition-colors text-sm flex items-center">
+              {t('footer.help')}
             </Link>
-            <Link href="/faq" className="text-gray-300 hover:text-white transition-colors text-sm flex items-center">
-              よくある質問（FAQ）
+            <Link href={`/${locale}/faq`} className="text-gray-300 hover:text-white transition-colors text-sm flex items-center">
+              {t('footer.faq')}
             </Link>
-            <Link href="/contact" className="text-gray-300 hover:text-white transition-colors text-sm flex items-center">
-              お問い合わせ
+            <Link href={`/${locale}/contact`} className="text-gray-300 hover:text-white transition-colors text-sm flex items-center">
+              {t('footer.contact')}
             </Link>
-            <Link href="/settings" className="text-gray-300 hover:text-white transition-colors text-sm flex items-center">
-              各種設定
+            <Link href={`/${locale}/settings`} className="text-gray-300 hover:text-white transition-colors text-sm flex items-center">
+              {t('header.settings')}
             </Link>
-            <Link href="/terms" className="text-gray-300 hover:text-white transition-colors text-sm flex items-center">
-              利用規約
+            <Link href={`/${locale}/terms`} className="text-gray-300 hover:text-white transition-colors text-sm flex items-center">
+              {t('footer.terms')}
             </Link>
-            <Link href="/report" className="text-gray-300 hover:text-white transition-colors text-sm flex items-center">
-              報告
+            <Link href={`/${locale}/report`} className="text-gray-300 hover:text-white transition-colors text-sm flex items-center">
+              {t('footer.report')}
             </Link>
-            <Link href="/privacy" className="text-gray-300 hover:text-white transition-colors text-sm flex items-center">
-              プライバシーポリシー
+            <Link href={`/${locale}/privacy`} className="text-gray-300 hover:text-white transition-colors text-sm flex items-center">
+              {t('footer.privacy')}
             </Link>
-            <Link href="/tokusho" className="text-gray-300 hover:text-white transition-colors text-sm flex items-center">
-              特定商取引法に基づく表記
+            <Link href={`/${locale}/tokusho`} className="text-gray-300 hover:text-white transition-colors text-sm flex items-center">
+              {t('footer.tokusho')}
             </Link>
-            <Link href="/security" className="text-gray-300 hover:text-white transition-colors text-sm flex items-center">
-              情報セキュリティ方針
+            <Link href={`/${locale}/security`} className="text-gray-300 hover:text-white transition-colors text-sm flex items-center">
+              {t('footer.security')}
             </Link>
-            <Link href="/compliance" className="text-gray-300 hover:text-white transition-colors text-sm flex items-center">
-              反社基本方針
+            <Link href={`/${locale}/compliance`} className="text-gray-300 hover:text-white transition-colors text-sm flex items-center">
+              {t('footer.compliance')}
             </Link>
-            <Link href="/customer-harassment" className="text-gray-300 hover:text-white transition-colors text-sm flex items-center">
-              カスタマーハラスメントに対する考え方
+            <Link href={`/${locale}/customer-harassment`} className="text-gray-300 hover:text-white transition-colors text-sm flex items-center">
+              {t('footer.customerHarassment')}
             </Link>
-            <Link href="/cookie-policy" className="text-gray-300 hover:text-white transition-colors text-sm flex items-center">
-              クッキーポリシー
+            <Link href={`/${locale}/cookie-policy`} className="text-gray-300 hover:text-white transition-colors text-sm flex items-center">
+              {t('footer.cookiePolicy')}
             </Link>
           </div>
         </div>
@@ -67,34 +70,34 @@ export default function Footer() {
               </div>
               <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4 text-sm text-gray-300">
                 <span>APPEXIT GROUP</span>
-                <span>Queue株式会社</span>
+                <span>{t('footer.companyName')}</span>
               </div>
             </div>
 
             {/* 中央：コピーライト */}
             <div className="text-center order-last lg:order-none">
               <p className="text-xs text-gray-400">
-                「QRコード」は株式会社デンソーウェーブの登録商標です。
+                {t('footer.qrTrademark')}
               </p>
             </div>
 
             {/* 右側：リンクとソーシャル */}
             <div className="flex flex-col sm:flex-row items-center gap-4">
               <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4 text-sm text-gray-300">
-                <Link href="/company" className="hover:text-white transition-colors whitespace-nowrap">
-                  ©APPEXIT, Inc.
+                <Link href={`/${locale}/company`} className="hover:text-white transition-colors whitespace-nowrap">
+                  {t('footer.copyright')}
                 </Link>
-                <Link href="/company" className="hover:text-white transition-colors whitespace-nowrap">
-                  会社概要
+                <Link href={`/${locale}/company`} className="hover:text-white transition-colors whitespace-nowrap">
+                  {t('footer.companyInfo')}
                 </Link>
-                <Link href="/recruit" className="hover:text-white transition-colors whitespace-nowrap">
-                  採用情報
+                <Link href={`/${locale}/recruit`} className="hover:text-white transition-colors whitespace-nowrap">
+                  {t('footer.recruit')}
                 </Link>
-                <Link href="/partner" className="hover:text-white transition-colors whitespace-nowrap">
-                  パートナー募集
+                <Link href={`/${locale}/partner`} className="hover:text-white transition-colors whitespace-nowrap">
+                  {t('footer.partner')}
                 </Link>
               </div>
-              
+
               {/* ソーシャルアイコン */}
               <div className="flex items-center gap-3">
                 <Link href="mailto:contact@appexit.jp" className="text-gray-400 hover:text-white transition-colors" aria-label="Email">

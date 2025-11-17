@@ -5,8 +5,12 @@ import { useAuth } from '@/lib/auth-context';
 import { useState, useRef, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { truncateDisplayName } from '@/lib/text-utils';
+import LanguageSwitcher from './LanguageSwitcher';
+import { useTranslations, useLocale } from 'next-intl';
 
 export default function Header() {
+  const t = useTranslations();
+  const locale = useLocale();
   const { user, profile, loading, signOut } = useAuth();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isPostMenuOpen, setIsPostMenuOpen] = useState(false);
@@ -23,28 +27,28 @@ export default function Header() {
   useEffect(() => {
     function handleClickOutside(event: MouseEvent | TouchEvent) {
       const target = event.target as Node;
-      
+
       if (dropdownRef.current && !dropdownRef.current.contains(target)) {
         setIsDropdownOpen(false);
       }
-      
+
       // デスクトップ用の「プロダクトを掲載する」メニュー（モバイルメニューが開いている時は無視）
       if (postMenuRef.current && !postMenuRef.current.contains(target) && !isMobileMenuOpen) {
         setIsPostMenuOpen(false);
       }
-      
+
       // モバイルメニュー：ヘッダーボタンやメニュー外をクリックした時だけ閉じる
       if (mobileMenuRef.current) {
         const isClickInsideMenu = mobileMenuRef.current.contains(target);
         const isClickOnMenuButton = mobileMenuButtonRef.current?.contains(target);
-        
+
         if (!isClickInsideMenu && !isClickOnMenuButton) {
           setIsMobileMenuOpen(false);
           setIsMobilePostMenuOpen(false);
         }
       }
     }
-    
+
     document.addEventListener('mousedown', handleClickOutside);
     document.addEventListener('touchstart', handleClickOutside);
     return () => {
@@ -72,7 +76,7 @@ export default function Header() {
             <div className="hidden md:flex items-stretch flex-1 max-w-2xl mr-6 gap-2">
               <input
                 type="text"
-                placeholder="キーワード検索"
+                placeholder={t('common.search')}
                 value={searchKeyword}
                 onChange={(e) => setSearchKeyword(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-400 rounded-l-full rounded-r-none text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
@@ -90,20 +94,23 @@ export default function Header() {
                   router.push(`/projects?search=${encodeURIComponent(keyword)}`);
                 }}
               >
-                検索
+                {t('common.search')}
               </button>
             </div>
           </div>
 
           {/* デスクトップナビゲーション */}
-          <nav className="hidden md:flex items-center gap-6">
+          <nav className="hidden md:flex items-center gap-4">
+            {/* 言語切り替え */}
+            <LanguageSwitcher />
+
             {/* プロダクトを掲載する - ドロップダウンメニュー */}
             <div className="relative" ref={postMenuRef}>
               <button
                 onClick={() => setIsPostMenuOpen(!isPostMenuOpen)}
                 className="text-gray-700 hover:text-gray-900 text-sm font-semibold flex items-center gap-1"
               >
-                プロダクトを掲載する
+                {t('header.postProduct')}
                 <svg
                   className={`w-4 h-4 transition-transform ${isPostMenuOpen ? 'rotate-180' : ''}`}
                   fill="none"
@@ -121,31 +128,31 @@ export default function Header() {
                     className="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 border-b border-gray-100"
                     onClick={() => setIsPostMenuOpen(false)}
                   >
-                    <div className="font-semibold mb-1">掲示板投稿</div>
-                    <div className="text-xs text-gray-500">簡易的な募集や提案を投稿</div>
+                    <div className="font-semibold mb-1">{t('header.boardPost')}</div>
+                    <div className="text-xs text-gray-500">{t('header.boardPostDescription')}</div>
                   </Link>
                   <Link
                     href="/projects/new/transaction"
                     className="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 border-b border-gray-100"
                     onClick={() => setIsPostMenuOpen(false)}
                   >
-                    <div className="font-semibold mb-1">取引投稿</div>
-                    <div className="text-xs text-gray-500">詳細情報付きでプロダクトを出品</div>
+                    <div className="font-semibold mb-1">{t('header.transactionPost')}</div>
+                    <div className="text-xs text-gray-500">{t('header.transactionPostDescription')}</div>
                   </Link>
                   <Link
                     href="/projects/new/secret"
                     className="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50"
                     onClick={() => setIsPostMenuOpen(false)}
                   >
-                    <div className="font-semibold mb-1">シークレット投稿</div>
-                    <div className="text-xs text-gray-500">NDA締結企業のみに公開</div>
+                    <div className="font-semibold mb-1">{t('header.secretPost')}</div>
+                    <div className="text-xs text-gray-500">{t('header.secretPostDescription')}</div>
                   </Link>
                 </div>
               )}
             </div>
 
             <Link href="/projects" className="text-gray-700 hover:text-gray-900 text-sm font-semibold">
-              プロダクトをみつける
+              {t('header.findProducts')}
             </Link>
 
             {loading ? (
@@ -177,9 +184,9 @@ export default function Header() {
                   <Link
                     href="/profile"
                     className="text-sm font-semibold text-gray-700 hover:text-gray-900"
-                    title={profile?.display_name || user.email?.split('@')[0] || 'ユーザー'}
+                    title={profile?.display_name || user.email?.split('@')[0] || t('header.login')}
                   >
-                    {profile?.display_name ? truncateDisplayName(profile.display_name, 'header') : (user.email?.split('@')[0] || 'ユーザー')}
+                    {profile?.display_name ? truncateDisplayName(profile.display_name, 'header') : (user.email?.split('@')[0] || t('header.login'))}
                   </Link>
                   <button
                     onClick={() => setIsDropdownOpen(!isDropdownOpen)}
@@ -198,20 +205,20 @@ export default function Header() {
                       className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 font-semibold"
                       onClick={() => setIsDropdownOpen(false)}
                     >
-                      プロフィール設定
+                      {t('header.settings')}
                     </Link>
                     <Link
                       href="/messages"
                       className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 font-semibold"
                       onClick={() => setIsDropdownOpen(false)}
                     >
-                      メッセージ
+                      {t('header.messages')}
                     </Link>
                     <button
                       onClick={handleSignOut}
                       className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 font-semibold"
                     >
-                      ログアウト
+                      {t('header.logout')}
                     </button>
                   </div>
                 )}
@@ -220,10 +227,10 @@ export default function Header() {
               // 未ログイン: ログインと新規登録ボタンを表示
               <>
                 <Link href="/login" className="text-gray-700 hover:text-gray-900 text-sm font-semibold">
-                  ログイン
+                  {t('header.login')}
                 </Link>
                 <Link href="/register" className="text-gray-700 hover:text-gray-900 text-sm font-semibold">
-                  新規会員登録
+                  {t('header.register')}
                 </Link>
               </>
             )}
@@ -258,7 +265,7 @@ export default function Header() {
                 setIsMobileMenuOpen(!isMobileMenuOpen);
               }}
               className="text-gray-700 hover:text-gray-900"
-              aria-label={isMobileMenuOpen ? "メニューを閉じる" : "メニューを開く"}
+              aria-label={isMobileMenuOpen ? t('common.close') : 'Menu'}
             >
               <svg
                 className="w-6 h-6"
@@ -287,7 +294,7 @@ export default function Header() {
           <div className="mb-4 px-4 flex items-stretch gap-2">
             <input
               type="text"
-              placeholder="キーワード検索"
+              placeholder={t('common.search')}
               value={searchKeyword}
               onChange={(e) => setSearchKeyword(e.target.value)}
               className="flex-1 px-4 py-2 border border-gray-400 rounded-l-full rounded-r-none text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
@@ -307,12 +314,17 @@ export default function Header() {
                 setIsMobileMenuOpen(false);
               }}
             >
-              検索
+              {t('common.search')}
             </button>
           </div>
 
           {/* ナビゲーションリンク */}
           <div className="space-y-4 px-4">
+              {/* 言語切り替え（モバイル） */}
+              <div className="pb-4 border-b border-gray-200">
+                <LanguageSwitcher />
+              </div>
+
               <div className="relative">
                 <div className="flex items-center justify-between">
                   <button
@@ -322,7 +334,7 @@ export default function Header() {
                     }}
                     className="flex-1 text-left text-gray-700 hover:text-gray-900 text-sm font-semibold flex items-center justify-between py-2"
                   >
-                    <span>プロダクトを掲載する</span>
+                    <span>{t('header.postProduct')}</span>
                     <svg
                       className={`w-4 h-4 transition-transform ml-2 ${isMobilePostMenuOpen ? 'rotate-180' : ''}`}
                       fill="none"
@@ -339,7 +351,7 @@ export default function Header() {
                         setIsMobilePostMenuOpen(false);
                       }}
                       className="text-gray-500 hover:text-gray-700 p-1 ml-2"
-                      aria-label="メニューを閉じる"
+                      aria-label={t('common.closeMenu')}
                     >
                       <svg
                         className="w-5 h-5"
@@ -367,8 +379,8 @@ export default function Header() {
                         setIsMobileMenuOpen(false);
                       }}
                     >
-                      <div className="font-semibold">掲示板投稿</div>
-                      <div className="text-xs text-gray-500">簡易的な募集や提案を投稿</div>
+                      <div className="font-semibold">{t('header.boardPost')}</div>
+                      <div className="text-xs text-gray-500">{t('header.boardPostDescription')}</div>
                     </Link>
                     <Link
                       href="/projects/new/transaction"
@@ -378,8 +390,8 @@ export default function Header() {
                         setIsMobileMenuOpen(false);
                       }}
                     >
-                      <div className="font-semibold">取引投稿</div>
-                      <div className="text-xs text-gray-500">詳細情報付きでプロダクトを出品</div>
+                      <div className="font-semibold">{t('header.transactionPost')}</div>
+                      <div className="text-xs text-gray-500">{t('header.transactionPostDescription')}</div>
                     </Link>
                     <Link
                       href="/projects/new/secret"
@@ -389,8 +401,8 @@ export default function Header() {
                         setIsMobileMenuOpen(false);
                       }}
                     >
-                      <div className="font-semibold">シークレット投稿</div>
-                      <div className="text-xs text-gray-500">NDA締結企業のみに公開</div>
+                      <div className="font-semibold">{t('header.secretPost')}</div>
+                      <div className="text-xs text-gray-500">{t('header.secretPostDescription')}</div>
                     </Link>
                   </div>
                 </div>
@@ -401,7 +413,7 @@ export default function Header() {
                 className="block text-gray-700 hover:text-gray-900 text-sm font-semibold py-2"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
-                プロダクトをみつける
+                {t('header.findProducts')}
               </Link>
 
               {user ? (
@@ -411,20 +423,20 @@ export default function Header() {
                     className="block text-gray-700 hover:text-gray-900 text-sm font-semibold py-2"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
-                    プロフィール設定
+                    {t('header.settings')}
                   </Link>
                   <Link
                     href="/messages"
                     className="block text-gray-700 hover:text-gray-900 text-sm font-semibold py-2"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
-                    メッセージ
+                    {t('header.messages')}
                   </Link>
                   <button
                     onClick={handleSignOut}
                     className="block w-full text-left text-gray-700 hover:text-gray-900 text-sm font-semibold py-2"
                   >
-                    ログアウト
+                    {t('header.logout')}
                   </button>
                 </>
               ) : (
@@ -434,14 +446,14 @@ export default function Header() {
                     className="block text-gray-700 hover:text-gray-900 text-sm font-semibold py-2"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
-                    ログイン
+                    {t('header.login')}
                   </Link>
                   <Link
                     href="/register"
                     className="block text-gray-700 hover:text-gray-900 text-sm font-semibold py-2"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
-                    新規会員登録
+                    {t('header.register')}
                   </Link>
                 </>
               )}

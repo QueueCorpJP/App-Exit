@@ -1,0 +1,41 @@
+{
+  "title": "Settings",
+  "description": "Manage your account settings.",
+  "profile": {
+    "title": "Profile Settings",
+    "description": "Edit your profile information."
+  },
+  "payment": {
+    "title": "Payment Settings",
+    "description": "Manage your payment methods."
+  },
+  "account": "Account",
+  "notifications": "Notifications",
+  "privacy": "Privacy",
+  "billing": "Billing",
+  "profileSettings": "Profile Settings",
+  "paymentSettings": "Payment Settings",
+  "languageSettings": "Language Settings",
+  "japanese": "日本語",
+  "english": "English",
+  "displayName": "Display Name",
+  "bio": "Bio",
+  "avatar": "Avatar",
+  "changeAvatar": "Change Avatar",
+  "currentPassword": "Current Password",
+  "newPassword": "New Password",
+  "confirmNewPassword": "Confirm New Password",
+  "changePassword": "Change Password",
+  "emailNotifications": "Email Notifications",
+  "pushNotifications": "Push Notifications",
+  "saveChanges": "Save Changes",
+  "cancelChanges": "Cancel Changes",
+  "deleteAccount": "Delete Account",
+  "deleteAccountWarning": "This action cannot be undone",
+  "help": {
+    "title": "Support",
+    "description": "If you have any questions, please visit",
+    "separator": " or ",
+    "suffix": "."
+  }
+}

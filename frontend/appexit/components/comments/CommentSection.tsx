@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useLocale, useTranslations } from 'next-intl';
 import { commentApi, PostCommentWithDetails, CreateCommentRequest } from '@/lib/api-client';
 import StorageImage from '@/components/ui/StorageImage';
 import { useAuth } from '@/lib/auth-context';
@@ -10,6 +11,8 @@ interface CommentSectionProps {
 }
 
 export default function CommentSection({ postId }: CommentSectionProps) {
+  const locale = useLocale();
+  const t = useTranslations();
   const [comments, setComments] = useState<PostCommentWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
   const [commentContent, setCommentContent] = useState('');
@@ -56,7 +59,7 @@ export default function CommentSection({ postId }: CommentSectionProps) {
       setCommentContent('');
     } catch (error) {
       console.error('Failed to create comment:', error);
-      alert('コメントの投稿に失敗しました');
+      alert(t('failedToPost'));
     } finally {
       setSubmitting(false);
     }
@@ -71,7 +74,7 @@ export default function CommentSection({ postId }: CommentSectionProps) {
 
   const handleToggleLike = async (commentId: string) => {
     if (!user) {
-      alert('ログインが必要です');
+      alert(t('loginRequired'));
       return;
     }
 
@@ -99,15 +102,15 @@ export default function CommentSection({ postId }: CommentSectionProps) {
     const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
 
     if (diffInSeconds < 60) {
-      return 'たった今';
+      return t('justNow');
     } else if (diffInSeconds < 3600) {
-      return `${Math.floor(diffInSeconds / 60)}分前`;
+      return t('minutesAgo', { minutes: Math.floor(diffInSeconds / 60) });
     } else if (diffInSeconds < 86400) {
-      return `${Math.floor(diffInSeconds / 3600)}時間前`;
+      return t('hoursAgo', { hours: Math.floor(diffInSeconds / 3600) });
     } else if (diffInSeconds < 2592000) {
-      return `${Math.floor(diffInSeconds / 86400)}日前`;
+      return t('daysAgo', { days: Math.floor(diffInSeconds / 86400) });
     } else {
-      return date.toLocaleDateString('ja-JP');
+      return date.toLocaleDateString(locale === 'ja' ? 'ja-JP' : 'en-US');
     }
   };
 
@@ -121,7 +124,7 @@ export default function CommentSection({ postId }: CommentSectionProps) {
               <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0">
                 <StorageImage
                   path={profile.icon_url}
-                  alt={profile.display_name || 'ユーザー'}
+                  alt={profile.display_name || (t('user'))}
                   width={40}
                   height={40}
                   className="object-cover w-full h-full"
@@ -139,7 +142,7 @@ export default function CommentSection({ postId }: CommentSectionProps) {
                 value={commentContent}
                 onChange={(e) => setCommentContent(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="コメントを追加..."
+                placeholder={t('addComment')}
                 className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm resize-none"
                 rows={1}
                 style={{ minHeight: '40px', maxHeight: '120px' }}
@@ -148,7 +151,7 @@ export default function CommentSection({ postId }: CommentSectionProps) {
                 onClick={handleSubmitComment}
                 disabled={!commentContent.trim() || submitting}
                 className="flex-shrink-0 w-10 h-10 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed transition-opacity hover:opacity-70"
-                aria-label="コメントを投稿"
+                aria-label={t('postComment')}
               >
                 {submitting ? (
                   <svg className="animate-spin h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -178,9 +181,13 @@ export default function CommentSection({ postId }: CommentSectionProps) {
 
       {/* コメント一覧 */}
       {loading ? (
-        <div className="text-center py-8 text-gray-500">読み込み中...</div>
+        <div className="text-center py-8 text-gray-500">
+          {t('loading')}
+        </div>
       ) : comments.length === 0 ? (
-        <div className="text-center py-8 text-gray-500">まだコメントがありません</div>
+        <div className="text-center py-8 text-gray-500">
+          {t('noComments')}
+        </div>
       ) : (
         <div className="space-y-6">
           {comments.map((comment) => (
@@ -205,7 +212,7 @@ export default function CommentSection({ postId }: CommentSectionProps) {
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
                   <span className="font-semibold text-sm text-gray-900">
-                    {comment.author_profile?.display_name || '匿名ユーザー'}
+                    {comment.author_profile?.display_name || (t('anonymousUser'))}
                   </span>
                   <span className="text-xs text-gray-500">• {formatTimeAgo(comment.created_at)}</span>
                 </div>
@@ -234,7 +241,7 @@ export default function CommentSection({ postId }: CommentSectionProps) {
                   </button>
                   {comment.reply_count > 0 && (
                     <span className="text-xs text-gray-500">
-                      {comment.reply_count}件の返信
+                      {t('replies', { count: comment.reply_count })}
                     </span>
                   )}
                 </div>

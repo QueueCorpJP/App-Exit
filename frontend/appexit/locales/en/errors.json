@@ -1,0 +1,13 @@
+{
+  "notFound": "Page Not Found",
+  "notFoundMessage": "The page you are looking for does not exist or has been moved.",
+  "unauthorized": "Authentication Required",
+  "unauthorizedMessage": "You need to log in to access this page.",
+  "forbidden": "Access Denied",
+  "forbiddenMessage": "You do not have permission to access this page.",
+  "serverError": "Server Error",
+  "serverErrorMessage": "We apologize. A server error has occurred.",
+  "backToHome": "Back to Home",
+  "tryAgain": "Try Again",
+  "contactSupport": "Contact Support"
+}

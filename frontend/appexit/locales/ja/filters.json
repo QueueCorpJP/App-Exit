@@ -1,0 +1,20 @@
+{
+  "search": "検索",
+  "clear": "クリア",
+  "close": "フィルターを閉じる",
+  "open": "フィルターを開く",
+  "searchPlaceholder": "検索",
+  "type": "タイプ",
+  "status": "状態",
+  "category": "カテゴリ",
+  "price": "価格",
+  "min": "最小",
+  "max": "最大",
+  "monthlyRevenue": "月商",
+  "profitMargin": "利益率",
+  "technology": "技術",
+  "searchButton": "検索",
+  "sort": "並び替え",
+  "resultsCount": "{count}件",
+  "from": "〜"
+}

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import { useLocale, useTranslations } from 'next-intl';
 import { useAuth } from '@/lib/auth-context';
 import { messageApi } from '@/lib/api-client';
 import Link from 'next/link';
@@ -10,6 +11,7 @@ import MessageThreadContainer from '@/components/messages/MessageThreadContainer
 
 interface MessagePageProps {
   threadId?: string;
+  pageDict?: Record<string, any>;
 }
 
 // UUID形式かどうかをチェックする関数
@@ -18,8 +20,10 @@ function isUUID(str: string): boolean {
   return uuidRegex.test(str);
 }
 
-export default function MessagePage({ threadId: initialThreadId }: MessagePageProps) {
+export default function MessagePage({ threadId: initialThreadId, pageDict }: MessagePageProps) {
   const router = useRouter();
+  const locale = useLocale();
+  const t = useTranslations();
   const { user, loading: authLoading } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const [selectedThreadId, setSelectedThreadId] = useState<string | undefined>(initialThreadId);
@@ -178,7 +182,7 @@ export default function MessagePage({ threadId: initialThreadId }: MessagePagePr
           } else {
             // スレッドが見つからない場合
             if (isMounted) {
-              setError('このスレッドは存在しないか、削除されました');
+              setError(t('messageThreadNotFound'));
               setIsResolvingThreadId(false);
               setResolvedThreadId(undefined);
             }
@@ -285,17 +289,17 @@ export default function MessagePage({ threadId: initialThreadId }: MessagePagePr
                 }
               }
             }
-            
+
             // threadを作成できない場合、エラーメッセージを表示
             if (isMounted) {
-              setError('このスレッドは存在しないか、削除されました');
+              setError(t('messageThreadNotFound'));
               setIsResolvingThreadId(false);
               setResolvedThreadId(undefined);
             }
           } else {
             console.error('[MESSAGE-PAGE] Failed to get thread:', threadErr.message);
             if (isMounted) {
-              setError('スレッドの取得に失敗しました');
+              setError(t('messageFetchFailed'));
               setIsResolvingThreadId(false);
               setResolvedThreadId(undefined);
             }
@@ -324,7 +328,7 @@ export default function MessagePage({ threadId: initialThreadId }: MessagePagePr
         // 自分自身とのスレッド作成を防ぐ
         if (selectedThreadId === user.id) {
           if (isMounted) {
-            setError('自分自身とのメッセージスレッドは作成できません');
+            setError(t('messageCannotSelfThread'));
             setIsResolvingThreadId(false);
           }
           isHandlingThreadIdRef.current = false;
@@ -402,7 +406,7 @@ export default function MessagePage({ threadId: initialThreadId }: MessagePagePr
         }
 
         if (!threadData || !('id' in threadData)) {
-          throw new Error('スレッドの作成に失敗しました');
+          throw new Error(t('messageCreateFailed'));
         }
 
         // 状態を更新してURLを変更（ページ遷移なし）
@@ -428,7 +432,7 @@ export default function MessagePage({ threadId: initialThreadId }: MessagePagePr
         }
 
         console.error('Failed to handle thread ID:', err);
-        setError(err.message || 'スレッドの取得に失敗しました');
+        setError(err.message || t('messageFetchFailed'));
         setIsResolvingThreadId(false);
         setResolvedThreadId(undefined);
         isHandlingThreadIdRef.current = false;
@@ -522,7 +526,9 @@ export default function MessagePage({ threadId: initialThreadId }: MessagePagePr
       <div className="h-screen flex items-center justify-center bg-white">
         <div className="text-center">
           <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          <p className="mt-4 text-gray-600">認証状態を確認中...</p>
+          <p className="mt-4 text-gray-600">
+            {t('messageCheckingAuth')}
+          </p>
         </div>
       </div>
     );
@@ -532,9 +538,11 @@ export default function MessagePage({ threadId: initialThreadId }: MessagePagePr
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-800 mb-4">ログインが必要です</h1>
-          <Link href="/login" className="text-blue-600 hover:underline">
-            ログインページへ
+          <h1 className="text-2xl font-bold text-gray-800 mb-4">
+            {t('loginRequired')}
+          </h1>
+          <Link href={`/${locale}/login`} className="text-blue-600 hover:underline">
+            {t('messageGoToLogin')}
           </Link>
         </div>
       </div>
@@ -558,7 +566,9 @@ export default function MessagePage({ threadId: initialThreadId }: MessagePagePr
           <div className="h-full flex items-center justify-center bg-white">
             <div className="text-center">
               <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-              <p className="mt-4 text-gray-600">スレッドを読み込み中...</p>
+              <p className="mt-4 text-gray-600">
+                {t('messageLoadingThread')}
+              </p>
             </div>
           </div>
         ) : resolvedThreadId ? (
@@ -583,7 +593,7 @@ export default function MessagePage({ threadId: initialThreadId }: MessagePagePr
                 />
               </svg>
               <p className="font-bold text-lg" style={{ color: '#9ca3af' }}>
-                スレッドを選択してください
+                {t('messageSelectThread')}
               </p>
             </div>
           </div>

@@ -1,0 +1,23 @@
+{
+  "documentNotice": "This page is currently available in Japanese only. English translation will be provided in the future.",
+  "help": {
+    "title": "Help Center"
+  },
+  "contact": {
+    "title": "Contact Us",
+    "name": "Name",
+    "email": "Email",
+    "subject": "Subject",
+    "message": "Message",
+    "submit": "Submit"
+  },
+  "seminar": {
+    "title": "Seminars & Consultation"
+  },
+  "supportService": {
+    "title": "Support Service"
+  },
+  "report": {
+    "title": "Report Violation"
+  }
+}

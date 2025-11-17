@@ -1,0 +1,20 @@
+{
+  "title": "通知",
+  "all": "すべての通知",
+  "unread": "未読",
+  "markAllRead": "すべて既読にする",
+  "noNotifications": "通知はありません",
+  "newMessage": "新しいメッセージ",
+  "newOffer": "新しいオファー",
+  "priceUpdate": "価格更新",
+  "statusUpdate": "ステータス更新",
+  "systemNotification": "システム通知",
+  "timeAgo": {
+    "justNow": "たった今",
+    "minutesAgo": "{count}分前",
+    "hoursAgo": "{count}時間前",
+    "daysAgo": "{count}日前",
+    "weeksAgo": "{count}週間前",
+    "monthsAgo": "{count}ヶ月前"
+  }
+}

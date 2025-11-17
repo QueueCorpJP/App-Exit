@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
+import { useTranslations, useLocale } from 'next-intl';
 import { apiClient } from '@/lib/api-client';
 import { uploadImage } from '@/lib/storage';
 import { Image as ImageIcon, LayoutDashboard, Smartphone, LineChart } from 'lucide-react';
@@ -53,6 +54,10 @@ interface ProjectCreatePageProps {
 
 export default function ProjectCreatePage({ postType, pageTitle, pageSubtitle }: ProjectCreatePageProps) {
   const router = useRouter();
+  const t = useTranslations();
+  const tForm = useTranslations('form');
+  const tCategories = useTranslations('categories');
+  const tCommon = useTranslations('common');
 
   // カラーテーマ定義 - secretページは色を反転
   const colors = postType === 'secret' ? {
@@ -119,29 +124,29 @@ export default function ProjectCreatePage({ postType, pageTitle, pageSubtitle }:
   const [uploadingImage, setUploadingImage] = useState(false);
 
   const categories = [
-    'ソーシャル',
-    'EC・マーケットプレイス',
-    'ゲーム',
-    'ユーティリティ',
-    '生産性',
-    'エンターテイメント',
-    'ヘルスケア',
-    '教育',
-    'ビジネス',
-    'ライフスタイル',
-    'フード・ドリンク',
-    '旅行',
-    '写真・動画',
-    '音楽',
-    'ニュース',
-    'スポーツ',
-    '天気',
-    'ナビゲーション',
-    'ファイナンス',
-    '医療',
-    'ショッピング',
-    'ブック',
-    'その他'
+    { key: 'social', label: tCategories('social') },
+    { key: 'ecommerce', label: tCategories('ecommerce') },
+    { key: 'game', label: tCategories('game') },
+    { key: 'education', label: tCategories('education') },
+    { key: 'health', label: tCategories('health') },
+    { key: 'finance', label: tCategories('finance') },
+    { key: 'productivity', label: tCategories('productivity') },
+    { key: 'entertainment', label: tCategories('entertainment') },
+    { key: 'news', label: tCategories('news') },
+    { key: 'travel', label: tCategories('travel') },
+    { key: 'food', label: tCategories('food') },
+    { key: 'lifestyle', label: tCategories('lifestyle') },
+    { key: 'sports', label: tCategories('sports') },
+    { key: 'music', label: tCategories('music') },
+    { key: 'photo', label: tCategories('photo') },
+    { key: 'communication', label: tCategories('communication') },
+    { key: 'utilities', label: tCategories('utilities') },
+    { key: 'weather', label: tCategories('weather') },
+    { key: 'navigation', label: tCategories('navigation') },
+    { key: 'medical', label: tCategories('medical') },
+    { key: 'matching', label: tCategories('matching') },
+    { key: 'ai', label: tCategories('ai') },
+    { key: 'other', label: tCategories('other') }
   ];
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -206,7 +211,7 @@ export default function ProjectCreatePage({ postType, pageTitle, pageSubtitle }:
         }
       } catch (error) {
         console.error('[PROJECT-CREATE] Image upload failed:', error);
-        alert('画像のアップロードに失敗しました。もう一度お試しください。');
+        alert(tForm('imageUploadFailed'));
         return;
       } finally {
         setUploadingImage(false);
@@ -242,19 +247,19 @@ export default function ProjectCreatePage({ postType, pageTitle, pageSubtitle }:
         // Validate required fields for transaction posts
         const missingFields: string[] = [];
 
-        if (!eyecatchPath) missingFields.push('アイキャッチ画像');
-        if (!dashboardPath) missingFields.push('管理画面画像');
-        if (!userUiPath) missingFields.push('ユーザーUI画像');
-        if (!performancePath) missingFields.push('パフォーマンス画像');
-        if (!formData.appCategories || formData.appCategories.length === 0) missingFields.push('アプリのカテゴリー');
-        if (!formData.monthlyRevenue) missingFields.push('月間売上');
-        if (!formData.monthlyCost) missingFields.push('月間コスト');
+        if (!eyecatchPath) missingFields.push(tForm('eyecatchImage'));
+        if (!dashboardPath) missingFields.push(tForm('dashboardImage'));
+        if (!userUiPath) missingFields.push(tForm('userUiImage'));
+        if (!performancePath) missingFields.push(tForm('performanceImage'));
+        if (!formData.appCategories || formData.appCategories.length === 0) missingFields.push(tForm('productCategoryRequired'));
+        if (!formData.monthlyRevenue) missingFields.push(tForm('monthlyRevenue'));
+        if (!formData.monthlyCost) missingFields.push(tForm('monthlyCost'));
         if (!formData.appealText || formData.appealText.length < 50) {
-          missingFields.push('アピールポイント（50文字以上必須）');
+          missingFields.push(tForm('appealTextRequired') + ' (50+)');
         }
 
         if (missingFields.length > 0) {
-          alert(`以下の必須項目が入力されていません:\n\n${missingFields.join('\n')}`);
+          alert(tForm('missingRequiredFields', { fields: missingFields.join('\n') }));
           setIsSubmitting(false);
           return;
         }
@@ -325,18 +330,18 @@ export default function ProjectCreatePage({ postType, pageTitle, pageSubtitle }:
       const result = await apiClient.post('/api/posts', payload);
 
       console.log('[PROJECT-CREATE] Post created successfully:', result);
-      alert('投稿が作成されました!');
+      alert(tForm('postCreated'));
       router.push('/');
     } catch (error) {
       console.error('[PROJECT-CREATE] Error during submission:', error);
 
       // エラーの詳細を取得
-      let errorMessage = '不明なエラー';
+      let errorMessage = tForm('errorUnknown');
       let errorDetails = '';
 
       if (error && typeof error === 'object') {
         const err = error as any;
-        errorMessage = err.message || '不明なエラー';
+        errorMessage = err.message || tForm('errorUnknown');
 
         // バックエンドからのエラー詳細
         if (err.data) {
@@ -350,12 +355,12 @@ export default function ProjectCreatePage({ postType, pageTitle, pageSubtitle }:
 
       // 401エラーの場合はログインページにリダイレクト
       if (errorMessage.includes('401') || errorMessage.includes('Unauthorized')) {
-        alert('セッションが無効です。再度ログインしてください。');
+        alert(tForm('sessionInvalid'));
         router.push('/login');
       } else {
         const displayMessage = errorDetails
-          ? `投稿の作成中にエラーが発生しました:\n${errorMessage}\n\n詳細:\n${errorDetails}`
-          : `投稿の作成中にエラーが発生しました: ${errorMessage}`;
+          ? tForm('errorDetail', { message: errorMessage, details: errorDetails })
+          : tForm('errorSimple', { message: errorMessage });
         alert(displayMessage);
       }
     } finally {
@@ -386,7 +391,7 @@ export default function ProjectCreatePage({ postType, pageTitle, pageSubtitle }:
           )}
           <div className="flex justify-end items-center mb-6">
             <span className="text-sm font-medium" style={{ color: colors.text }}>
-              ステップ {currentStep} / {totalSteps}
+              {tForm('stepProgress', { currentStep, totalSteps })}
             </span>
           </div>
           <div className="relative">
@@ -437,10 +442,10 @@ export default function ProjectCreatePage({ postType, pageTitle, pageSubtitle }:
               </div>
               <div className="flex-1">
                 <h2 className="text-lg font-bold mb-2" style={{ color: labelColor }}>
-                  投稿タイトル
+                  {tForm('postTitle')}
                 </h2>
                 <p className="text-sm mb-4" style={{ color: textColor }}>
-                  プロダクトの名前や簡潔なタイトルを入力してください
+                  {tForm('postTitleDescription')}
                 </p>
                 <input
                   type="text"
@@ -449,7 +454,7 @@ export default function ProjectCreatePage({ postType, pageTitle, pageSubtitle }:
                     setFormData({ ...formData, title: e.target.value });
                     if (currentStep === 1 && e.target.value) setCurrentStep(2);
                   }}
-                  placeholder="例: タスク管理プロダクト「TaskMaster」"
+                  placeholder={tForm('titlePlaceholderDetail')}
                   className="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent"
                   style={{
                     '--tw-ring-color': colors.primary,
@@ -473,30 +478,30 @@ export default function ProjectCreatePage({ postType, pageTitle, pageSubtitle }:
               </div>
               <div className="flex-1">
                 <h2 className="text-lg font-bold mb-2" style={{ color: labelColor }}>
-                  プロダクトカテゴリー <span className="text-red-500">*</span>
+                  {tForm('productCategoryRequired')} <span className="text-red-500">*</span>
                 </h2>
                 <p className="text-sm mb-4" style={{ color: textColor }}>
-                  プロダクトのカテゴリーを1つ以上選択してください（複数選択可）
+                  {tForm('categoryDescriptionRequired')}
                 </p>
                 <div className="flex flex-wrap gap-2">
                   {categories.map((category) => (
                     <button
-                      key={category}
+                      key={category.key}
                       type="button"
                       onClick={() => {
-                        const isSelected = formData.appCategories.includes(category);
+                        const isSelected = formData.appCategories.includes(category.label);
                         const newCategories = isSelected
-                          ? formData.appCategories.filter(c => c !== category)
-                          : [...formData.appCategories, category];
+                          ? formData.appCategories.filter(c => c !== category.label)
+                          : [...formData.appCategories, category.label];
                         setFormData({ ...formData, appCategories: newCategories });
                         if (currentStep === 2 && newCategories.length > 0) setCurrentStep(3);
                       }}
                       className={`px-3 py-1 text-sm border rounded-full transition ${
-                        formData.appCategories.includes(category)
+                        formData.appCategories.includes(category.label)
                           ? 'font-semibold'
                           : 'hover:border-gray-400'
                       }`}
-                      style={formData.appCategories.includes(category) ? {
+                      style={formData.appCategories.includes(category.label) ? {
                         borderColor: colors.primary,
                         backgroundColor: colors.primaryLight,
                         color: colors.primary
@@ -505,7 +510,7 @@ export default function ProjectCreatePage({ postType, pageTitle, pageSubtitle }:
                         color: postType === 'secret' ? textColor : '#374151'
                       }}
                     >
-                      {category}
+                      {category.label}
                     </button>
                   ))}
                 </div>
@@ -523,10 +528,10 @@ export default function ProjectCreatePage({ postType, pageTitle, pageSubtitle }:
               </div>
               <div className="flex-1">
                 <h2 className="text-lg font-bold mb-2" style={{ color: labelColor }}>
-                  プロダクト画像
+                  {tForm('productImages')}
                 </h2>
                 <p className="text-sm mb-4" style={{ color: textColor }}>
-                  プロダクトの各種スクリーンショットをアップロードしてください（選択時は画像全体が表示されます）
+                  {tForm('imagesDescriptionDetail')}
                 </p>
                 <div className="space-y-2">
                 {/* アイキャッチ画像 */}
@@ -551,7 +556,7 @@ export default function ProjectCreatePage({ postType, pageTitle, pageSubtitle }:
                       <div className="flex flex-col items-center justify-center pt-5 pb-6">
                         <ImageIcon className="w-10 h-10 mb-3 text-gray-400" strokeWidth={1.5} />
                         <p className="text-sm font-semibold text-gray-400">
-                          アイキャッチ画像 <span className="text-red-500">*</span>
+                          {tForm('eyecatchImage')} <span className="text-red-500">*</span>
                         </p>
                       </div>
                     )}
@@ -590,7 +595,7 @@ export default function ProjectCreatePage({ postType, pageTitle, pageSubtitle }:
                       <div className="flex flex-col items-center justify-center pt-5 pb-6">
                         <LayoutDashboard className="w-10 h-10 mb-3 text-gray-400" strokeWidth={1.5} />
                         <p className="text-sm font-semibold text-gray-400">
-                          ダッシュボード画像 <span className="text-red-500">*</span>
+                          {tForm('dashboardImage')} <span className="text-red-500">*</span>
                         </p>
                       </div>
                     )}
@@ -636,7 +641,7 @@ export default function ProjectCreatePage({ postType, pageTitle, pageSubtitle }:
                       <div className="flex flex-col items-center justify-center pt-5 pb-6">
                         <Smartphone className="w-10 h-10 mb-3 text-gray-400" strokeWidth={1.5} />
                         <p className="text-sm font-semibold text-gray-400">
-                          ユーザーUI画像 <span className="text-red-500">*</span>
+                          {tForm('userUiImage')} <span className="text-red-500">*</span>
                         </p>
                       </div>
                     )}
@@ -682,7 +687,7 @@ export default function ProjectCreatePage({ postType, pageTitle, pageSubtitle }:
                       <div className="flex flex-col items-center justify-center pt-5 pb-6">
                         <LineChart className="w-10 h-10 mb-3 text-gray-400" strokeWidth={1.5} />
                         <p className="text-sm font-semibold text-gray-400">
-                          パフォーマンスデータ画像 <span className="text-red-500">*</span>
+                          {tForm('performanceImage')} <span className="text-red-500">*</span>
                         </p>
                       </div>
                     )}
@@ -756,7 +761,7 @@ export default function ProjectCreatePage({ postType, pageTitle, pageSubtitle }:
                         <svg className="w-8 h-8 mx-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                         </svg>
-                        <p className="text-sm font-semibold text-gray-400 mt-1">追加</p>
+                        <p className="text-sm font-semibold text-gray-400 mt-1">{tForm('add')}</p>
                       </div>
                       <input
                         type="file"
@@ -791,10 +796,10 @@ export default function ProjectCreatePage({ postType, pageTitle, pageSubtitle }:
               </div>
               <div className="flex-1">
                 <h2 className="text-lg font-bold mb-2" style={{ color: labelColor }}>
-                  プロダクトのアピール文 <span className="text-red-500">*</span>
+                  {tForm('appealTextRequired')} <span className="text-red-500">*</span>
                 </h2>
                 <p className="text-sm mb-4" style={{ color: textColor }}>
-                  プロダクトの機能、特徴、強みなどを詳しく説明してください（50文字以上必須）
+                  {tForm('appealDescriptionRequired')}
                 </p>
                 <textarea
                   value={formData.appealText}
@@ -802,7 +807,7 @@ export default function ProjectCreatePage({ postType, pageTitle, pageSubtitle }:
                     setFormData({ ...formData, appealText: e.target.value });
                     if (currentStep === 4 && e.target.value.length >= 50) setCurrentStep(5);
                   }}
-                  placeholder="プロダクトの機能、特徴、ユーザーベース、売却理由などを50文字以上で記載してください..."
+                  placeholder={tForm('appealPlaceholderDetail')}
                   rows={6}
                   className="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent resize-none"
                   style={{ '--tw-ring-color': colors.primary, backgroundColor: inputBgColor, borderColor: inputBorderColor, color: inputTextColor } as React.CSSProperties}
@@ -810,7 +815,7 @@ export default function ProjectCreatePage({ postType, pageTitle, pageSubtitle }:
                   minLength={50}
                 />
                 <p className="text-xs mt-1" style={{ color: textColor }}>
-                  {formData.appealText.length} / 50文字以上
+                  {tForm('characterCountDetail', { count: formData.appealText.length })}
                 </p>
               </div>
             </div>
@@ -826,15 +831,15 @@ export default function ProjectCreatePage({ postType, pageTitle, pageSubtitle }:
               </div>
               <div className="flex-1">
                 <h2 className="text-lg font-bold mb-2" style={{ color: labelColor }}>
-                  財務情報・ユーザー数
+                  {tForm('financialInfoTitle')}
                 </h2>
                 <p className="text-sm mb-4" style={{ color: textColor }}>
-                  プロダクトの財務情報とユーザー数を入力してください
+                  {tForm('financialDescriptionDetail')}
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium mb-2" style={{ color: labelColor }}>
-                      月間売上 <span className="text-red-500">*</span>
+                      {tForm('monthlyRevenue')} <span className="text-red-500">*</span>
                     </label>
                     <div className="flex gap-2">
                       <input
@@ -844,7 +849,7 @@ export default function ProjectCreatePage({ postType, pageTitle, pageSubtitle }:
                           setFormData({ ...formData, monthlyRevenue: e.target.value });
                           if (currentStep === 5 && e.target.value && formData.monthlyCost) setCurrentStep(6);
                         }}
-                        placeholder="100"
+                        placeholder={tForm('revenuePlaceholderDetail')}
                         className="w-1/3 md:flex-1 px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent"
                         style={{ '--tw-ring-color': colors.primary, backgroundColor: inputBgColor, borderColor: inputBorderColor, color: inputTextColor } as React.CSSProperties}
                         required
@@ -856,12 +861,12 @@ export default function ProjectCreatePage({ postType, pageTitle, pageSubtitle }:
                           className="pl-3 pr-8 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent appearance-none font-bold"
                           style={{ '--tw-ring-color': colors.primary, color: inputTextColor, backgroundColor: inputBgColor, borderColor: inputBorderColor } as React.CSSProperties}
                         >
-                          <option value="1">円</option>
-                          <option value="100">百円</option>
-                          <option value="1000">千円</option>
-                          <option value="10000">万円</option>
-                          <option value="100000000">億円</option>
-                          <option value="1000000000000">兆円</option>
+                          <option value="1">{tCommon('jpyCurrency')}</option>
+                          <option value="100">{tCommon('jpyHundred')}</option>
+                          <option value="1000">{tCommon('jpyThousand')}</option>
+                          <option value="10000">{tCommon('jpyTenThousand')}</option>
+                          <option value="100000000">{tCommon('jpyHundredMillion')}</option>
+                          <option value="1000000000000">{tCommon('jpyTrillion')}</option>
                         </select>
                         <svg
                           className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500"
@@ -879,7 +884,7 @@ export default function ProjectCreatePage({ postType, pageTitle, pageSubtitle }:
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-2" style={{ color: labelColor }}>
-                      月間コスト <span className="text-red-500">*</span>
+                      {tForm('monthlyCost')} <span className="text-red-500">*</span>
                     </label>
                     <div className="flex gap-2">
                       <input
@@ -889,7 +894,7 @@ export default function ProjectCreatePage({ postType, pageTitle, pageSubtitle }:
                           setFormData({ ...formData, monthlyCost: e.target.value });
                           if (currentStep === 5 && e.target.value && formData.monthlyRevenue) setCurrentStep(6);
                         }}
-                        placeholder="50"
+                        placeholder={tForm('costPlaceholderDetail')}
                         className="w-1/3 md:flex-1 px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent"
                         style={{ '--tw-ring-color': colors.primary, backgroundColor: inputBgColor, borderColor: inputBorderColor, color: inputTextColor } as React.CSSProperties}
                         required
@@ -901,12 +906,12 @@ export default function ProjectCreatePage({ postType, pageTitle, pageSubtitle }:
                           className="pl-3 pr-8 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent appearance-none font-bold"
                           style={{ '--tw-ring-color': colors.primary, color: inputTextColor, backgroundColor: inputBgColor, borderColor: inputBorderColor } as React.CSSProperties}
                         >
-                          <option value="1">円</option>
-                          <option value="100">百円</option>
-                          <option value="1000">千円</option>
-                          <option value="10000">万円</option>
-                          <option value="100000000">億円</option>
-                          <option value="1000000000000">兆円</option>
+                          <option value="1">{tCommon('jpyCurrency')}</option>
+                          <option value="100">{tCommon('jpyHundred')}</option>
+                          <option value="1000">{tCommon('jpyThousand')}</option>
+                          <option value="10000">{tCommon('jpyTenThousand')}</option>
+                          <option value="100000000">{tCommon('jpyHundredMillion')}</option>
+                          <option value="1000000000000">{tCommon('jpyTrillion')}</option>
                         </select>
                         <svg
                           className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500"
@@ -924,14 +929,14 @@ export default function ProjectCreatePage({ postType, pageTitle, pageSubtitle }:
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-2" style={{ color: labelColor }}>
-                      ユーザー数（任意）
+                      {tForm('userCount')}
                     </label>
                     <div className="flex gap-2">
                       <input
                         type="number"
                         value={formData.userCount}
                         onChange={(e) => setFormData({ ...formData, userCount: e.target.value })}
-                        placeholder="100"
+                        placeholder={tForm('userCountPlaceholderDetail')}
                         className="w-1/3 md:flex-1 px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent"
                         style={{ '--tw-ring-color': colors.primary, backgroundColor: inputBgColor, borderColor: inputBorderColor, color: inputTextColor } as React.CSSProperties}
                       />
@@ -942,11 +947,11 @@ export default function ProjectCreatePage({ postType, pageTitle, pageSubtitle }:
                           className="pl-3 pr-8 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent appearance-none font-bold"
                           style={{ '--tw-ring-color': colors.primary, color: inputTextColor, backgroundColor: inputBgColor, borderColor: inputBorderColor } as React.CSSProperties}
                         >
-                          <option value="1">人</option>
-                          <option value="100">百人</option>
-                          <option value="1000">千人</option>
-                          <option value="10000">万人</option>
-                          <option value="100000000">億人</option>
+                          <option value="1">{tCommon('peopleUnit')}</option>
+                          <option value="100">{tCommon('peopleHundred')}</option>
+                          <option value="1000">{tCommon('peopleThousand')}</option>
+                          <option value="10000">{tCommon('peopleTenThousand')}</option>
+                          <option value="100000000">{tCommon('peopleHundredMillion')}</option>
                         </select>
                         <svg
                           className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500"
@@ -964,7 +969,7 @@ export default function ProjectCreatePage({ postType, pageTitle, pageSubtitle }:
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-2" style={{ color: labelColor }}>
-                      リリース日（任意）
+                      {tForm('releaseDate')}
                     </label>
                     <input
                       type="date"
@@ -989,16 +994,16 @@ export default function ProjectCreatePage({ postType, pageTitle, pageSubtitle }:
               </div>
               <div className="flex-1">
                 <h2 className="text-lg font-bold mb-2" style={{ color: labelColor }}>
-                  運営情報
+                  {tForm('operationInfo')}
                 </h2>
                 <p className="text-sm mb-4" style={{ color: textColor }}>
-                  プロダクトの運営形態と収益モデルを入力してください
+                  {tForm('operationDescriptionDetail')}
                 </p>
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium mb-2" style={{ color: labelColor }}>
-                        運営形態（任意）
+                        {tForm('operationForm')}
                       </label>
                       <div className="relative">
                         <select
@@ -1010,9 +1015,9 @@ export default function ProjectCreatePage({ postType, pageTitle, pageSubtitle }:
                           className="w-full px-4 py-3 pr-12 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent appearance-none"
                           style={{ '--tw-ring-color': colors.primary, backgroundColor: inputBgColor, borderColor: inputBorderColor, color: inputTextColor } as React.CSSProperties}
                         >
-                          <option value="">選択してください</option>
-                          <option value="individual">個人</option>
-                          <option value="corporate">法人</option>
+                          <option value="">{tForm('selectPlaceholder')}</option>
+                          <option value="individual">{tForm('individual')}</option>
+                          <option value="corporate">{tForm('corporate')}</option>
                         </select>
                         <svg
                           className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500"
@@ -1029,13 +1034,13 @@ export default function ProjectCreatePage({ postType, pageTitle, pageSubtitle }:
                     </div>
                     <div>
                       <label className="block text-sm font-medium mb-2" style={{ color: labelColor }}>
-                        運営工数（任意）
+                        {tForm('operationEffort')}
                       </label>
                       <input
                         type="text"
                         value={formData.operationEffort}
                         onChange={(e) => setFormData({ ...formData, operationEffort: e.target.value })}
-                        placeholder="例: 週10時間"
+                        placeholder={tForm('effortPlaceholderDetail')}
                         className="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent"
                         style={{ '--tw-ring-color': colors.primary, backgroundColor: inputBgColor, borderColor: inputBorderColor, color: inputTextColor } as React.CSSProperties}
                       />
@@ -1043,26 +1048,32 @@ export default function ProjectCreatePage({ postType, pageTitle, pageSubtitle }:
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-2" style={{ color: labelColor }}>
-                      収益モデル（任意・複数選択可）
+                      {tForm('revenueModels')}
                     </label>
                     <div className="flex flex-wrap gap-2">
-                      {['サブスクリプション', '広告', '手数料', '一括購入', 'その他'].map((model) => (
+                      {[
+                        { key: 'subscription', label: tForm('revenueModelSubscription') },
+                        { key: 'advertising', label: tForm('revenueModelAdvertising') },
+                        { key: 'commission', label: tForm('revenueModelCommission') },
+                        { key: 'onePurchase', label: tForm('revenueModelOnePurchase') },
+                        { key: 'other', label: tForm('revenueModelOther') }
+                      ].map((model) => (
                         <button
-                          key={model}
+                          key={model.key}
                           type="button"
                           onClick={() => {
-                            const isSelected = formData.revenueModels.includes(model);
+                            const isSelected = formData.revenueModels.includes(model.label);
                             const newModels = isSelected
-                              ? formData.revenueModels.filter(m => m !== model)
-                              : [...formData.revenueModels, model];
+                              ? formData.revenueModels.filter(m => m !== model.label)
+                              : [...formData.revenueModels, model.label];
                             setFormData({ ...formData, revenueModels: newModels });
                           }}
                           className={`px-3 py-1 text-sm border rounded-full transition ${
-                            formData.revenueModels.includes(model)
+                            formData.revenueModels.includes(model.label)
                               ? 'font-semibold'
                               : 'hover:border-gray-400'
                           }`}
-                          style={formData.revenueModels.includes(model) ? {
+                          style={formData.revenueModels.includes(model.label) ? {
                             borderColor: colors.primary,
                             backgroundColor: colors.primaryLight,
                             color: colors.primary
@@ -1071,7 +1082,7 @@ export default function ProjectCreatePage({ postType, pageTitle, pageSubtitle }:
                             color: postType === 'secret' ? textColor : '#374151'
                           }}
                         >
-                          {model}
+                          {model.label}
                         </button>
                       ))}
                     </div>
@@ -1091,35 +1102,42 @@ export default function ProjectCreatePage({ postType, pageTitle, pageSubtitle }:
               </div>
               <div className="flex-1">
                 <h2 className="text-lg font-bold mb-2" style={{ color: labelColor }}>
-                  譲渡情報
+                  {tForm('transferInfo')}
                 </h2>
                 <p className="text-sm mb-4" style={{ color: textColor }}>
-                  譲渡に関する詳細情報を入力してください
+                  {tForm('transferDescriptionDetail')}
                 </p>
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium mb-2" style={{ color: labelColor }}>
-                      譲渡物（任意・複数選択可）
+                      {tForm('transferItems')}
                     </label>
                     <div className="flex flex-wrap gap-2">
-                      {['ソースコード', 'ドメイン', 'SNSアカウント', '顧客データ', 'ブランド', 'その他'].map((item) => (
+                      {[
+                        { key: 'sourceCode', label: tForm('transferItemSourceCode') },
+                        { key: 'domain', label: tForm('transferItemDomain') },
+                        { key: 'sns', label: tForm('transferItemSNS') },
+                        { key: 'customerData', label: tForm('transferItemCustomerData') },
+                        { key: 'brand', label: tForm('transferItemBrand') },
+                        { key: 'other', label: tForm('transferItemOther') }
+                      ].map((item) => (
                         <button
-                          key={item}
+                          key={item.key}
                           type="button"
                           onClick={() => {
-                            const isSelected = formData.transferItems.includes(item);
+                            const isSelected = formData.transferItems.includes(item.label);
                             const newItems = isSelected
-                              ? formData.transferItems.filter(i => i !== item)
-                              : [...formData.transferItems, item];
+                              ? formData.transferItems.filter(i => i !== item.label)
+                              : [...formData.transferItems, item.label];
                             setFormData({ ...formData, transferItems: newItems });
                             if (currentStep === 7) setCurrentStep(8);
                           }}
                           className={`px-3 py-1 text-sm border rounded-full transition ${
-                            formData.transferItems.includes(item)
+                            formData.transferItems.includes(item.label)
                               ? 'font-semibold'
                               : 'hover:border-gray-400'
                           }`}
-                          style={formData.transferItems.includes(item) ? {
+                          style={formData.transferItems.includes(item.label) ? {
                             borderColor: colors.primary,
                             backgroundColor: colors.primaryLight,
                             color: colors.primary
@@ -1128,32 +1146,32 @@ export default function ProjectCreatePage({ postType, pageTitle, pageSubtitle }:
                             color: postType === 'secret' ? textColor : '#374151'
                           }}
                         >
-                          {item}
+                          {item.label}
                         </button>
                       ))}
                     </div>
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-2" style={{ color: labelColor }}>
-                      希望譲渡時期（任意）
+                      {tForm('desiredTransferTiming')}
                     </label>
                     <input
                       type="text"
                       value={formData.desiredTransferTiming}
                       onChange={(e) => setFormData({ ...formData, desiredTransferTiming: e.target.value })}
-                      placeholder="例: 3ヶ月以内、できるだけ早く"
+                      placeholder={tForm('timingPlaceholderDetail')}
                       className="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent"
                       style={{ '--tw-ring-color': colors.primary, backgroundColor: inputBgColor, borderColor: inputBorderColor, color: inputTextColor } as React.CSSProperties}
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-2" style={{ color: labelColor }}>
-                      成長可能性（任意）
+                      {tForm('growthPotential')}
                     </label>
                     <textarea
                       value={formData.growthPotential}
                       onChange={(e) => setFormData({ ...formData, growthPotential: e.target.value })}
-                      placeholder="今後の成長可能性や拡張アイデアを記載してください..."
+                      placeholder={tForm('growthPlaceholderDetail')}
                       rows={4}
                       className="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent resize-none"
                       style={{ '--tw-ring-color': colors.primary, backgroundColor: inputBgColor, borderColor: inputBorderColor, color: inputTextColor } as React.CSSProperties}
@@ -1174,15 +1192,15 @@ export default function ProjectCreatePage({ postType, pageTitle, pageSubtitle }:
               </div>
               <div className="flex-1">
                 <h2 className="text-lg font-bold mb-2" style={{ color: labelColor }}>
-                  マーケティング情報
+                  {tForm('marketingInfo')}
                 </h2>
                 <p className="text-sm mb-4" style={{ color: textColor }}>
-                  ターゲット顧客とマーケティングチャネルを入力してください
+                  {tForm('marketingDescriptionDetail')}
                 </p>
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium mb-2" style={{ color: labelColor }}>
-                      ターゲット顧客層（任意）
+                      {tForm('targetCustomers')}
                     </label>
                     <input
                       type="text"
@@ -1191,33 +1209,40 @@ export default function ProjectCreatePage({ postType, pageTitle, pageSubtitle }:
                         setFormData({ ...formData, targetCustomers: e.target.value });
                         if (currentStep === 8) setCurrentStep(9);
                       }}
-                      placeholder="例: 20-30代のビジネスパーソン"
+                      placeholder={tForm('customersPlaceholderDetail')}
                       className="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent"
                       style={{ '--tw-ring-color': colors.primary, backgroundColor: inputBgColor, borderColor: inputBorderColor, color: inputTextColor } as React.CSSProperties}
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-2" style={{ color: labelColor }}>
-                      マーケティングチャネル（任意・複数選択可）
+                      {tForm('marketingChannels')}
                     </label>
                     <div className="flex flex-wrap gap-2">
-                      {['SEO', 'SNS広告', 'コンテンツマーケティング', 'インフルエンサー', 'アフィリエイト', 'その他'].map((channel) => (
+                      {[
+                        { key: 'seo', label: tForm('channelSEO') },
+                        { key: 'snsAds', label: tForm('channelSNSAds') },
+                        { key: 'contentMarketing', label: tForm('channelContentMarketing') },
+                        { key: 'influencer', label: tForm('channelInfluencer') },
+                        { key: 'affiliate', label: tForm('channelAffiliate') },
+                        { key: 'other', label: tForm('channelOther') }
+                      ].map((channel) => (
                         <button
-                          key={channel}
+                          key={channel.key}
                           type="button"
                           onClick={() => {
-                            const isSelected = formData.marketingChannels.includes(channel);
+                            const isSelected = formData.marketingChannels.includes(channel.label);
                             const newChannels = isSelected
-                              ? formData.marketingChannels.filter(c => c !== channel)
-                              : [...formData.marketingChannels, channel];
+                              ? formData.marketingChannels.filter(c => c !== channel.label)
+                              : [...formData.marketingChannels, channel.label];
                             setFormData({ ...formData, marketingChannels: newChannels });
                           }}
                           className={`px-3 py-1 text-sm border rounded-full transition ${
-                            formData.marketingChannels.includes(channel)
+                            formData.marketingChannels.includes(channel.label)
                               ? 'font-semibold'
                               : 'hover:border-gray-400'
                           }`}
-                          style={formData.marketingChannels.includes(channel) ? {
+                          style={formData.marketingChannels.includes(channel.label) ? {
                             borderColor: colors.primary,
                             backgroundColor: colors.primaryLight,
                             color: colors.primary
@@ -1226,19 +1251,19 @@ export default function ProjectCreatePage({ postType, pageTitle, pageSubtitle }:
                             color: postType === 'secret' ? textColor : '#374151'
                           }}
                         >
-                          {channel}
+                          {channel.label}
                         </button>
                       ))}
                     </div>
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-2" style={{ color: labelColor }}>
-                      メディア掲載実績（任意）
+                      {tForm('mediaMentions')}
                     </label>
                     <textarea
                       value={formData.mediaMentions}
                       onChange={(e) => setFormData({ ...formData, mediaMentions: e.target.value })}
-                      placeholder="メディアでの掲載実績があれば記載してください..."
+                      placeholder={tForm('mediaPlaceholderDetail')}
                       rows={3}
                       className="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent resize-none"
                       style={{ '--tw-ring-color': colors.primary, backgroundColor: inputBgColor, borderColor: inputBorderColor, color: inputTextColor } as React.CSSProperties}
@@ -1262,10 +1287,10 @@ export default function ProjectCreatePage({ postType, pageTitle, pageSubtitle }:
                   {/* タイトルと説明文 */}
                   <div className="flex-1">
                     <h2 className="text-lg font-bold mb-2" style={{ color: labelColor }}>
-                      希望売却価格と追加情報
+                      {tForm('priceInfo')}
                     </h2>
                     <p className="text-sm" style={{ color: textColor }}>
-                      プロダクトの売却希望価格と技術情報を入力してください
+                      {tForm('priceDescriptionDetail')}
                     </p>
                   </div>
 
@@ -1281,7 +1306,7 @@ export default function ProjectCreatePage({ postType, pageTitle, pageSubtitle }:
                     }}
                   >
                     <span className="text-xs lg:text-base font-semibold whitespace-nowrap text-center" style={{ color: postType === 'secret' ? textColor : '#374151' }}>
-                      \ AIで査定する /
+                      {tForm('aiValuation')}
                     </span>
                     <img
                       src="/ai.png"
@@ -1295,14 +1320,14 @@ export default function ProjectCreatePage({ postType, pageTitle, pageSubtitle }:
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium mb-1" style={{ color: labelColor }}>
-                      希望売却価格 <span className="text-red-500">*</span>
+                      {tForm('desiredPrice')} <span className="text-red-500">*</span>
                     </label>
                     <div className="flex gap-2">
                       <input
                         type="number"
                         value={formData.price}
                         onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                        placeholder="1000"
+                        placeholder={tForm('pricePlaceholderDetail')}
                         className="w-1/2 md:flex-1 px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent"
                         style={{ '--tw-ring-color': colors.primary, backgroundColor: inputBgColor, borderColor: inputBorderColor, color: inputTextColor } as React.CSSProperties}
                         required
@@ -1314,12 +1339,12 @@ export default function ProjectCreatePage({ postType, pageTitle, pageSubtitle }:
                           className="pl-3 pr-8 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent appearance-none font-bold"
                           style={{ '--tw-ring-color': colors.primary, color: inputTextColor, backgroundColor: inputBgColor, borderColor: inputBorderColor } as React.CSSProperties}
                         >
-                          <option value="1">円</option>
-                          <option value="100">百円</option>
-                          <option value="1000">千円</option>
-                          <option value="10000">万円</option>
-                          <option value="100000000">億円</option>
-                          <option value="1000000000000">兆円</option>
+                          <option value="1">{tCommon('jpyCurrency')}</option>
+                          <option value="100">{tCommon('jpyHundred')}</option>
+                          <option value="1000">{tCommon('jpyThousand')}</option>
+                          <option value="10000">{tCommon('jpyTenThousand')}</option>
+                          <option value="100000000">{tCommon('jpyHundredMillion')}</option>
+                          <option value="1000000000000">{tCommon('jpyTrillion')}</option>
                         </select>
                         <svg
                           className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none"
@@ -1337,38 +1362,38 @@ export default function ProjectCreatePage({ postType, pageTitle, pageSubtitle }:
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-2" style={{ color: labelColor }}>
-                      技術スタック（カンマ区切り、任意）
+                      {tForm('techStack')}
                     </label>
                     <input
                       type="text"
                       value={formData.techStack}
                       onChange={(e) => setFormData({ ...formData, techStack: e.target.value })}
-                      placeholder="React, Node.js, PostgreSQL"
+                      placeholder={tForm('techStackPlaceholderDetail')}
                       className="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent"
                       style={{ '--tw-ring-color': colors.primary, backgroundColor: inputBgColor, borderColor: inputBorderColor, color: inputTextColor } as React.CSSProperties}
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-2" style={{ color: labelColor }}>
-                      サービスURL（カンマ区切り、任意）
+                      {tForm('serviceUrls')}
                     </label>
                     <input
                       type="text"
                       value={formData.serviceUrls}
                       onChange={(e) => setFormData({ ...formData, serviceUrls: e.target.value })}
-                      placeholder="https://example.com, https://app.example.com"
+                      placeholder={tForm('urlsPlaceholderDetail')}
                       className="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent"
                       style={{ '--tw-ring-color': colors.primary, backgroundColor: inputBgColor, borderColor: inputBorderColor, color: inputTextColor } as React.CSSProperties}
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-2" style={{ color: labelColor }}>
-                      補足説明（任意）
+                      {tForm('additionalInfoLabel')}
                     </label>
                     <textarea
                       value={formData.body}
                       onChange={(e) => setFormData({ ...formData, body: e.target.value })}
-                      placeholder="その他の補足情報があれば記載してください..."
+                      placeholder={tForm('additionalPlaceholderDetail')}
                       rows={4}
                       className="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent resize-none"
                       style={{ '--tw-ring-color': colors.primary, backgroundColor: inputBgColor, borderColor: inputBorderColor, color: inputTextColor } as React.CSSProperties}
@@ -1397,7 +1422,7 @@ export default function ProjectCreatePage({ postType, pageTitle, pageSubtitle }:
                 }}
                 onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
               >
-                キャンセル
+                {tForm('cancel')}
               </button>
               <button
                 type="submit"
@@ -1443,17 +1468,17 @@ export default function ProjectCreatePage({ postType, pageTitle, pageSubtitle }:
                   }
                 }}
               >
-                {uploadingImage ? '画像をアップロード中...' : isSubmitting ? (
+                {uploadingImage ? tForm('uploadingImages') : isSubmitting ? (
                   <>
                     <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    投稿中...
+                    {tForm('submitting')}
                   </>
                 ) : (
                   <>
-                    プロダクトを投稿
+                    {tForm('submitPost')}
                     <svg className="w-5 h-5 rotate-45" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                     </svg>

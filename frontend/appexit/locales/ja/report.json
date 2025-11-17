@@ -1,0 +1,132 @@
+{
+  "console": {
+    "submissionError": "報告の送信エラー:",
+    "submissionFailed": "報告の送信に失敗しました",
+    "submitted": "報告が送信されました:",
+    "unexpectedError": "予期しないエラー:",
+    "unexpectedErrorOccurred": "予期しないエラーが発生しました"
+  },
+  "reportTypes": {
+    "inappropriateContent": "不適切なコンテンツ",
+    "fraud": "詐欺・不正行為",
+    "spam": "スパム",
+    "copyright": "著作権侵害",
+    "harassment": "ハラスメント",
+    "falseInfo": "虚偽の情報",
+    "impersonation": "なりすまし",
+    "other": "その他"
+  },
+  "targetTypes": {
+    "appService": "アプリ・サービスの出品",
+    "userProfile": "ユーザープロフィール",
+    "comment": "コメント",
+    "message": "メッセージ",
+    "other": "その他"
+  },
+  "error": {
+    "title": "送信に失敗しました",
+    "message": "お手数ですが、時間をおいて再度お試しいただくか、",
+    "messageBreak": "お問い合わせフォームよりご連絡ください。",
+    "backToConfirm": "確認画面に戻る",
+    "contact": "お問い合わせ"
+  },
+  "complete": {
+    "title": "報告を受け付けました",
+    "thankyou": "ご報告いただきありがとうございます。",
+    "review": "内容を確認させていただき、適切な対応を行います。対応状況については、必要に応じてご入力いただいたメールアドレス宛にご連絡させていただきます。",
+    "note": "※ 報告内容によっては対応に時間がかかる場合や、対応結果をお知らせできない場合がございます。",
+    "backToHome": "トップページへ"
+  },
+  "confirm": {
+    "title": "報告内容をご確認ください",
+    "subtitle": "以下の内容で報告を送信します。内容をご確認の上、送信ボタンを押してください。",
+    "name": "お名前",
+    "email": "メールアドレス",
+    "reportType": "報告の種類",
+    "reportTarget": "報告対象",
+    "targetUrl": "対象のURL",
+    "targetUserId": "対象ユーザーID",
+    "description": "詳細説明",
+    "evidenceUrls": "証拠となるURL",
+    "edit": "修正する",
+    "submit": "報告を送信する",
+    "submitting": "送信中..."
+  },
+  "input": {
+    "title": "違反報告",
+    "subtitle": "不適切なコンテンツや行為を発見した場合は、以下のフォームよりご報告ください",
+    "notice": {
+      "title": "報告する前にご確認ください",
+      "items": [
+        "虚偽の報告は利用規約違反となります",
+        "報告内容は慎重に審査され、適切な対応を行います",
+        "報告者の情報は厳重に管理し、第三者に開示することはありません",
+        "緊急性の高い事案（犯罪行為など）は警察にもご相談ください"
+      ]
+    },
+    "form": {
+      "name": {
+        "label": "お名前",
+        "required": "*",
+        "placeholder": "山田 太郎"
+      },
+      "email": {
+        "label": "メールアドレス",
+        "required": "*",
+        "placeholder": "mail@example.com"
+      },
+      "reportType": {
+        "label": "報告の種類",
+        "required": "*",
+        "placeholder": "選択してください"
+      },
+      "targetType": {
+        "label": "報告対象",
+        "required": "*",
+        "placeholder": "選択してください"
+      },
+      "targetUrl": {
+        "label": "対象のURL",
+        "required": "*",
+        "placeholder": "https://appexit.jp/...",
+        "help": "報告対象のページURLをコピーして貼り付けてください"
+      },
+      "targetUserId": {
+        "label": "対象ユーザーID（任意）",
+        "placeholder": "ユーザーIDが分かる場合は入力してください"
+      },
+      "description": {
+        "label": "詳細説明",
+        "required": "*",
+        "placeholder": "問題の内容を具体的にご記入ください\n\n例：\n- どのような問題があるか\n- いつ発見したか\n- どのような影響があるか"
+      },
+      "evidenceUrls": {
+        "label": "証拠となるURL（任意）",
+        "placeholder": "スクリーンショットや関連資料のURLを1行ごとに入力\nhttps://example.com/screenshot1.png\nhttps://example.com/screenshot2.png",
+        "help": "画像共有サービス等にアップロードしたURLを入力してください（1行に1つのURL）"
+      }
+    },
+    "privacy": {
+      "title": "個人情報の取り扱いについて",
+      "content": "ご提供いただいた情報は、報告内容の確認と対応のためにのみ使用し、",
+      "privacyPolicy": "プライバシーポリシー",
+      "contentSuffix": "に従って適切に管理いたします。"
+    },
+    "submitButton": "確認画面へ",
+    "faq": {
+      "title": "報告に関するよくある質問",
+      "q1": {
+        "question": "Q. 報告後、どのくらいで対応されますか？",
+        "answer": "A. 報告内容により異なりますが、通常1〜3営業日以内に確認し、対応いたします。"
+      },
+      "q2": {
+        "question": "Q. 報告者の情報は相手に知られますか？",
+        "answer": "A. いいえ。報告者の情報は厳重に管理し、報告対象者に開示することはありません。"
+      },
+      "q3": {
+        "question": "Q. 緊急の場合はどうすればよいですか？",
+        "answer": "A. 犯罪行為や生命に関わる緊急事態の場合は、まず警察（110番）にご連絡ください。"
+      }
+    }
+  }
+}

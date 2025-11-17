@@ -1,0 +1,15 @@
+{
+  "title": "ダッシュボード",
+  "overview": "概要",
+  "analytics": "分析",
+  "statistics": "統計",
+  "recentActivity": "最近のアクティビティ",
+  "quickActions": "クイックアクション",
+  "notifications": "通知",
+  "todaysSales": "本日の売上",
+  "totalRevenue": "総収益",
+  "activeListings": "アクティブな出品",
+  "pendingOrders": "保留中の注文",
+  "viewAll": "すべて表示",
+  "noActivity": "アクティビティがありません"
+}

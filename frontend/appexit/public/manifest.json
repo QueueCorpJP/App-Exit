@@ -1,0 +1,25 @@
+{
+  "name": "APPEXIT",
+  "short_name": "APPEXIT",
+  "description": "個人や小規模チームが作ったアプリを、次の運営者に売れる場所。アプリやWebサービスを安全に売買できる日本最大級のマーケットプレイス。",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#E65D65",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
+

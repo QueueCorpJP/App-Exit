@@ -1,0 +1,23 @@
+{
+  "title": "Reviews",
+  "writeReview": "Write a Review",
+  "rating": "Rating",
+  "comment": "Comment",
+  "submitReview": "Submit Review",
+  "editReview": "Edit Review",
+  "deleteReview": "Delete Review",
+  "helpful": "Helpful",
+  "notHelpful": "Not Helpful",
+  "reportReview": "Report Review",
+  "verifiedPurchase": "Verified Purchase",
+  "noReviews": "No reviews yet",
+  "averageRating": "Average Rating",
+  "totalReviews": "reviews",
+  "stars": {
+    "5": "5 stars",
+    "4": "4 stars",
+    "3": "3 stars",
+    "2": "2 stars",
+    "1": "1 star"
+  }
+}

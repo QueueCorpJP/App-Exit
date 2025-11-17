@@ -2,10 +2,17 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useLocale, useTranslations } from 'next-intl';
 import Button from '@/components/ui/Button';
 
-export default function RegisterFormPage() {
+interface RegisterFormPageProps {
+  pageDict?: Record<string, any>;
+}
+
+export default function RegisterFormPage({ pageDict = {} }: RegisterFormPageProps) {
   const router = useRouter();
+  const locale = useLocale();
+  const t = useTranslations();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -28,17 +35,17 @@ export default function RegisterFormPage() {
 
     // バリデーション
     if (!formData.email || !formData.password || !formData.displayName) {
-      setError('すべての項目を入力してください');
+      setError(t('registerFormFillAll'));
       return;
     }
 
     if (formData.password !== formData.confirmPassword) {
-      setError('パスワードが一致しません');
+      setError(t('registerPasswordMismatch'));
       return;
     }
 
     if (formData.password.length < 8) {
-      setError('パスワードは8文字以上で入力してください');
+      setError(t('registerPasswordLength'));
       return;
     }
 
@@ -62,14 +69,14 @@ export default function RegisterFormPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || '登録に失敗しました');
+        throw new Error(data.error || t('registerFormFailed'));
       }
 
       // 登録成功 - セッションがCookieに設定されているので、そのままホームページへ
       router.push('/');
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : '登録に失敗しました');
+      setError(err instanceof Error ? err.message : t('registerFormFailed'));
     } finally {
       setLoading(false);
     }
@@ -79,7 +86,7 @@ export default function RegisterFormPage() {
     <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#F9F8F7' }}>
       <div className="w-full max-w-md p-8 bg-white rounded-lg shadow-sm">
         <h1 className="text-3xl font-bold mb-8 text-center" style={{ color: '#323232' }}>
-          新規登録
+          {t('registerFormTitle')}
         </h1>
 
         {error && (
@@ -91,7 +98,7 @@ export default function RegisterFormPage() {
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
             <label htmlFor="displayName" className="block text-sm font-semibold mb-2" style={{ color: '#323232' }}>
-              表示名
+              {t('displayName')}
             </label>
             <input
               type="text"
@@ -100,14 +107,14 @@ export default function RegisterFormPage() {
               value={formData.displayName}
               onChange={handleChange}
               className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#E65D65] focus:ring-opacity-50"
-              placeholder="山田太郎"
+              placeholder={t('displayNamePlaceholder')}
               required
             />
           </div>
 
           <div>
             <label htmlFor="email" className="block text-sm font-semibold mb-2" style={{ color: '#323232' }}>
-              メールアドレス
+              {t('registerFormEmail')}
             </label>
             <input
               type="email"
@@ -123,7 +130,7 @@ export default function RegisterFormPage() {
 
           <div>
             <label htmlFor="password" className="block text-sm font-semibold mb-2" style={{ color: '#323232' }}>
-              パスワード
+              {t('registerFormPassword')}
             </label>
             <input
               type="password"
@@ -132,14 +139,14 @@ export default function RegisterFormPage() {
               value={formData.password}
               onChange={handleChange}
               className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#E65D65] focus:ring-opacity-50"
-              placeholder="8文字以上"
+              placeholder={t('registerFormPasswordPlaceholder')}
               required
             />
           </div>
 
           <div>
             <label htmlFor="confirmPassword" className="block text-sm font-semibold mb-2" style={{ color: '#323232' }}>
-              パスワード（確認）
+              {t('registerFormConfirmPassword')}
             </label>
             <input
               type="password"
@@ -148,7 +155,7 @@ export default function RegisterFormPage() {
               value={formData.confirmPassword}
               onChange={handleChange}
               className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#E65D65] focus:ring-opacity-50"
-              placeholder="もう一度入力してください"
+              placeholder={t('registerFormConfirmPlaceholder')}
               required
             />
           </div>
@@ -159,15 +166,15 @@ export default function RegisterFormPage() {
             style={{ backgroundColor: '#E65D65' }}
             disabled={loading}
           >
-            {loading ? '登録中...' : '登録する'}
+            {loading ? t('registerFormRegistering') : t('registerFormSignUp')}
           </Button>
         </form>
 
         <div className="mt-6 text-center">
           <p className="text-sm text-gray-600">
-            すでにアカウントをお持ちですか？{' '}
-            <a href="/login" className="font-semibold hover:underline" style={{ color: '#E65D65' }}>
-              ログイン
+            {t('registerFormHaveAccount')}{' '}
+            <a href={`/${locale}/login`} className="font-semibold hover:underline" style={{ color: '#E65D65' }}>
+              {t('header.login')}
             </a>
           </p>
         </div>

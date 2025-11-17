@@ -1,0 +1,20 @@
+{
+  "search": "Search",
+  "clear": "Clear",
+  "close": "Close Filters",
+  "open": "Open Filters",
+  "searchPlaceholder": "Search",
+  "type": "Type",
+  "status": "Status",
+  "category": "Category",
+  "price": "Price",
+  "min": "Min",
+  "max": "Max",
+  "monthlyRevenue": "Monthly Revenue",
+  "profitMargin": "Profit Margin",
+  "technology": "Technology",
+  "searchButton": "Search",
+  "sort": "Sort",
+  "resultsCount": "{count} results",
+  "from": "~"
+}

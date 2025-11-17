@@ -3,6 +3,7 @@
 import { useState, useEffect, memo } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
+import { useTranslations, useLocale } from 'next-intl';
 import { MessageWithSender, ThreadDetail, messageApi, postApi, Post } from '@/lib/api-client';
 import { Image as ImageIcon, X, FileText, File, Briefcase, Scale, Users, Info, Check } from 'lucide-react';
 import Button from '@/components/ui/Button';
@@ -51,6 +52,8 @@ function MessageThread({
   onBack,
 }: MessageThreadProps) {
   console.log('[MESSAGE-THREAD-COMPONENT] Render:', { isLoadingMessages, messagesLength: messages.length });
+  const t = useTranslations();
+  const locale = useLocale();
   const router = useRouter();
   const { user } = useAuth();
   const [newMessage, setNewMessage] = useState('');
@@ -80,12 +83,23 @@ function MessageThread({
   const [contractError, setContractError] = useState<string | null>(null);
 
   // 契約書のリスト
+  const getContractName = (id: string) => {
+    const names: Record<string, { ja: string; en: string }> = {
+      'nda': { ja: '秘密保持契約（NDA）', en: 'Non-Disclosure Agreement (NDA)' },
+      'loi': { ja: '基本合意書（LOI / MOU）', en: 'Letter of Intent (LOI / MOU)' },
+      'dd': { ja: 'デューデリジェンス関連の資料', en: 'Due Diligence Documents' },
+      'transfer': { ja: '事業譲渡契約', en: 'Business Transfer Agreement' },
+      'handover': { ja: '引継ぎ業務委託契約', en: 'Handover Service Agreement' },
+    };
+    return names[id] ? (locale === 'ja' ? names[id].ja : names[id].en) : id;
+  };
+
   const [contracts, setContracts] = useState<ContractDocument[]>([
-    { id: 'nda', name: '秘密保持契約（NDA）', icon: FileText, file: null, preview: null, filePath: null, signedUrl: null },
-    { id: 'loi', name: '基本合意書（LOI / MOU）', icon: File, file: null, preview: null, filePath: null, signedUrl: null },
-    { id: 'dd', name: 'デューデリジェンス関連の資料', icon: Briefcase, file: null, preview: null, filePath: null, signedUrl: null },
-    { id: 'transfer', name: '事業譲渡契約', icon: Scale, file: null, preview: null, filePath: null, signedUrl: null },
-    { id: 'handover', name: '引継ぎ業務委託契約', icon: Users, file: null, preview: null, filePath: null, signedUrl: null },
+    { id: 'nda', name: getContractName('nda'), icon: FileText, file: null, preview: null, filePath: null, signedUrl: null },
+    { id: 'loi', name: getContractName('loi'), icon: File, file: null, preview: null, filePath: null, signedUrl: null },
+    { id: 'dd', name: getContractName('dd'), icon: Briefcase, file: null, preview: null, filePath: null, signedUrl: null },
+    { id: 'transfer', name: getContractName('transfer'), icon: Scale, file: null, preview: null, filePath: null, signedUrl: null },
+    { id: 'handover', name: getContractName('handover'), icon: Users, file: null, preview: null, filePath: null, signedUrl: null },
   ]);
 
   // 追加の契約書
@@ -233,16 +247,16 @@ function MessageThread({
     const now = new Date();
     const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
 
-    if (diffInMinutes < 1) return 'たった今';
-    if (diffInMinutes < 60) return `${diffInMinutes}分前`;
+    if (diffInMinutes < 1) return locale === 'ja' ? 'たった今' : 'Just now';
+    if (diffInMinutes < 60) return locale === 'ja' ? `${diffInMinutes}分前` : `${diffInMinutes}m ago`;
 
     const diffInHours = Math.floor(diffInMinutes / 60);
-    if (diffInHours < 24) return `${diffInHours}時間前`;
+    if (diffInHours < 24) return locale === 'ja' ? `${diffInHours}時間前` : `${diffInHours}h ago`;
 
     const diffInDays = Math.floor(diffInHours / 24);
-    if (diffInDays < 7) return `${diffInDays}日前`;
+    if (diffInDays < 7) return locale === 'ja' ? `${diffInDays}日前` : `${diffInDays}d ago`;
 
-    return date.toLocaleDateString('ja-JP', { month: 'short', day: 'numeric' });
+    return date.toLocaleDateString(locale === 'ja' ? 'ja-JP' : 'en-US', { month: 'short', day: 'numeric' });
   };
 
   const getOtherParticipant = () => {
@@ -274,7 +288,7 @@ function MessageThread({
 
     // PDFファイルのみを受け付けるバリデーション
     if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
-      setContractError('PDFファイルのみアップロード可能です。');
+      setContractError(locale === 'ja' ? 'PDFファイルのみアップロード可能です。' : 'Only PDF files can be uploaded.');
       // エラーメッセージを3秒後に消す
       setTimeout(() => {
         setContractError(null);

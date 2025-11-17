@@ -1,0 +1,312 @@
+{
+  "title": "Safety Management Policy",
+  "introduction": "Queue Inc. (hereinafter referred to as \"the Company\"), as an enterprise operating the app and web service trading platform \"APPEXIT,\" considers providing safe and secure services to customers as our top priority, and declares our commitment to building a comprehensive safety management system and continuously improving it.",
+  "basicPolicy": {
+    "title": "Basic Policy",
+    "intro": "The Company recognizes ensuring user safety as the most important management issue and establishes the following basic policies:",
+    "items": [
+      "We will operate with the safety of users' lives, bodies, and property as our top priority",
+      "We will comply with laws, regulations, and industry standards related to safety",
+      "We will continuously conduct risk assessments and preventive measures",
+      "We will provide safety management education to all employees",
+      "We will establish a rapid response system for emergencies"
+    ]
+  },
+  "section1": {
+    "title": "1. Scope of Application",
+    "intro": "This policy applies to all business activities related to the APPEXIT service.",
+    "targetScope": {
+      "title": "Target Scope",
+      "items": [
+        "Ensuring transaction safety on the platform",
+        "Protection of personal information and confidential information",
+        "Prevention of fraudulent transactions and fraud",
+        "Ensuring system safety and reliability",
+        "Development of customer support system",
+        "Ensuring employee safety and health"
+      ]
+    },
+    "targetPersons": {
+      "title": "Target Persons",
+      "items": [
+        "All officers and employees of the Company",
+        "APPEXIT service users",
+        "Business contractors, partner companies, and other related parties",
+        "All others involved in the Company's services"
+      ]
+    }
+  },
+  "section2": {
+    "title": "2. Safety Management System",
+    "organizational": {
+      "title": "(1) Organizational Structure",
+      "items": [
+        "Establishment of Chief Safety Officer (CSO)",
+        "Establishment and regular meetings of Safety Management Committee",
+        "Appointment of safety management officers in each department",
+        "Establishment of emergency response team"
+      ]
+    },
+    "rolesAndResponsibilities": {
+      "title": "(2) Roles and Responsibilities",
+      "cso": {
+        "title": "Chief Safety Officer (CSO)",
+        "description": "Overall supervision of safety management system, formulation and approval of safety management policies"
+      },
+      "committee": {
+        "title": "Safety Management Committee",
+        "description": "Deliberation of important matters related to safety, command of emergency response"
+      },
+      "departmentManager": {
+        "title": "Department Managers",
+        "description": "Implementation and management of safety measures in departments under their jurisdiction"
+      },
+      "allEmployees": {
+        "title": "All Employees",
+        "description": "Compliance with this policy and related regulations, practice of safety in daily work"
+      }
+    }
+  },
+  "section3": {
+    "title": "3. Ensuring Transaction Safety",
+    "verification": {
+      "title": "(1) Identity Verification and Screening",
+      "items": [
+        "Implementation of strict identity verification procedures (KYC)",
+        "Eligibility screening of sellers and buyers",
+        "Verification of registration information for corporations",
+        "Exclusion of anti-social forces"
+      ]
+    },
+    "monitoring": {
+      "title": "(2) Transaction Monitoring",
+      "items": [
+        "Implementation of fraudulent transaction detection systems",
+        "Anomaly detection in transaction patterns",
+        "24/7/365 monitoring system",
+        "Reporting and investigation of suspicious transactions"
+      ]
+    },
+    "escrow": {
+      "title": "(3) Escrow Service",
+      "items": [
+        "Provision of secure payment settlement mechanism",
+        "Company holds payment until transaction completion",
+        "Arbitration function in case of disputes",
+        "Clarification of refund process"
+      ]
+    }
+  },
+  "section4": {
+    "title": "4. Prevention of Fraud and Misconduct",
+    "prevention": {
+      "title": "(1) Preventive Measures",
+      "items": [
+        "Pre-screening of listing content",
+        "Verification of app/service existence",
+        "Detection and removal of false information",
+        "Alerts and education for users"
+      ]
+    },
+    "prohibition": {
+      "title": "(2) Clarification of Prohibited Matters",
+      "items": [
+        "Prohibition of posting false information",
+        "Prohibition of listings that infringe on third-party rights",
+        "Prohibition of trading illegal apps/services",
+        "Prohibition of use for money laundering purposes"
+      ]
+    },
+    "reporting": {
+      "title": "(3) Reporting and Consultation Contact",
+      "items": [
+        "Establishment of 24-hour reporting contact",
+        "Anonymous reporting also accepted",
+        "Prompt investigation of reported content",
+        "Protection of reporters"
+      ]
+    }
+  },
+  "section5": {
+    "title": "5. Data Protection and Privacy",
+    "personalInfoProtection": {
+      "title": "(1) Protection of Personal Information",
+      "items": [
+        "Full compliance with Personal Information Protection Act",
+        "Acquisition of only minimum necessary information",
+        "Appropriate access restrictions",
+        "Protection through encryption"
+      ]
+    },
+    "informationHandling": {
+      "title": "(2) Information Handling",
+      "items": [
+        "Specification of purpose of use",
+        "Obtaining consent when providing to third parties",
+        "Implementation of safety management measures",
+        "Regular review and deletion of information"
+      ]
+    }
+  },
+  "section6": {
+    "title": "6. System Safety",
+    "systemSecurity": {
+      "title": "(1) System Security",
+      "items": [
+        "Implementation of SSL/TLS encrypted communication",
+        "DDoS attack countermeasures",
+        "Regular vulnerability assessments",
+        "Prompt application of security patches",
+        "Implementation of WAF (Web Application Firewall)"
+      ]
+    },
+    "availability": {
+      "title": "(2) Ensuring Availability",
+      "items": [
+        "Redundant system configuration",
+        "Regular backups",
+        "Disaster recovery plan (DRP) formulation",
+        "Maintaining service uptime rate of 99.9% or higher"
+      ]
+    },
+    "monitoringSystem": {
+      "title": "(3) Monitoring System",
+      "items": [
+        "24/7/365 system monitoring",
+        "Automatic anomaly detection and notification",
+        "Recording and analysis of access logs",
+        "Regular audits"
+      ]
+    }
+  },
+  "section7": {
+    "title": "7. Emergency Response",
+    "emergencyDefinition": {
+      "title": "(1) Definition of Emergency",
+      "intro": "The following events are defined as emergencies:",
+      "items": [
+        "Serious security incidents",
+        "Large-scale system failures",
+        "Occurrence of fraud or misconduct",
+        "Business suspension due to natural disasters, etc.",
+        "Other events that threaten user safety"
+      ]
+    },
+    "responseProcedures": {
+      "title": "(2) Response Procedures",
+      "items": [
+        {
+          "label": "Detection and Reporting:",
+          "description": "Immediately report to emergency response team upon discovery of emergency"
+        },
+        {
+          "label": "Initial Response:",
+          "description": "Prevention of damage expansion and ensuring user safety"
+        },
+        {
+          "label": "Situation Confirmation:",
+          "description": "Understanding of damage status and scope of impact"
+        },
+        {
+          "label": "Implementation of Countermeasures:",
+          "description": "Problem resolution and recovery work"
+        },
+        {
+          "label": "Information Disclosure:",
+          "description": "Appropriate information provision to users"
+        },
+        {
+          "label": "Recurrence Prevention:",
+          "description": "Cause analysis and implementation of improvement measures"
+        }
+      ]
+    },
+    "communicationSystem": {
+      "title": "(3) Communication System",
+      "items": [
+        "Development of emergency contact network",
+        "Cooperation system with relevant organizations",
+        "Prompt information provision to users",
+        "Press release distribution system"
+      ]
+    }
+  },
+  "section8": {
+    "title": "8. Education and Training",
+    "employeeEducation": {
+      "title": "(1) Employee Education",
+      "items": [
+        "Regular safety management education for all employees (twice or more per year)",
+        "Safety training for new employees",
+        "Specialized education by job type",
+        "Emergency response drills"
+      ]
+    },
+    "userAwareness": {
+      "title": "(2) User Awareness",
+      "items": [
+        "Provision of safe transaction method guides",
+        "Alerts about fraud techniques",
+        "Security information dissemination",
+        "Enhancement of FAQ and support articles"
+      ]
+    }
+  },
+  "section9": {
+    "title": "9. Legal Compliance",
+    "intro": "The Company complies with the following laws and operates safely:",
+    "items": [
+      "Personal Information Protection Act",
+      "Act on Specified Commercial Transactions",
+      "Payment Services Act",
+      "Act on Prevention of Transfer of Criminal Proceeds",
+      "Consumer Contract Act",
+      "Unauthorized Computer Access Act",
+      "Telecommunications Business Act",
+      "Other related laws and regulations"
+    ]
+  },
+  "section10": {
+    "title": "10. Continuous Improvement",
+    "regularReview": {
+      "title": "Regular Review",
+      "description": "To verify the effectiveness of the safety management system, internal audits are conducted regularly to identify areas for improvement."
+    },
+    "riskAssessment": {
+      "title": "Risk Assessment",
+      "description": "New risks and threats are continuously assessed, and countermeasures are strengthened as necessary."
+    },
+    "pdcaCycle": {
+      "title": "PDCA Cycle",
+      "description": "Based on the cycle of Plan, Do, Check, Act, the safety management system is continuously improved."
+    }
+  },
+  "section11": {
+    "title": "11. Request to Customers",
+    "intro": "To use APPEXIT more safely, we ask for your cooperation on the following points:",
+    "items": [
+      "Accurate description of listing content and transaction content",
+      "Checking ratings and reviews of transaction partners",
+      "Avoiding suspicious transactions",
+      "Prohibition of direct transactions outside the platform",
+      "Proper password management",
+      "Enabling two-factor authentication",
+      "Prompt reporting of suspicious activities discovered"
+    ]
+  },
+  "section12": {
+    "title": "12. Contact",
+    "intro": "For inquiries regarding safety management or reporting suspicious activities, please contact:",
+    "contact": {
+      "company": "Queue Inc.",
+      "officer": "Safety Management Officer",
+      "email": "Email: safety@appexit.jp",
+      "emergency": "Emergency Reporting Contact: support@appexit.jp (24-hour reception)",
+      "address": "Address: THE HUB Ginza OCT, 8-17-5 Ginza, Chuo-ku, Tokyo 104-0061, Japan"
+    }
+  },
+  "footer": {
+    "established": "Established: November 1, 2025",
+    "lastRevised": "Last Revised: November 1, 2025"
+  }
+}

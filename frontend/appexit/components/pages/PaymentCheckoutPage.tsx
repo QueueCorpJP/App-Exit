@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { useLocale, useTranslations } from 'next-intl'
 import Button from '@/components/ui/Button'
 
 interface AppDetails {
@@ -19,6 +20,8 @@ interface PaymentCheckoutPageProps {
 }
 
 export default function PaymentCheckoutPage({ appId }: PaymentCheckoutPageProps) {
+  const locale = useLocale()
+  const t = useTranslations()
   const [app, setApp] = useState<AppDetails | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isProcessing, setIsProcessing] = useState(false)
@@ -56,7 +59,7 @@ export default function PaymentCheckoutPage({ appId }: PaymentCheckoutPageProps)
 
   const handlePayment = async () => {
     if (!termsAccepted || !transferAccepted || !privacyAccepted) {
-      alert('すべての契約書項目に同意してください')
+      alert(t('paymentAgreeToAll'))
       return
     }
 
@@ -72,11 +75,11 @@ export default function PaymentCheckoutPage({ appId }: PaymentCheckoutPageProps)
       // 仮の処理
       await new Promise((resolve) => setTimeout(resolve, 2000))
 
-      alert('決済が完了しました')
+      alert(t('paymentCompleted'))
       router.push(`/transactions/${appId}`)
     } catch (error) {
       console.error('決済エラー:', error)
-      alert('決済に失敗しました')
+      alert(t('paymentFailed'))
     } finally {
       setIsProcessing(false)
     }
@@ -94,7 +97,9 @@ export default function PaymentCheckoutPage({ appId }: PaymentCheckoutPageProps)
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#F9F8F7' }}>
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">プロダクトが見つかりません</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            {t('paymentProductNotFound')}
+          </h2>
         </div>
       </div>
     )
@@ -107,14 +112,16 @@ export default function PaymentCheckoutPage({ appId }: PaymentCheckoutPageProps)
     <div className="min-h-screen" style={{ backgroundColor: '#F9F8F7' }}>
       <div className="max-w-5xl mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-8">
-          購入手続き
+          {t('paymentPurchaseProcess')}
         </h1>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* 左側：商品情報 */}
           <div className="lg:col-span-2">
             <div className="bg-white border-2 border-gray-900 p-8 mb-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-6">購入するプロダクト</h2>
+              <h2 className="text-xl font-bold text-gray-900 mb-6">
+                {t('paymentProductToPurchase')}
+              </h2>
 
               <div className="flex items-start space-x-6 mb-6">
                 <div className="w-24 h-24 bg-gradient-to-br from-blue-100 to-indigo-200 border-2 flex items-center justify-center flex-shrink-0">
@@ -126,27 +133,33 @@ export default function PaymentCheckoutPage({ appId }: PaymentCheckoutPageProps)
                   </h3>
                   <p className="text-gray-600 mb-2">{app.description}</p>
                   <p className="text-sm text-gray-500">
-                    売り手: {app.seller_name}
+                    {t('seller')}: {app.seller_name}
                   </p>
                 </div>
               </div>
 
               <div className="border-t border-gray-200 pt-6">
                 <div className="flex justify-between items-center mb-3">
-                  <span className="text-gray-700">プロダクト価格</span>
+                  <span className="text-gray-700">
+                    {t('paymentProductPrice')}
+                  </span>
                   <span className="text-xl font-bold text-gray-900">
                     ¥{formatPrice(app.price)}
                   </span>
                 </div>
                 <div className="flex justify-between items-center mb-3">
-                  <span className="text-gray-700">手数料（10%）</span>
+                  <span className="text-gray-700">
+                    {t('paymentFee')}
+                  </span>
                   <span className="text-lg text-gray-700">
                     ¥{formatPrice(fee)}
                   </span>
                 </div>
                 <div className="border-t border-gray-200 pt-3 mt-3">
                   <div className="flex justify-between items-center">
-                    <span className="text-lg font-bold text-gray-900">合計</span>
+                    <span className="text-lg font-bold text-gray-900">
+                      {t('paymentTotal')}
+                    </span>
                     <span className="text-2xl font-bold text-blue-600">
                       ¥{formatPrice(total)}
                     </span>
@@ -158,7 +171,7 @@ export default function PaymentCheckoutPage({ appId }: PaymentCheckoutPageProps)
             {/* 契約書項目 */}
             <div className="bg-white border-2 border-gray-900 p-8">
               <h2 className="text-xl font-bold text-gray-900 mb-6">
-                契約書への同意
+                {t('paymentAgreementToContracts')}
               </h2>
 
               <div className="space-y-4">
@@ -171,13 +184,13 @@ export default function PaymentCheckoutPage({ appId }: PaymentCheckoutPageProps)
                   />
                   <div className="flex-1">
                     <div className="font-semibold text-gray-900 mb-1">
-                      利用規約
+                      {t('termsOfService')}
                     </div>
                     <p className="text-sm text-gray-600">
-                      AppExitの利用規約に同意します
+                      {t('paymentAgreeToTerms')}
                     </p>
                     <a href="/terms" target="_blank" className="text-sm text-blue-600 hover:underline">
-                      規約を確認する →
+                      {t('paymentViewTerms')}
                     </a>
                   </div>
                 </label>
@@ -191,13 +204,13 @@ export default function PaymentCheckoutPage({ appId }: PaymentCheckoutPageProps)
                   />
                   <div className="flex-1">
                     <div className="font-semibold text-gray-900 mb-1">
-                      譲渡契約書
+                      {t('paymentTransferAgreement')}
                     </div>
                     <p className="text-sm text-gray-600">
-                      プロダクトの所有権譲渡に関する契約書に同意します
+                      {t('paymentAgreeToTransfer')}
                     </p>
                     <a href="/transfer-agreement" target="_blank" className="text-sm text-blue-600 hover:underline">
-                      契約書を確認する →
+                      {t('paymentViewAgreement')}
                     </a>
                   </div>
                 </label>
@@ -211,13 +224,13 @@ export default function PaymentCheckoutPage({ appId }: PaymentCheckoutPageProps)
                   />
                   <div className="flex-1">
                     <div className="font-semibold text-gray-900 mb-1">
-                      個人情報取扱い
+                      {t('privacyPolicy')}
                     </div>
                     <p className="text-sm text-gray-600">
-                      個人情報の取扱いに関する方針に同意します
+                      {t('paymentAgreeToPrivacy')}
                     </p>
                     <a href="/privacy" target="_blank" className="text-sm text-blue-600 hover:underline">
-                      方針を確認する →
+                      {t('paymentViewPolicy')}
                     </a>
                   </div>
                 </label>
@@ -227,7 +240,7 @@ export default function PaymentCheckoutPage({ appId }: PaymentCheckoutPageProps)
                 <div className="flex items-start space-x-2">
                   <span className="text-xl">⚠️</span>
                   <p className="text-sm text-yellow-800">
-                    <strong>重要:</strong> すべての契約書項目に同意しないと購入できません。内容を十分に確認してからチェックを入れてください。
+                    <strong>{t('paymentImportant')}:</strong> {t('paymentImportantMessage')}
                   </p>
                 </div>
               </div>
@@ -238,11 +251,13 @@ export default function PaymentCheckoutPage({ appId }: PaymentCheckoutPageProps)
           <div className="lg:col-span-1">
             <div className="bg-white border-2 border-gray-900 p-6 sticky top-8">
               <h3 className="text-lg font-bold text-gray-900 mb-4">
-                お支払い
+                {t('paymentPayment')}
               </h3>
 
               <div className="mb-6">
-                <div className="text-sm text-gray-600 mb-1">合計金額</div>
+                <div className="text-sm text-gray-600 mb-1">
+                  {t('totalAmount')}
+                </div>
                 <div className="text-3xl font-bold text-blue-600">
                   ¥{formatPrice(total)}
                 </div>
@@ -255,9 +270,9 @@ export default function PaymentCheckoutPage({ appId }: PaymentCheckoutPageProps)
                 onClick={handlePayment}
                 disabled={!termsAccepted || !transferAccepted || !privacyAccepted}
                 isLoading={isProcessing}
-                loadingText="処理中..."
+                loadingText={t('processing')}
               >
-                Stripeで支払う
+                {t('paymentPayWithStripe')}
               </Button>
 
               <Button
@@ -265,16 +280,16 @@ export default function PaymentCheckoutPage({ appId }: PaymentCheckoutPageProps)
                 className="w-full"
                 onClick={() => router.back()}
               >
-                キャンセル
+                {t('cancel')}
               </Button>
 
               <div className="mt-6 pt-6 border-t border-gray-200">
                 <div className="flex items-center space-x-2 text-sm text-gray-600 mb-2">
                   <span>🔒</span>
-                  <span>安全な決済</span>
+                  <span>{t('paymentSecure')}</span>
                 </div>
                 <p className="text-xs text-gray-500">
-                  すべての決済はStripeによって安全に処理されます
+                  {t('paymentSecureMessage')}
                 </p>
               </div>
             </div>

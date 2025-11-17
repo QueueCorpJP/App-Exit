@@ -1,5 +1,6 @@
 import Image from 'next/image';
 import Link from 'next/link';
+import { useLocale, useTranslations } from 'next-intl';
 import { UserProfile } from '@/types';
 import { truncateDisplayName } from '@/lib/text-utils';
 
@@ -9,6 +10,8 @@ interface ProfileCardProps {
 }
 
 export default function ProfileCard({ profile, showActions = false }: ProfileCardProps) {
+  const locale = useLocale();
+  const t = useTranslations();
   return (
     <div className="bg-white py-6 px-12">
       <div className="flex items-center space-x-6">
@@ -31,39 +34,41 @@ export default function ProfileCard({ profile, showActions = false }: ProfileCar
           <h1 className="text-2xl font-bold text-gray-900" title={profile.display_name}>{truncateDisplayName(profile.display_name, 'card')}</h1>
           <div className="flex items-center space-x-4 mt-2 text-sm text-gray-600">
             <span className={`px-2 py-1 rounded-full text-xs ${
-              profile.user_type === 'seller' 
-                ? 'bg-green-100 text-green-800' 
+              profile.user_type === 'seller'
+                ? 'bg-green-100 text-green-800'
                 : 'bg-blue-100 text-blue-800'
             }`}>
-              {profile.user_type === 'seller' ? '売り手' : '買い手'}
+              {profile.user_type === 'seller' ? t('seller') : t('buyer')}
             </span>
             <span className={`px-2 py-1 rounded-full text-xs ${
-              profile.entity_type === 'company' 
-                ? 'bg-purple-100 text-purple-800' 
+              profile.entity_type === 'company'
+                ? 'bg-purple-100 text-purple-800'
                 : 'bg-gray-100 text-gray-800'
             }`}>
-              {profile.entity_type === 'company' ? '企業' : '個人'}
+              {profile.entity_type === 'company' ? t('company') : t('individual')}
             </span>
             {profile.company_name && (
               <span className="text-gray-600">{profile.company_name}</span>
             )}
             {profile.age && (
-              <span className="text-gray-600">{profile.age}歳</span>
+              <span className="text-gray-600">
+                {profile.age}{t('yearsOld')}
+              </span>
             )}
             {profile.nda_accepted && (
               <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs">
-                NDA対応
+                {t('ndaAccepted')}
               </span>
             )}
           </div>
           <p className="text-sm text-gray-500 mt-2">
-            登録日: {profile.created_at.toLocaleDateString('ja-JP')}
+            {t('registered')}: {profile.created_at.toLocaleDateString(locale === 'ja' ? 'ja-JP' : 'en-US')}
           </p>
         </div>
         {showActions && (
           <div className="flex space-x-3">
             <button className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">
-              メッセージを送る
+              {t('sendMessage')}
             </button>
           </div>
         )}

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useLocale, useTranslations } from 'next-intl'
 import { useAuth } from '@/lib/auth-context'
 
 interface Transaction {
@@ -17,11 +18,13 @@ interface Transaction {
 }
 
 export default function TransactionHistoryPage() {
+  const t = useTranslations()
+  const locale = useLocale()
   const { profile } = useAuth()
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [filter, setFilter] = useState<'all' | 'completed' | 'pending' | 'failed'>('all')
   const [isLoading, setIsLoading] = useState(true)
-  
+
   // プロフィールからユーザータイプを取得（Cookieベースの認証）
   const userType: 'buyer' | 'seller' | null = profile?.role === 'seller' ? 'seller' : profile?.role === 'buyer' ? 'buyer' : null
 
@@ -94,25 +97,25 @@ export default function TransactionHistoryPage() {
       case 'completed':
         return (
           <span className="px-3 py-1 bg-green-100 text-green-700 text-sm font-medium rounded-full">
-            ✓ 完了
+            ✓ {t('completed')}
           </span>
         )
       case 'pending':
         return (
           <span className="px-3 py-1 bg-yellow-100 text-yellow-700 text-sm font-medium rounded-full">
-            ⏳ 処理中
+            ⏳ {t('processing')}
           </span>
         )
       case 'failed':
         return (
           <span className="px-3 py-1 bg-red-100 text-red-700 text-sm font-medium rounded-full">
-            ✗ 失敗
+            ✗ {t('failed')}
           </span>
         )
       case 'refunded':
         return (
           <span className="px-3 py-1 bg-gray-100 text-gray-700 text-sm font-medium rounded-full">
-            ↩ 返金済み
+            ↩ {t('refunded')}
           </span>
         )
       default:
@@ -129,34 +132,44 @@ export default function TransactionHistoryPage() {
       <div className="max-w-6xl mx-auto px-4 py-8">
         {/* ヘッダー */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">取引履歴</h1>
+          <h1 className="text-3xl font-bold text-gray-900">
+            {t('transactionHistory')}
+          </h1>
           <p className="text-gray-600 mt-2">
-            {userType === 'seller' ? '販売履歴' : '購入履歴'}を確認できます
+            {t('viewHistory', { type: userType === 'seller' ? t('sales') : t('purchase') })}
           </p>
         </div>
 
         {/* 統計カード */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <div className="bg-white border-2 p-6 border-gray-900">
-            <div className="text-sm text-gray-600 mb-1">総取引数</div>
+            <div className="text-sm text-gray-600 mb-1">
+              {t('totalTransactions')}
+            </div>
             <div className="text-2xl font-bold text-gray-900">
-              {filteredTransactions.length}件
+              {filteredTransactions.length}{t('件')}
             </div>
           </div>
           <div className="bg-white border-2 p-6 border-gray-900">
-            <div className="text-sm text-gray-600 mb-1">完了した取引</div>
+            <div className="text-sm text-gray-600 mb-1">
+              {t('completedTransactions')}
+            </div>
             <div className="text-2xl font-bold text-green-600">
-              {filteredTransactions.filter((t) => t.status === 'completed').length}件
+              {filteredTransactions.filter((t) => t.status === 'completed').length}{t('件')}
             </div>
           </div>
           <div className="bg-white border-2 p-6 border-gray-900">
-            <div className="text-sm text-gray-600 mb-1">処理中</div>
+            <div className="text-sm text-gray-600 mb-1">
+              {t('processing')}
+            </div>
             <div className="text-2xl font-bold text-yellow-600">
-              {filteredTransactions.filter((t) => t.status === 'pending').length}件
+              {filteredTransactions.filter((t) => t.status === 'pending').length}{t('件')}
             </div>
           </div>
           <div className="bg-white border-2 p-6 border-gray-900">
-            <div className="text-sm text-gray-600 mb-1">総取引額</div>
+            <div className="text-sm text-gray-600 mb-1">
+              {t('totalAmount')}
+            </div>
             <div className="text-2xl font-bold text-blue-600">
               {formatPrice(totalAmount)}
             </div>
@@ -174,7 +187,7 @@ export default function TransactionHistoryPage() {
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
-              すべて
+              {t('all')}
             </button>
             <button
               onClick={() => setFilter('completed')}
@@ -184,7 +197,7 @@ export default function TransactionHistoryPage() {
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
-              完了
+              {t('completed')}
             </button>
             <button
               onClick={() => setFilter('pending')}
@@ -194,7 +207,7 @@ export default function TransactionHistoryPage() {
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
-              処理中
+              {t('processing')}
             </button>
             <button
               onClick={() => setFilter('failed')}
@@ -204,7 +217,7 @@ export default function TransactionHistoryPage() {
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
-              失敗
+              {t('failed')}
             </button>
           </div>
         </div>
@@ -233,15 +246,15 @@ export default function TransactionHistoryPage() {
                         </div>
                         <div className="text-sm text-gray-600 space-y-1">
                           {userType === 'buyer' && transaction.seller_name && (
-                            <div>売り手: {transaction.seller_name}</div>
+                            <div>{t('seller')}: {transaction.seller_name}</div>
                           )}
                           {userType === 'seller' && transaction.buyer_name && (
-                            <div>買い手: {transaction.buyer_name}</div>
+                            <div>{t('buyer')}: {transaction.buyer_name}</div>
                           )}
-                          <div>取引ID: {transaction.id}</div>
-                          <div>作成日時: {formatDate(transaction.created_at)}</div>
+                          <div>{t('transactionID')}: {transaction.id}</div>
+                          <div>{t('created')}: {formatDate(transaction.created_at)}</div>
                           {transaction.completed_at && (
-                            <div>完了日時: {formatDate(transaction.completed_at)}</div>
+                            <div>{t('completed')}: {formatDate(transaction.completed_at)}</div>
                           )}
                         </div>
                       </div>
@@ -258,10 +271,10 @@ export default function TransactionHistoryPage() {
                           href={`/projects/${transaction.app_id}`}
                           className="px-4 py-2 bg-blue-600 text-white border-2 text-sm font-medium hover:bg-blue-700 transition-colors"
                         >
-                          プロダクトを見る
+                          {t('viewProduct')}
                         </Link>
                         <button className="px-4 py-2 bg-gray-100 text-gray-700 border-2 text-sm font-medium hover:bg-gray-200 transition-colors">
-                          領収書をダウンロード
+                          {t('downloadReceipt')}
                         </button>
                       </div>
                     )}
@@ -272,18 +285,16 @@ export default function TransactionHistoryPage() {
               <div className="text-center py-12">
                 <div className="text-6xl mb-4">📊</div>
                 <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                  取引履歴がありません
+                  {t('noTransactionHistory')}
                 </h3>
                 <p className="text-gray-600 mb-6">
-                  {userType === 'seller'
-                    ? 'プロダクトを投稿して販売を始めましょう'
-                    : 'プロダクトを購入すると、ここに表示されます'}
+                  {userType === 'seller' ? t('sellerNoTransactions') : t('buyerNoTransactions')}
                 </p>
                 <Link
                   href={userType === 'seller' ? '/projects/new' : '/apps'}
                   className="inline-block bg-blue-600 text-white px-6 py-3 border-2 font-semibold hover:bg-blue-700 transition-colors"
                 >
-                  {userType === 'seller' ? 'プロダクトを投稿' : 'プロダクトを探す'}
+                  {userType === 'seller' ? t('postProductAction') : t('findProductsAction')}
                 </Link>
               </div>
             )}

@@ -1,0 +1,29 @@
+{
+  "checkout": "Checkout",
+  "paymentMethod": "Payment Method",
+  "creditCard": "Credit Card",
+  "bankTransfer": "Bank Transfer",
+  "total": "Total",
+  "subtotal": "Subtotal",
+  "tax": "Tax",
+  "fee": "Fee",
+  "processingFee": "Processing Fee",
+  "escrowFee": "Escrow Fee",
+  "payNow": "Pay Now",
+  "success": {
+    "title": "Payment Completed",
+    "message": "Thank you for your purchase.",
+    "paymentId": "Payment ID",
+    "backToMessages": "Back to Messages",
+    "countdown": " seconds until automatic redirect to messages page",
+    "detailsNote": "Transaction details can be viewed on the messages page"
+  },
+  "error": "Payment Failed",
+  "errorMessage": "An error occurred during payment processing. Please try again.",
+  "cardNumber": "Card Number",
+  "expiryDate": "Expiry Date",
+  "cvv": "CVV",
+  "billingAddress": "Billing Address",
+  "orderSummary": "Order Summary",
+  "returnToShop": "Return to Shop"
+}

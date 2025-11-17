@@ -1,0 +1,132 @@
+{
+  "console": {
+    "submissionError": "Report submission error:",
+    "submissionFailed": "Failed to submit report",
+    "submitted": "Report submitted:",
+    "unexpectedError": "Unexpected error:",
+    "unexpectedErrorOccurred": "An unexpected error occurred"
+  },
+  "reportTypes": {
+    "inappropriateContent": "Inappropriate Content",
+    "fraud": "Fraud/Misconduct",
+    "spam": "Spam",
+    "copyright": "Copyright Infringement",
+    "harassment": "Harassment",
+    "falseInfo": "False Information",
+    "impersonation": "Impersonation",
+    "other": "Other"
+  },
+  "targetTypes": {
+    "appService": "App/Service Listing",
+    "userProfile": "User Profile",
+    "comment": "Comment",
+    "message": "Message",
+    "other": "Other"
+  },
+  "error": {
+    "title": "Submission Failed",
+    "message": "We apologize for the inconvenience. Please try again later or",
+    "messageBreak": "contact us through the contact form.",
+    "backToConfirm": "Back to Confirmation",
+    "contact": "Contact Us"
+  },
+  "complete": {
+    "title": "Report Received",
+    "thankyou": "Thank you for your report.",
+    "review": "We will review the content and take appropriate action. If necessary, we will contact you at the email address you provided with updates on the status.",
+    "note": "*Depending on the nature of the report, resolution may take time or we may not be able to provide updates on the outcome.",
+    "backToHome": "Back to Home"
+  },
+  "confirm": {
+    "title": "Please Confirm Your Report",
+    "subtitle": "Your report will be submitted with the following information. Please review and click the submit button.",
+    "name": "Name",
+    "email": "Email Address",
+    "reportType": "Report Type",
+    "reportTarget": "Report Target",
+    "targetUrl": "Target URL",
+    "targetUserId": "Target User ID",
+    "description": "Detailed Description",
+    "evidenceUrls": "Evidence URLs",
+    "edit": "Edit",
+    "submit": "Submit Report",
+    "submitting": "Submitting..."
+  },
+  "input": {
+    "title": "Report Violation",
+    "subtitle": "If you discover inappropriate content or behavior, please report it using the form below",
+    "notice": {
+      "title": "Please Confirm Before Reporting",
+      "items": [
+        "False reports violate our Terms of Service",
+        "All reports will be carefully reviewed and appropriate action will be taken",
+        "Reporter information is strictly confidential and will not be disclosed to third parties",
+        "For urgent matters (criminal activity, etc.), please also contact the police"
+      ]
+    },
+    "form": {
+      "name": {
+        "label": "Name",
+        "required": "*",
+        "placeholder": "John Doe"
+      },
+      "email": {
+        "label": "Email Address",
+        "required": "*",
+        "placeholder": "mail@example.com"
+      },
+      "reportType": {
+        "label": "Report Type",
+        "required": "*",
+        "placeholder": "Please select"
+      },
+      "targetType": {
+        "label": "Report Target",
+        "required": "*",
+        "placeholder": "Please select"
+      },
+      "targetUrl": {
+        "label": "Target URL",
+        "required": "*",
+        "placeholder": "https://appexit.jp/...",
+        "help": "Please copy and paste the URL of the page you are reporting"
+      },
+      "targetUserId": {
+        "label": "Target User ID (Optional)",
+        "placeholder": "Enter user ID if known"
+      },
+      "description": {
+        "label": "Detailed Description",
+        "required": "*",
+        "placeholder": "Please provide specific details about the issue\n\nExample:\n- What is the problem\n- When did you discover it\n- What is the impact"
+      },
+      "evidenceUrls": {
+        "label": "Evidence URLs (Optional)",
+        "placeholder": "Enter URLs of screenshots or related materials, one per line\nhttps://example.com/screenshot1.png\nhttps://example.com/screenshot2.png",
+        "help": "Please enter URLs of files uploaded to image sharing services (one URL per line)"
+      }
+    },
+    "privacy": {
+      "title": "Privacy Information",
+      "content": "The information you provide will be used solely for reviewing and responding to your report and will be managed in accordance with our",
+      "privacyPolicy": "Privacy Policy",
+      "contentSuffix": "."
+    },
+    "submitButton": "Proceed to Confirmation",
+    "faq": {
+      "title": "Frequently Asked Questions About Reports",
+      "q1": {
+        "question": "Q. How long does it take to respond to a report?",
+        "answer": "A. Response time varies depending on the content, but we typically review and respond within 1-3 business days."
+      },
+      "q2": {
+        "question": "Q. Will the reported party know my identity?",
+        "answer": "A. No. Reporter information is strictly confidential and will not be disclosed to the reported party."
+      },
+      "q3": {
+        "question": "Q. What should I do in an emergency?",
+        "answer": "A. For urgent matters involving criminal activity or immediate danger to life, please contact the police (911) first."
+      }
+    }
+  }
+}

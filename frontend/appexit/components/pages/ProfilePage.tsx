@@ -4,15 +4,24 @@ import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useLocale, useTranslations } from 'next-intl';
 import { CreditCard, CheckCircle2, AlertCircle } from 'lucide-react';
 import { profileApi, Profile } from '@/lib/api-client';
 import { useAuth } from '@/lib/auth-context';
 import { postApi, Post } from '@/lib/api-client';
 import { truncateDisplayName } from '@/lib/text-utils';
+import { usePageDict } from '@/lib/page-dict';
 
-export default function ProfilePage() {
+interface ProfilePageProps {
+  pageDict?: Record<string, any>;
+}
+
+export default function ProfilePage({ pageDict = {} }: ProfilePageProps) {
+  const t = useTranslations();
   const { user: currentUser, loading: authLoading } = useAuth();
   const router = useRouter();
+  const locale = useLocale();
+  const tp = usePageDict(pageDict);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
   const [activeTab, setActiveTab] = useState<'all' | 'board' | 'transaction' | 'secret'>('all');
@@ -56,11 +65,11 @@ export default function ProfilePage() {
             setPosts(Array.isArray(posts) ? posts : []);
           }
         } catch (postError) {
-          console.error('投稿の取得に失敗しました:', postError);
+          console.error('Failed to fetch posts:', postError);
           // 投稿の取得に失敗しても続行
         }
       } catch (error) {
-        console.error('プロフィールデータの取得に失敗しました:', error);
+        console.error('Failed to fetch profile data:', error);
       } finally {
         if (isMounted) {
           setLoading(false);
@@ -77,7 +86,7 @@ export default function ProfilePage() {
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('ja-JP', {
+    return date.toLocaleDateString(locale === 'ja' ? 'ja-JP' : 'en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
@@ -87,17 +96,22 @@ export default function ProfilePage() {
   const getJoinDate = () => {
     if (!profile?.created_at) return '';
     const date = new Date(profile.created_at);
-    return `${date.getFullYear()}年${date.getMonth() + 1}月からプロダクトExitを利用しています`;
+    if (locale === 'ja') {
+      return tp('profileJoinDate').replace('{year}', date.getFullYear().toString()).replace('{month}', (date.getMonth() + 1).toString());
+    } else {
+      const monthName = date.toLocaleDateString('en-US', { month: 'long' });
+      return tp('profileJoinDate').replace('{month}', monthName).replace('{year}', date.getFullYear().toString());
+    }
   };
 
   const getPostTypeLabel = (type: string) => {
     switch (type) {
       case 'board':
-        return '掲示板';
+        return tp('board');
       case 'transaction':
-        return '取引';
+        return tp('transaction');
       case 'secret':
-        return '秘密';
+        return tp('secret');
       default:
         return type;
     }
@@ -136,9 +150,9 @@ export default function ProfilePage() {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#F9F8F7' }}>
         <div className="text-center">
-          <p className="text-gray-500 mb-4">プロフィールが見つかりません</p>
+          <p className="text-gray-500 mb-4">{tp('profileNotFound')}</p>
           <Link href="/" className="text-blue-500 hover:text-blue-600">
-            ホームに戻る
+            {tp('backToHome')}
           </Link>
         </div>
       </div>
@@ -161,7 +175,7 @@ export default function ProfilePage() {
             </button>
             <div className="flex-1">
               <h1 className="text-xl font-bold text-gray-900" title={profile.display_name}>{truncateDisplayName(profile.display_name, 'header')}</h1>
-              <p className="text-sm text-gray-500">{posts.length} 件の投稿</p>
+              <p className="text-sm text-gray-500">{posts.length} {tp('posts')}</p>
             </div>
             <div className="flex items-center space-x-2">
               <button className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors">
@@ -203,13 +217,13 @@ export default function ProfilePage() {
               href="/settings/profile"
               className="flex-1 px-4 py-2 border border-gray-300 rounded-full font-semibold text-gray-900 hover:bg-gray-50 transition-colors text-center"
             >
-              プロフィールを編集
+              {tp('editProfile')}
             </Link>
             {profile.stripe_account_id && profile.stripe_onboarding_completed ? (
               <Link
                 href="/settings/payment"
                 className="relative w-12 h-12 flex items-center justify-center group"
-                title="決済設定完了"
+                title={tp('paymentSetupComplete')}
               >
                 <div className="relative">
                   <svg className="w-8 h-8 text-emerald-600 group-hover:text-emerald-700 transition-colors" fill="currentColor" viewBox="0 0 24 24">
@@ -227,7 +241,7 @@ export default function ProfilePage() {
               <Link
                 href="/settings/payment"
                 className="relative w-12 h-12 flex items-center justify-center group"
-                title="本人確認が必要です"
+                title={tp('identityVerificationRequired')}
               >
                 <div className="relative">
                   <svg className="w-8 h-8 text-amber-600 group-hover:text-amber-700 transition-colors" fill="currentColor" viewBox="0 0 24 24">
@@ -243,7 +257,7 @@ export default function ProfilePage() {
               <Link
                 href="/settings/payment"
                 className="relative w-12 h-12 flex items-center justify-center group"
-                title="決済設定が必要です"
+                title={tp('paymentSetupRequired')}
               >
                 <div className="relative">
                   <svg className="w-8 h-8 text-indigo-600 group-hover:text-indigo-700 transition-colors" fill="currentColor" viewBox="0 0 24 24">
@@ -275,20 +289,20 @@ export default function ProfilePage() {
           <div className="mb-3 space-y-1">
             <div className="flex items-center space-x-2">
               <span className="px-2 py-1 text-xs font-semibold rounded bg-gray-100 text-gray-700">
-                {profile.role === 'seller' ? '売り手' : '買い手'}
+                {profile.role === 'seller' ? tp('seller') : tp('buyer')}
               </span>
               <span className="px-2 py-1 text-xs font-semibold rounded bg-gray-100 text-gray-700">
-                {profile.party === 'organization' ? '法人' : '個人'}
+                {profile.party === 'organization' ? tp('organization') : tp('individual')}
               </span>
               {profile.nda_flag && (
                 <span className="px-2 py-1 text-xs font-semibold rounded bg-green-100 text-green-700">
-                  NDA締結済み
+                  {tp('ndaSigned')}
                 </span>
               )}
             </div>
             {profile.age && (
               <div className="text-sm text-gray-600">
-                年齢: {profile.age}歳
+                {tp('age')}: {profile.age}{tp('yearsOld')}
               </div>
             )}
           </div>
@@ -309,10 +323,10 @@ export default function ProfilePage() {
         {/* タブナビゲーション */}
         <div className="flex border-b border-gray-200 overflow-x-auto">
           {[
-            { id: 'all' as const, label: 'すべて', count: posts.length },
-            { id: 'board' as const, label: '掲示板', count: posts.filter((p: Post) => p.type === 'board').length },
-            { id: 'transaction' as const, label: '取引', count: posts.filter((p: Post) => p.type === 'transaction').length },
-            { id: 'secret' as const, label: '秘密', count: posts.filter((p: Post) => p.type === 'secret').length },
+            { id: 'all' as const, label: tp('all'), count: posts.length },
+            { id: 'board' as const, label: tp('board'), count: posts.filter((p: Post) => p.type === 'board').length },
+            { id: 'transaction' as const, label: tp('transaction'), count: posts.filter((p: Post) => p.type === 'transaction').length },
+            { id: 'secret' as const, label: tp('secret'), count: posts.filter((p: Post) => p.type === 'secret').length },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -338,8 +352,8 @@ export default function ProfilePage() {
               <div className="text-center py-12">
                 <p className="text-gray-500">
                   {activeTab === 'all' 
-                    ? '投稿がありません' 
-                    : `${getPostTypeLabel(activeTab)}の投稿がありません`}
+                    ? tp('noPosts')
+                    : tp('noPostsInCategory').replace('{category}', getPostTypeLabel(activeTab))}
                 </p>
               </div>
             ) : (
@@ -406,7 +420,7 @@ export default function ProfilePage() {
                             </span>
                           ) : (
                             <span className="text-sm text-gray-600">
-                              予算: ¥{post.budget_min?.toLocaleString()} - ¥{post.budget_max?.toLocaleString()}
+                              {tp('budget')}: ¥{post.budget_min?.toLocaleString()} - ¥{post.budget_max?.toLocaleString()}
                             </span>
                           )}
                         </div>
@@ -424,12 +438,12 @@ export default function ProfilePage() {
                       )}
                       {post.secret_visibility === 'price_only' && (
                         <div className="mt-2 text-xs text-purple-600">
-                          🔒 価格情報のみ公開
+                          🔒 {tp('priceOnly')}
                         </div>
                       )}
                       {post.secret_visibility === 'hidden' && (
                         <div className="mt-2 text-xs text-purple-600">
-                          🔒 非公開投稿
+                          🔒 {tp('hidden')}
                         </div>
                       )}
                     </div>

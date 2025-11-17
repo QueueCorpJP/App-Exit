@@ -4,6 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
+import { useTranslations, useLocale } from 'next-intl';
 import { LayoutDashboard, Monitor, Activity } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import StorageImage from '@/components/ui/StorageImage';
@@ -44,6 +45,9 @@ export default function ProjectDetailPage({
   initialData,
   postDetails
 }: ProjectDetailPageProps) {
+  const t = useTranslations('projects');
+  const tGlobal = useTranslations();
+  const locale = useLocale();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [modalOpen, setModalOpen] = useState(false);
@@ -52,12 +56,12 @@ export default function ProjectDetailPage({
   const [imageUrls, setImageUrls] = useState<Map<string, string>>(new Map());
 
   // カードからの初期データを使用（APIレスポンスがあればそちらを優先）
-  const displayTitle = postDetails?.title || initialData?.title || 'プロジェクト';
+  const displayTitle = postDetails?.title || initialData?.title || t('title');
   const displayImagePath = postDetails?.eyecatch_url || initialData?.imagePath || null;
-  const displayCategory = postDetails?.app_categories?.[0] || initialData?.category || 'カテゴリ不明';
+  const displayCategory = postDetails?.app_categories?.[0] || initialData?.category || tGlobal('common.category');
   const displayPrice = postDetails?.price || initialData?.price;
-  const displayStatus = postDetails ? (postDetails.is_active ? '募集中' : '成約済み') : (initialData?.status || '募集中');
-  const displayAppealText = postDetails?.appeal_text || postDetails?.body || 'プロジェクトの詳細情報を読み込んでいます...';
+  const displayStatus = postDetails ? (postDetails.is_active ? tGlobal('transaction.statuses.pending') : tGlobal('transaction.statuses.completed')) : (initialData?.status || tGlobal('transaction.statuses.pending'));
+  const displayAppealText = postDetails?.appeal_text || postDetails?.body || tGlobal('common.loading');
 
   // 投稿者のプロフィール情報
   const authorProfile = postDetails?.author_profile;
@@ -69,25 +73,30 @@ export default function ProjectDetailPage({
 
   // 成約状況のバッジ色
   const getStatusBadgeColor = (status: string) => {
-    switch (status) {
-      case '募集中':
-        return 'bg-green-100 text-green-800';
-      case '交渉中':
-        return 'bg-yellow-100 text-yellow-800';
-      case '成約済み':
-        return 'bg-gray-100 text-gray-800';
-      default:
-        return 'bg-green-100 text-green-800';
+    const pendingText = tGlobal('transaction.statuses.pending');
+    const processingText = tGlobal('transaction.statuses.processing');
+    const completedText = tGlobal('transaction.statuses.completed');
+
+    // 翻訳されたステータス名で判定
+    if (status === pendingText) {
+      return 'bg-green-100 text-green-800';
+    } else if (status === processingText) {
+      return 'bg-yellow-100 text-yellow-800';
+    } else if (status === completedText) {
+      return 'bg-gray-100 text-gray-800';
     }
+
+    // デフォルト（保留中の色）
+    return 'bg-green-100 text-green-800';
   };
 
   if (!postDetails && !initialData) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#F9F8F7' }}>
         <div className="text-center">
-          <h1 className="text-2xl font-bold mb-4" style={{ color: '#323232' }}>プロジェクトが見つかりません</h1>
-          <Link href="/" className="hover:underline" style={{ color: '#E65D65' }}>
-            ホームに戻る
+          <h1 className="text-2xl font-bold mb-4" style={{ color: '#323232' }}>{t('projects.noResults')}</h1>
+          <Link href={`/${locale}`} className="hover:underline" style={{ color: '#E65D65' }}>
+            {t('errors.backToHome')}
           </Link>
         </div>
       </div>
@@ -142,7 +151,7 @@ export default function ProjectDetailPage({
       console.error('Author user ID not found');
       return;
     }
-    router.push(`/messages/${postDetails.author_user_id}`);
+    router.push(`/${locale}/messages/${postDetails.author_user_id}`);
   };
 
   const handleImageClick = (imagePath: string, index: number) => {
@@ -191,7 +200,7 @@ export default function ProjectDetailPage({
               <button
                 onClick={() => setModalOpen(true)}
                 className="absolute top-4 right-4 bg-white bg-opacity-90 hover:bg-opacity-100 rounded-full p-2 transition-all"
-                aria-label="拡大表示"
+                aria-label={t('projectDetail.expand')}
               >
                 <svg
                   className="w-6 h-6 text-gray-700"
@@ -254,7 +263,7 @@ export default function ProjectDetailPage({
                   >
                     <StorageImage
                       path={url}
-                      alt={`追加画像 ${index + 1}`}
+                      alt={t('projectDetail.additionalImage', { index: index + 1 })}
                       width={80}
                       height={80}
                       className="w-full h-full object-cover"
@@ -288,7 +297,7 @@ export default function ProjectDetailPage({
                         >
                           <StorageImage
                             path={postDetails.dashboard_url}
-                            alt="ダッシュボード"
+                            alt={t('projectDetail.dashboard')}
                             width={300}
                             height={95}
                             className="max-h-full w-auto object-contain"
@@ -313,7 +322,7 @@ export default function ProjectDetailPage({
                         >
                           <StorageImage
                             path={postDetails.user_ui_url}
-                            alt="ユーザーUI"
+                            alt={t('projectDetail.userUi')}
                             width={300}
                             height={95}
                             className="max-h-full w-auto object-contain"
@@ -338,7 +347,7 @@ export default function ProjectDetailPage({
                         >
                           <StorageImage
                             path={postDetails.performance_url}
-                            alt="パフォーマンス"
+                            alt={t('projectDetail.performance')}
                             width={300}
                             height={95}
                             className="max-h-full w-auto object-contain"
@@ -365,8 +374,8 @@ export default function ProjectDetailPage({
                     }`}
                     style={activeTab === 'overview' ? { color: '#E65D65', borderColor: '#E65D65' } : {}}
                   >
-                    <span className="sm:hidden">概要</span>
-                    <span className="hidden sm:inline">プロジェクト概要</span>
+                    <span className="sm:hidden">{t('projectDetail.overviewTab')}</span>
+                    <span className="hidden sm:inline">{t('projectDetail.overviewTabFull')}</span>
                   </button>
                   <button
                     onClick={() => setActiveTab('activity')}
@@ -377,8 +386,8 @@ export default function ProjectDetailPage({
                     }`}
                     style={activeTab === 'activity' ? { color: '#E65D65', borderColor: '#E65D65' } : {}}
                   >
-                    <span className="sm:hidden">詳細</span>
-                    <span className="hidden sm:inline">詳細情報</span>
+                    <span className="sm:hidden">{t('projectDetail.detailsTab')}</span>
+                    <span className="hidden sm:inline">{t('projectDetail.detailsTabFull')}</span>
                   </button>
                   <button
                     onClick={() => setActiveTab('comments')}
@@ -389,7 +398,7 @@ export default function ProjectDetailPage({
                     }`}
                     style={activeTab === 'comments' ? { color: '#E65D65', borderColor: '#E65D65' } : {}}
                   >
-                    コメント
+                    {t('projectDetail.commentsTab')}
                   </button>
                 </nav>
               </div>
@@ -398,7 +407,7 @@ export default function ProjectDetailPage({
               <div className="p-6">
                 {activeTab === 'overview' && (
                   <>
-                    <h2 className="text-xl font-bold mb-4" style={{ color: '#323232' }}>プロジェクトについて</h2>
+                    <h2 className="text-xl font-bold mb-4" style={{ color: '#323232' }}>{t('projectDetail.about')}</h2>
                     <div className="prose max-w-none text-gray-600 whitespace-pre-wrap">
                       {displayAppealText}
                     </div>
@@ -406,7 +415,7 @@ export default function ProjectDetailPage({
                     {/* サービスURL */}
                     {postDetails?.service_urls && postDetails.service_urls.length > 0 && (
                       <div className="mt-6">
-                        <h3 className="text-lg font-bold mb-3" style={{ color: '#323232' }}>サービスURL</h3>
+                        <h3 className="text-lg font-bold mb-3" style={{ color: '#323232' }}>{t('projectDetail.serviceUrls')}</h3>
                         <div className="space-y-2">
                           {postDetails.service_urls.map((url, index) => (
                             <a
@@ -430,35 +439,35 @@ export default function ProjectDetailPage({
                   <div className="space-y-6">
                     {/* 収益情報 */}
                     <div>
-                      <h3 className="text-lg font-bold mb-4" style={{ color: '#323232' }}>収益情報</h3>
+                      <h3 className="text-lg font-bold mb-4" style={{ color: '#323232' }}>{t('projectDetail.revenueInfo')}</h3>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         {postDetails?.monthly_revenue !== undefined && (
                           <div className="p-4 bg-gray-50 rounded-sm">
-                            <p className="text-sm text-gray-500 mb-1">月商</p>
+                            <p className="text-sm text-gray-500 mb-1">{t('projectDetail.monthlyRevenue')}</p>
                             <p className="text-xl font-bold" style={{ color: '#323232' }}>
-                              {postDetails.monthly_revenue.toLocaleString()}円
+                              {postDetails.monthly_revenue.toLocaleString()}{tGlobal('common.jpyCurrency')}
                             </p>
                           </div>
                         )}
                         {postDetails?.monthly_cost !== undefined && (
                           <div className="p-4 bg-gray-50 rounded-sm">
-                            <p className="text-sm text-gray-500 mb-1">月間コスト</p>
+                            <p className="text-sm text-gray-500 mb-1">{t('projectDetail.monthlyCost')}</p>
                             <p className="text-xl font-bold" style={{ color: '#323232' }}>
-                              {postDetails.monthly_cost.toLocaleString()}円
+                              {postDetails.monthly_cost.toLocaleString()}{tGlobal('common.jpyCurrency')}
                             </p>
                           </div>
                         )}
                         {postDetails?.monthly_profit !== undefined && (
                           <div className="p-4 bg-gray-50 rounded-sm">
-                            <p className="text-sm text-gray-500 mb-1">月間利益</p>
+                            <p className="text-sm text-gray-500 mb-1">{t('projectDetail.monthlyProfit')}</p>
                             <p className="text-xl font-bold" style={{ color: '#323232' }}>
-                              {postDetails.monthly_profit.toLocaleString()}円
+                              {postDetails.monthly_profit.toLocaleString()}{tGlobal('common.jpyCurrency')}
                             </p>
                           </div>
                         )}
                         {profitMargin !== undefined && (
                           <div className="p-4 bg-gray-50 rounded-sm">
-                            <p className="text-sm text-gray-500 mb-1">利益率</p>
+                            <p className="text-sm text-gray-500 mb-1">{t('projectDetail.profitMargin')}</p>
                             <p className="text-xl font-bold" style={{ color: '#323232' }}>
                               {profitMargin.toFixed(1)}%
                             </p>
@@ -470,7 +479,7 @@ export default function ProjectDetailPage({
                     {/* 収益モデル */}
                     {postDetails?.revenue_models && postDetails.revenue_models.length > 0 && (
                       <div>
-                        <h4 className="font-bold mb-2" style={{ color: '#323232' }}>収益モデル</h4>
+                        <h4 className="font-bold mb-2" style={{ color: '#323232' }}>{t('projectDetail.revenueModels')}</h4>
                         <div className="flex flex-wrap gap-2">
                           {postDetails.revenue_models.map((model, index) => (
                             <span key={index} className="px-3 py-1 text-sm rounded-full border" style={{ backgroundColor: '#fff', color: '#323232', borderColor: '#323232' }}>
@@ -484,9 +493,9 @@ export default function ProjectDetailPage({
                     {/* ユーザー情報 */}
                     {postDetails?.user_count !== undefined && (
                       <div>
-                        <h3 className="text-lg font-bold mb-4" style={{ color: '#323232' }}>ユーザー情報</h3>
+                        <h3 className="text-lg font-bold mb-4" style={{ color: '#323232' }}>{t('projectDetail.userInfo')}</h3>
                         <div className="p-4 bg-gray-50 rounded-sm">
-                          <p className="text-sm text-gray-500 mb-1">ユーザー数</p>
+                          <p className="text-sm text-gray-500 mb-1">{t('projectDetail.userCount')}</p>
                           <p className="text-xl font-bold" style={{ color: '#323232' }}>
                             {postDetails.user_count.toLocaleString()}人
                           </p>
@@ -497,7 +506,7 @@ export default function ProjectDetailPage({
                     {/* ターゲット顧客 */}
                     {postDetails?.target_customers && (
                       <div>
-                        <h4 className="font-bold mb-2" style={{ color: '#323232' }}>ターゲット顧客</h4>
+                        <h4 className="font-bold mb-2" style={{ color: '#323232' }}>{t('projectDetail.targetCustomers')}</h4>
                         <p className="text-sm text-gray-600">{postDetails.target_customers}</p>
                       </div>
                     )}
@@ -505,7 +514,7 @@ export default function ProjectDetailPage({
                     {/* 技術スタック */}
                     {postDetails?.tech_stack && postDetails.tech_stack.length > 0 && (
                       <div>
-                        <h3 className="text-lg font-bold mb-4" style={{ color: '#323232' }}>技術スタック</h3>
+                        <h3 className="text-lg font-bold mb-4" style={{ color: '#323232' }}>{t('projectDetail.techStack')}</h3>
                         <div className="flex flex-wrap gap-2">
                           {postDetails.tech_stack.map((tech, index) => (
                             <span key={index} className="px-3 py-1 text-sm rounded-full border" style={{ backgroundColor: '#fff', color: '#323232', borderColor: '#323232' }}>
@@ -519,7 +528,7 @@ export default function ProjectDetailPage({
                     {/* リリース日 */}
                     {postDetails?.release_date && (
                       <div>
-                        <h4 className="font-bold mb-2" style={{ color: '#323232' }}>リリース日</h4>
+                        <h4 className="font-bold mb-2" style={{ color: '#323232' }}>{t('projectDetail.releaseDate')}</h4>
                         <p className="text-sm text-gray-600">{postDetails.release_date}</p>
                       </div>
                     )}
@@ -527,19 +536,19 @@ export default function ProjectDetailPage({
                     {/* 運営情報 */}
                     {(postDetails?.operation_form || postDetails?.operation_effort) && (
                       <div>
-                        <h3 className="text-lg font-bold mb-4" style={{ color: '#323232' }}>運営情報</h3>
+                        <h3 className="text-lg font-bold mb-4" style={{ color: '#323232' }}>{t('projectDetail.operationInfo')}</h3>
                         <div className="space-y-3">
                           {postDetails.operation_form && (
                             <div>
-                              <h4 className="font-semibold mb-1 text-sm" style={{ color: '#323232' }}>運営形態</h4>
+                              <h4 className="font-semibold mb-1 text-sm" style={{ color: '#323232' }}>{t('projectDetail.operationForm')}</h4>
                               <p className="text-sm text-gray-600">
-                                {postDetails.operation_form === 'individual' ? '個人' : postDetails.operation_form === 'corporate' ? '法人' : postDetails.operation_form}
+                                {postDetails.operation_form === 'individual' ? t('form.individual') : postDetails.operation_form === 'corporate' ? t('form.corporate') : postDetails.operation_form}
                               </p>
                             </div>
                           )}
                           {postDetails.operation_effort && (
                             <div>
-                              <h4 className="font-semibold mb-1 text-sm" style={{ color: '#323232' }}>運営工数</h4>
+                              <h4 className="font-semibold mb-1 text-sm" style={{ color: '#323232' }}>{t('projectDetail.operationEffort')}</h4>
                               <p className="text-sm text-gray-600">{postDetails.operation_effort}</p>
                             </div>
                           )}
@@ -550,11 +559,11 @@ export default function ProjectDetailPage({
                     {/* 引き渡し情報 */}
                     {(postDetails?.transfer_items || postDetails?.desired_transfer_timing) && (
                       <div>
-                        <h3 className="text-lg font-bold mb-4" style={{ color: '#323232' }}>引き渡し情報</h3>
+                        <h3 className="text-lg font-bold mb-4" style={{ color: '#323232' }}>{t('projectDetail.transferInfo')}</h3>
                         <div className="space-y-3">
                           {postDetails.transfer_items && postDetails.transfer_items.length > 0 && (
                             <div>
-                              <h4 className="font-semibold mb-2 text-sm" style={{ color: '#323232' }}>引き渡し項目</h4>
+                              <h4 className="font-semibold mb-2 text-sm" style={{ color: '#323232' }}>{t('projectDetail.transferItems')}</h4>
                               <ul className="list-disc list-inside space-y-1">
                                 {postDetails.transfer_items.map((item, index) => (
                                   <li key={index} className="text-sm text-gray-600">{item}</li>
@@ -564,7 +573,7 @@ export default function ProjectDetailPage({
                           )}
                           {postDetails.desired_transfer_timing && (
                             <div>
-                              <h4 className="font-semibold mb-1 text-sm" style={{ color: '#323232' }}>引き渡し希望時期</h4>
+                              <h4 className="font-semibold mb-1 text-sm" style={{ color: '#323232' }}>{t('projectDetail.transferTiming')}</h4>
                               <p className="text-sm text-gray-600">{postDetails.desired_transfer_timing}</p>
                             </div>
                           )}
@@ -575,7 +584,7 @@ export default function ProjectDetailPage({
                     {/* 成長可能性 */}
                     {postDetails?.growth_potential && (
                       <div>
-                        <h4 className="font-bold mb-2" style={{ color: '#323232' }}>成長可能性</h4>
+                        <h4 className="font-bold mb-2" style={{ color: '#323232' }}>{t('projectDetail.growthPotential')}</h4>
                         <p className="text-sm text-gray-600 whitespace-pre-wrap">{postDetails.growth_potential}</p>
                       </div>
                     )}
@@ -583,7 +592,7 @@ export default function ProjectDetailPage({
                     {/* マーケティング */}
                     {postDetails?.marketing_channels && postDetails.marketing_channels.length > 0 && (
                       <div>
-                        <h3 className="text-lg font-bold mb-4" style={{ color: '#323232' }}>マーケティングチャンネル</h3>
+                        <h3 className="text-lg font-bold mb-4" style={{ color: '#323232' }}>{t('projectDetail.marketingChannels')}</h3>
                         <div className="flex flex-wrap gap-2">
                           {postDetails.marketing_channels.map((channel, index) => (
                             <span key={index} className="px-3 py-1 text-sm rounded-full border" style={{ backgroundColor: '#fff', color: '#323232', borderColor: '#323232' }}>
@@ -597,7 +606,7 @@ export default function ProjectDetailPage({
                     {/* メディア掲載 */}
                     {postDetails?.media_mentions && (
                       <div>
-                        <h4 className="font-bold mb-2" style={{ color: '#323232' }}>メディア掲載</h4>
+                        <h4 className="font-bold mb-2" style={{ color: '#323232' }}>{t('projectDetail.mediaMentions')}</h4>
                         <p className="text-sm text-gray-600 whitespace-pre-wrap">{postDetails.media_mentions}</p>
                       </div>
                     )}
@@ -652,12 +661,12 @@ export default function ProjectDetailPage({
               <div className="mb-6">
                 {displayPrice !== undefined && (
                   <div>
-                    <p className="text-sm text-gray-500 mb-1">希望価格</p>
+                    <p className="text-sm text-gray-500 mb-1">{t('projectDetail.desiredPrice')}</p>
                     <div className="flex items-baseline gap-2">
                       <span className="text-3xl font-bold" style={{ color: '#323232' }}>
                         {displayPrice.toLocaleString()}
                       </span>
-                      <span className="text-gray-600">円</span>
+                      <span className="text-gray-600">{tGlobal('common.jpyCurrency')}</span>
                     </div>
                   </div>
                 )}
@@ -670,7 +679,7 @@ export default function ProjectDetailPage({
                   className="w-full rounded-sm bg-transparent border-2 hover:opacity-80 gap-2"
                   style={{ borderColor: '#E65D65', color: '#E65D65' }}
                 >
-                  このプロジェクトを購入する
+                  {t('projectDetail.purchaseButton')}
                   <svg
                     className="w-5 h-5"
                     fill="none"
@@ -706,7 +715,7 @@ export default function ProjectDetailPage({
                       d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
                     />
                   </svg>
-                  メッセージを送る
+                  {t('projectDetail.sendMessage')}
                 </Button>
               </div>
 
@@ -750,9 +759,9 @@ export default function ProjectDetailPage({
 
                 {postDetails && (
                   <div className="space-y-2 text-sm text-gray-600">
-                    <p>作成日: {new Date(postDetails.created_at).toLocaleDateString('ja-JP')}</p>
+                    <p>{t('projectDetail.createdAt', { date: new Date(postDetails.created_at).toLocaleDateString(locale) })}</p>
                     {postDetails.updated_at !== postDetails.created_at && (
-                      <p>更新日: {new Date(postDetails.updated_at).toLocaleDateString('ja-JP')}</p>
+                      <p>{t('projectDetail.updatedAt', { date: new Date(postDetails.updated_at).toLocaleDateString(locale) })}</p>
                     )}
                   </div>
                 )}

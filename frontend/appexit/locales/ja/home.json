@@ -1,0 +1,30 @@
+{
+  "title": "APPEXIT - アプリ売買プラットフォーム",
+  "description": "安全・安心なアプリ売買をサポート",
+  "hero": {
+    "title": "個人開発者のための\nアプリ売買プラットフォーム",
+    "subtitle": "作ったアプリを売って、次の開発者へ引き継ごう",
+    "cta": "無料で始める",
+    "learnMore": "もっと詳しく"
+  },
+  "features": {
+    "title": "APPEXITの特徴",
+    "safe": "安全な取引",
+    "safeDescription": "専任担当によるサポートで安心",
+    "fair": "適正価格",
+    "fairDescription": "AI査定で公正な価格を提示",
+    "secure": "セキュアな決済",
+    "secureDescription": "エスクロー決済で安全に"
+  },
+  "featuredProjects": "注目のプロジェクト",
+  "viewAll": "すべて見る",
+  "recentListings": "最新の出品",
+  "popularCategories": "人気のカテゴリ",
+  "howItWorks": "利用の流れ",
+  "testimonials": "利用者の声",
+  "recommended": "おすすめプロダクト",
+  "latestProducts": "最新のプロダクト",
+  "trending": "急上昇中",
+  "monthlyRevenue": "月商",
+  "profitMargin": "利益率"
+}

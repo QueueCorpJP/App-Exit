@@ -1,0 +1,13 @@
+{
+  "notFound": "ページが見つかりません",
+  "notFoundMessage": "お探しのページは存在しないか、移動された可能性があります。",
+  "unauthorized": "認証が必要です",
+  "unauthorizedMessage": "このページにアクセスするにはログインが必要です。",
+  "forbidden": "アクセスが拒否されました",
+  "forbiddenMessage": "このページにアクセスする権限がありません。",
+  "serverError": "サーバーエラー",
+  "serverErrorMessage": "申し訳ございません。サーバーでエラーが発生しました。",
+  "backToHome": "ホームに戻る",
+  "tryAgain": "もう一度試す",
+  "contactSupport": "サポートに連絡"
+}

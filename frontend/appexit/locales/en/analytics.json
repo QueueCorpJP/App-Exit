@@ -1,0 +1,20 @@
+{
+  "title": "Analytics",
+  "overview": "Overview",
+  "performance": "Performance",
+  "trends": "Trends",
+  "insights": "Insights",
+  "metrics": "Metrics",
+  "pageViews": "Page Views",
+  "uniqueVisitors": "Unique Visitors",
+  "bounceRate": "Bounce Rate",
+  "avgSessionDuration": "Avg Session Duration",
+  "conversionRate": "Conversion Rate",
+  "revenue": "Revenue",
+  "growth": "Growth",
+  "comparison": "Comparison",
+  "lastMonth": "Last Month",
+  "lastWeek": "Last Week",
+  "yesterday": "Yesterday",
+  "today": "Today"
+}

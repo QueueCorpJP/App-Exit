@@ -1,0 +1,29 @@
+{
+  "checkout": "お支払い",
+  "paymentMethod": "支払い方法",
+  "creditCard": "クレジットカード",
+  "bankTransfer": "銀行振込",
+  "total": "合計",
+  "subtotal": "小計",
+  "tax": "税",
+  "fee": "手数料",
+  "processingFee": "決済手数料",
+  "escrowFee": "エスクロー手数料",
+  "payNow": "今すぐ支払う",
+  "success": {
+    "title": "決済が完了しました",
+    "message": "ご購入ありがとうございます。",
+    "paymentId": "決済ID",
+    "backToMessages": "メッセージに戻る",
+    "countdown": "秒後に自動的にメッセージページに移動します",
+    "detailsNote": "取引の詳細はメッセージページでご確認いただけます"
+  },
+  "error": "お支払いに失敗しました",
+  "errorMessage": "決済処理中にエラーが発生しました。もう一度お試しください。",
+  "cardNumber": "カード番号",
+  "expiryDate": "有効期限",
+  "cvv": "セキュリティコード",
+  "billingAddress": "請求先住所",
+  "orderSummary": "注文概要",
+  "returnToShop": "ショップに戻る"
+}

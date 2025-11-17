@@ -1,0 +1,20 @@
+{
+  "title": "Notifications",
+  "all": "All Notifications",
+  "unread": "Unread",
+  "markAllRead": "Mark All as Read",
+  "noNotifications": "No notifications",
+  "newMessage": "New Message",
+  "newOffer": "New Offer",
+  "priceUpdate": "Price Update",
+  "statusUpdate": "Status Update",
+  "systemNotification": "System Notification",
+  "timeAgo": {
+    "justNow": "Just now",
+    "minutesAgo": "{count} minutes ago",
+    "hoursAgo": "{count} hours ago",
+    "daysAgo": "{count} days ago",
+    "weeksAgo": "{count} weeks ago",
+    "monthsAgo": "{count} months ago"
+  }
+}

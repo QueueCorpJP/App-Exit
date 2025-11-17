@@ -3,6 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { useTranslations, useLocale } from 'next-intl';
 import ProjectCard from '../ui/ProjectCard';
 import InfiniteCarousel from '../ui/InfiniteCarousel';
 import { getImageUrls } from '@/lib/storage';
@@ -31,9 +32,22 @@ interface ProjectWithImage {
 interface TopPageProps {
   initialPosts?: Post[];
   useMockCarousel?: boolean; // モックデータを使用するかどうか
+  pageDict?: Record<string, any>; // ページ専用辞書（動的ロード）
 }
 
-export default function TopPage({ initialPosts = [], useMockCarousel = true }: TopPageProps) {
+export default function TopPage({ initialPosts = [], useMockCarousel = true, pageDict = {} }: TopPageProps) {
+  const t = useTranslations(); // common辞書用
+  const locale = useLocale();
+
+  // ページ専用辞書を取得するヘルパー関数
+  const tp = (key: string): string => {
+    const keys = key.split('.');
+    let value: any = pageDict;
+    for (const k of keys) {
+      value = value?.[k];
+    }
+    return value || key;
+  };
   const [posts, setPosts] = useState<Post[]>(initialPosts);
   const [projects, setProjects] = useState<ProjectWithImage[]>([]);
   const [latestProjects, setLatestProjects] = useState<ProjectWithImage[]>([]);
@@ -52,7 +66,7 @@ export default function TopPage({ initialPosts = [], useMockCarousel = true }: T
         monthlyRevenue: undefined,
         monthlyCost: undefined,
         profitMargin: undefined,
-        status: '募集中',
+        status: t('common.recruiting'),
         watchCount: undefined,
         commentCount: undefined,
         updatedAt: undefined,
@@ -79,7 +93,7 @@ export default function TopPage({ initialPosts = [], useMockCarousel = true }: T
           // カテゴリの取得（app_categoriesの配列、なければbody）
           const categories = post.app_categories && post.app_categories.length > 0
             ? post.app_categories
-            : [post.body || 'プロジェクト'];
+            : [post.body || t('topPageProject')];
 
           // 利益率の計算
           const profitMargin = post.monthly_revenue && post.monthly_cost !== undefined && post.monthly_revenue > 0
@@ -87,7 +101,7 @@ export default function TopPage({ initialPosts = [], useMockCarousel = true }: T
             : undefined;
 
           // 成約状況
-          const status = post.is_active ? '募集中' : '成約済み';
+          const status = post.is_active ? t('common.recruiting') : t('common.completed');
 
           return {
             id: post.id,
@@ -173,7 +187,7 @@ export default function TopPage({ initialPosts = [], useMockCarousel = true }: T
             // カテゴリの取得（app_categoriesの配列、なければbody）
             const categories = post.app_categories && post.app_categories.length > 0
               ? post.app_categories
-              : [post.body || 'プロジェクト'];
+              : [post.body || t('topPageProject')];
 
             // 利益率の計算
             const profitMargin = post.monthly_revenue && post.monthly_cost !== undefined && post.monthly_revenue > 0
@@ -181,7 +195,7 @@ export default function TopPage({ initialPosts = [], useMockCarousel = true }: T
               : undefined;
 
             // 成約状況
-            const status = post.is_active ? '募集中' : '成約済み';
+            const status = post.is_active ? t('common.recruiting') : t('common.completed');
 
             return {
               id: post.id,
@@ -246,7 +260,7 @@ export default function TopPage({ initialPosts = [], useMockCarousel = true }: T
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#F9F8F7' }}>
-        <div className="text-gray-500">読み込み中...</div>
+        <div className="text-gray-500">{t('common.loading')}</div>
       </div>
     );
   }
@@ -254,7 +268,7 @@ export default function TopPage({ initialPosts = [], useMockCarousel = true }: T
   if (projects.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#F9F8F7' }}>
-        <div className="text-gray-500">プロジェクトがありません</div>
+        <div className="text-gray-500">{t('projects.noResults')}</div>
       </div>
     );
   }
@@ -277,7 +291,7 @@ export default function TopPage({ initialPosts = [], useMockCarousel = true }: T
           <p className="text-xl font-black mb-0.5 text-center" style={{ color: '#323232' }}>
             <span style={{ color: '#b91c1c' }}>R</span>ecomend
           </p>
-          <h2 className="text-2xl font-black mb-8 text-center" style={{ color: '#323232' }}>おすすめプロダクト</h2>
+          <h2 className="text-2xl font-black mb-8 text-center" style={{ color: '#323232' }}>{tp('recommended')}</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {projects.map((project) => (
               <ProjectCard
@@ -310,7 +324,7 @@ export default function TopPage({ initialPosts = [], useMockCarousel = true }: T
           <p className="text-xl font-black mb-0.5 text-center" style={{ color: '#323232' }}>
             <span style={{ color: '#b91c1c' }}>N</span>ew
           </p>
-          <h2 className="text-2xl font-black mb-8 text-center" style={{ color: '#323232' }}>最新のプロダクト</h2>
+          <h2 className="text-2xl font-black mb-8 text-center" style={{ color: '#323232' }}>{tp('latestProducts')}</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {latestProjects.map((project) => (
               <ProjectCard
@@ -344,11 +358,11 @@ export default function TopPage({ initialPosts = [], useMockCarousel = true }: T
             <p className="text-xl font-black mb-0.5 text-center" style={{ color: '#323232' }}>
               <span style={{ color: '#b91c1c' }}>T</span>rending
             </p>
-            <h2 className="text-2xl font-black mb-8 text-center" style={{ color: '#323232' }}>急上昇中</h2>
+            <h2 className="text-2xl font-black mb-8 text-center" style={{ color: '#323232' }}>{tp('trending')}</h2>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               {/* Main Featured Project */}
               <Link
-                href={`/projects/${featuredProject.id}`}
+                href={`/${locale}/projects/${featuredProject.id}`}
                 className="relative h-96 rounded-sm overflow-hidden block group cursor-pointer"
               >
                 <Image
@@ -364,17 +378,17 @@ export default function TopPage({ initialPosts = [], useMockCarousel = true }: T
                   <h2 className="text-2xl font-bold mb-4">{featuredProject.title}</h2>
                   <div className="flex items-center gap-6 text-sm">
                     <div>
-                      <span className="font-bold text-2xl">{featuredProject.price.toLocaleString()}円</span>
+                      <span className="font-bold text-2xl">{featuredProject.price.toLocaleString()}{t('common.jpyCurrency')}</span>
                     </div>
                     {featuredProject.monthlyRevenue && (
                       <div>
-                        <span className="opacity-80">月商</span>
-                        <span className="font-semibold ml-1">{featuredProject.monthlyRevenue.toLocaleString()}円</span>
+                        <span className="opacity-80">{tp('monthlyRevenue')}</span>
+                        <span className="font-semibold ml-1">{featuredProject.monthlyRevenue.toLocaleString()}{t('common.jpyCurrency')}</span>
                       </div>
                     )}
                     {featuredProject.profitMargin !== undefined && featuredProject.profitMargin > 0 && (
                       <div>
-                        <span className="opacity-80">利益率</span>
+                        <span className="opacity-80">{tp('profitMargin')}</span>
                         <span className="font-semibold ml-1">{featuredProject.profitMargin.toFixed(0)}%</span>
                       </div>
                     )}
@@ -388,7 +402,7 @@ export default function TopPage({ initialPosts = [], useMockCarousel = true }: T
                   {sideProjects.map((project) => (
                     <Link
                       key={project.id}
-                      href={`/projects/${project.id}`}
+                      href={`/${locale}/projects/${project.id}`}
                       className="relative h-44 rounded-sm overflow-hidden block group cursor-pointer"
                     >
                       <Image
@@ -406,9 +420,9 @@ export default function TopPage({ initialPosts = [], useMockCarousel = true }: T
                       <div className="absolute bottom-0 left-0 right-0 p-3 text-white">
                         <p className="text-xs mb-1 line-clamp-2">{project.title}</p>
                         <div className="flex items-center gap-2 text-xs">
-                          <span className="font-semibold">{project.price.toLocaleString()}円</span>
+                          <span className="font-semibold">{project.price.toLocaleString()}{t('common.jpyCurrency')}</span>
                           {project.monthlyRevenue && (
-                            <span>月商{project.monthlyRevenue.toLocaleString()}円</span>
+                            <span>{tp('monthlyRevenue')}{project.monthlyRevenue.toLocaleString()}{t('common.jpyCurrency')}</span>
                           )}
                         </div>
                       </div>

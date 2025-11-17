@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import Button from '@/components/ui/Button'
 import { AlertCircle, CheckCircle2, ExternalLink, AlertTriangle, CreditCard, Building2, User, ShoppingCart, Store } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
@@ -30,7 +31,14 @@ interface PayoutInfo {
 
 type AccountType = 'buyer' | 'seller'
 
-export default function PaymentSettingsPage() {
+interface PaymentSettingsPageProps {
+  pageDict?: any;
+  locale: string;
+}
+
+export default function PaymentSettingsPage({ pageDict, locale: propLocale }: PaymentSettingsPageProps) {
+  const t = useTranslations()
+  const locale = propLocale
   const router = useRouter()
   const { profile } = useAuth()
   const [isLoading, setIsLoading] = useState(true)
@@ -120,7 +128,7 @@ export default function PaymentSettingsPage() {
 
   const handleCreateStripeAccount = async (accountType: AccountType) => {
     if (!tosAccepted) {
-      alert('利用規約に同意してください')
+      alert(t('agreeToTOS'))
       return
     }
 
@@ -139,11 +147,11 @@ export default function PaymentSettingsPage() {
       if (result.data?.url) {
         window.location.href = result.data.url
       } else {
-        throw new Error('URLが取得できませんでした')
+        throw new Error(t('failedToGetURL'))
       }
     } catch (error: any) {
       console.error('Stripeオンボーディングリンク取得エラー:', error)
-      setError(error.message || 'リンクの取得に失敗しました')
+      setError(error.message || t('failedToGetLink'))
       setIsProcessing(false)
     }
   }
@@ -159,11 +167,11 @@ export default function PaymentSettingsPage() {
       if (result.data?.url) {
         window.location.href = result.data.url
       } else {
-        throw new Error('URLが取得できませんでした')
+        throw new Error(t('failedToGetURL'))
       }
     } catch (error: any) {
       console.error('本人確認フローエラー:', error)
-      setError(error.message || '本人確認フローの開始に失敗しました')
+      setError(error.message || t('failedToStartVerification'))
     } finally {
       setIsProcessing(false)
     }
@@ -193,9 +201,9 @@ export default function PaymentSettingsPage() {
       case 'seller':
         return {
           icon: Store,
-          title: '売り手アカウント',
-          description: 'アプリを販売し、売上を受け取るためのアカウントです。',
-          buttonText: '売り手用Stripeアカウントを作成',
+          title: t('sellerAccount'),
+          description: t('sellerAccountDescription'),
+          buttonText: t('createSellerStripeAccount'),
           color: 'green'
         }
       case 'buyer':
@@ -203,8 +211,8 @@ export default function PaymentSettingsPage() {
         // 買い手は使用されない（決済時にCustomer作成）
         return {
           icon: ShoppingCart,
-          title: '買い手アカウント',
-          description: '買い手はStripeアカウント不要です。',
+          title: t('buyerAccount'),
+          description: t('buyerAccountDescription'),
           buttonText: '',
           color: 'blue'
         }
@@ -215,10 +223,10 @@ export default function PaymentSettingsPage() {
     <div className="min-h-screen" style={{ backgroundColor: '#F9F8F7' }}>
       <div className="max-w-4xl mx-auto px-4 py-8">
         <h1 className="text-lg text-center mb-2" style={{ color: '#323232', fontWeight: 900 }}>
-          支払い設定
+          {t('paymentSettings')}
         </h1>
         <p className="text-center text-sm text-gray-600 mb-8">
-          Stripeを通じて売上の受け取りと支払いを設定します
+          {t('configurePayments')}
         </p>
 
         {error && (
@@ -234,9 +242,11 @@ export default function PaymentSettingsPage() {
             <div className="flex items-start">
               <AlertCircle className="w-5 h-5 mr-2 flex-shrink-0 mt-0.5" />
               <div>
-                <p className="font-semibold mb-1">買い手はStripe設定不要です</p>
+                <p className="font-semibold mb-1">
+                  {t('buyersNoStripeNeeded')}
+                </p>
                 <p className="text-sm">
-                  決済時に自動的に支払い情報が設定されます。プロダクトを購入する際にカード情報を入力してください。
+                  {t('buyersNoStripeDesc')}
                 </p>
               </div>
             </div>
@@ -247,7 +257,9 @@ export default function PaymentSettingsPage() {
         {accountTypes.length === 0 && !getUserRoles().includes('buyer') && (
           <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-sm mb-6 flex items-start">
             <AlertCircle className="w-5 h-5 mr-2 flex-shrink-0 mt-0.5" />
-            <span>プロフィールにroleが設定されていません。先に設定を完了してください。</span>
+            <span>
+              {t('roleNotSet')}
+            </span>
           </div>
         )}
 
@@ -264,18 +276,38 @@ export default function PaymentSettingsPage() {
                   className="mt-1 mr-3"
                 />
                 <span className="text-sm text-gray-700">
-                  <a href="/terms" target="_blank" className="text-blue-600 hover:underline">
-                    利用規約
-                  </a>
-                  、
-                  <a href="/privacy" target="_blank" className="text-blue-600 hover:underline">
-                    プライバシーポリシー
-                  </a>
-                  、および
-                  <a href="https://stripe.com/jp/legal/connect-account" target="_blank" className="text-blue-600 hover:underline">
-                    Stripe利用規約
-                  </a>
-                  に同意します
+                  {locale === 'ja' ? (
+                    <>
+                      <a href="/terms" target="_blank" className="text-blue-600 hover:underline">
+                        {t('termsOfService')}
+                      </a>
+                      、
+                      <a href="/privacy" target="_blank" className="text-blue-600 hover:underline">
+                        {t('privacyPolicy')}
+                      </a>
+                      、および
+                      <a href="https://stripe.com/jp/legal/connect-account" target="_blank" className="text-blue-600 hover:underline">
+                        {t('stripeTerms')}
+                      </a>
+                      {t('agreeToTermsPrefix')}
+                    </>
+                  ) : (
+                    <>
+                      I agree to the{' '}
+                      <a href="/terms" target="_blank" className="text-blue-600 hover:underline">
+                        {t('termsOfService')}
+                      </a>
+                      ,{' '}
+                      <a href="/privacy" target="_blank" className="text-blue-600 hover:underline">
+                        {t('privacyPolicy')}
+                      </a>
+                      , and{' '}
+                      <a href="https://stripe.com/legal/connect-account" target="_blank" className="text-blue-600 hover:underline">
+                        {t('stripeTerms')}
+                      </a>
+                      {t('agreeToTermsPrefix')}
+                    </>
+                  )}
                 </span>
               </label>
             </div>
@@ -293,7 +325,9 @@ export default function PaymentSettingsPage() {
                       </h2>
                       <p className="text-sm text-gray-600 mb-4">
                         {info.description}
-                        {userParty === 'individual' ? '個人' : '法人'}として登録されます。
+                        {locale === 'ja'
+                          ? (userParty === 'individual' ? t('individual') : t('organization')) + 'として登録されます。'
+                          : 'You will be registered as ' + (userParty === 'individual' ? 'an individual' : 'an organization') + '.'}
                       </p>
                     </div>
                   </div>
@@ -301,22 +335,22 @@ export default function PaymentSettingsPage() {
                   <div className="bg-blue-50 border border-blue-200 rounded-sm p-4 mb-6">
                     <h3 className="font-semibold text-blue-900 mb-2 flex items-center">
                       <AlertCircle className="w-5 h-5 mr-2" />
-                      必要な情報
+                      {t('requiredInformation')}
                     </h3>
                     <ul className="text-sm text-blue-800 space-y-1 ml-7">
                       {userParty === 'individual' ? (
                         <>
-                          <li>• 本人確認書類（運転免許証、パスポートなど）</li>
-                          <li>• 銀行口座情報</li>
-                          <li>• 住所・電話番号</li>
-                          <li>• 生年月日</li>
+                          <li>• {t('identityDocuments')}</li>
+                          <li>• {t('bankAccountInfo')}</li>
+                          <li>• {t('addressPhone')}</li>
+                          <li>• {t('dateOfBirth')}</li>
                         </>
                       ) : (
                         <>
-                          <li>• 法人登記情報</li>
-                          <li>• 代表者の本人確認書類</li>
-                          <li>• 法人銀行口座情報</li>
-                          <li>• 法人住所・電話番号</li>
+                          <li>• {t('corporateRegistration')}</li>
+                          <li>• {t('representativeIdentity')}</li>
+                          <li>• {t('corporateBankAccount')}</li>
+                          <li>• {t('corporateAddressPhone')}</li>
                         </>
                       )}
                     </ul>
@@ -328,7 +362,7 @@ export default function PaymentSettingsPage() {
                     className="w-full"
                     onClick={() => handleCreateStripeAccount(accountType)}
                     isLoading={isProcessing}
-                    loadingText="作成中..."
+                    loadingText={t('creating')}
                     disabled={!tosAccepted}
                     style={{
                       backgroundColor: isHovered[accountType] && tosAccepted ? '#3367D6' : '#4285FF',
@@ -352,10 +386,10 @@ export default function PaymentSettingsPage() {
               <AlertTriangle className="w-8 h-8 text-yellow-600 mr-4 flex-shrink-0" />
               <div>
                 <h2 className="text-lg font-bold text-gray-800 mb-2">
-                  本人確認が必要です
+                  {t('identityVerificationRequired')}
                 </h2>
                 <p className="text-sm text-gray-600 mb-4">
-                  Stripeアカウントは作成されましたが、売上を受け取るには本人確認が必要です。
+                  {t('completeStripeVerification')}
                 </p>
               </div>
             </div>
@@ -363,7 +397,7 @@ export default function PaymentSettingsPage() {
             {accountStatus.requirementsDue.length > 0 && (
               <div className="bg-yellow-50 border border-yellow-200 rounded-sm p-4 mb-6">
                 <h3 className="font-semibold text-yellow-900 mb-2">
-                  不足している情報
+                  {t('missingInformation')}
                 </h3>
                 <ul className="text-sm text-yellow-800 space-y-1">
                   {accountStatus.requirementsDue.map((req, idx) => (
@@ -379,21 +413,21 @@ export default function PaymentSettingsPage() {
                 className="flex-1"
                 onClick={handleRefreshStatus}
               >
-                ステータスを更新
+                {t('refreshStatus')}
               </Button>
               <Button
                 variant="primary"
                 className="flex-1"
                 onClick={handleCompleteOnboarding}
                 isLoading={isProcessing}
-                loadingText="準備中..."
+                loadingText={t('preparing')}
                 style={{
                   backgroundColor: isOnboardingHovered ? '#3367D6' : '#4285FF',
                 }}
                 onMouseEnter={() => setIsOnboardingHovered(true)}
                 onMouseLeave={() => setIsOnboardingHovered(false)}
               >
-                本人確認を完了する
+                {t('completeVerification')}
                 <ExternalLink className="w-4 h-4 ml-2" />
               </Button>
             </div>
@@ -409,29 +443,29 @@ export default function PaymentSettingsPage() {
                 <CheckCircle2 className="w-8 h-8 text-green-600 mr-4 flex-shrink-0" />
                 <div className="flex-1">
                   <h2 className="text-lg font-bold text-gray-800 mb-2">
-                    アカウント設定完了
+                    {t('accountSetupComplete')}
                   </h2>
                   <p className="text-sm text-gray-600 mb-4">
-                    Stripeアカウントの設定が完了しています。売上の受け取りが可能です。
+                    {t('accountSetupCompleteDesc')}
                   </p>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
                     <div className="flex items-center text-sm">
                       <div className={`w-3 h-3 rounded-full mr-2 ${accountStatus.chargesEnabled ? 'bg-green-500' : 'bg-red-500'}`}></div>
                       <span className={accountStatus.chargesEnabled ? 'text-gray-700' : 'text-red-600'}>
-                        {accountStatus.chargesEnabled ? '支払い受付: 有効' : '支払い受付: 無効'}
+                        {accountStatus.chargesEnabled ? t('chargesEnabled') : t('chargesDisabled')}
                       </span>
                     </div>
                     <div className="flex items-center text-sm">
                       <div className={`w-3 h-3 rounded-full mr-2 ${accountStatus.payoutsEnabled ? 'bg-green-500' : 'bg-red-500'}`}></div>
                       <span className={accountStatus.payoutsEnabled ? 'text-gray-700' : 'text-red-600'}>
-                        {accountStatus.payoutsEnabled ? '出金: 有効' : '出金: 無効'}
+                        {accountStatus.payoutsEnabled ? t('payoutsEnabled') : t('payoutsDisabled')}
                       </span>
                     </div>
                     <div className="flex items-center text-sm">
                       <div className={`w-3 h-3 rounded-full mr-2 ${userParty === 'individual' ? 'bg-blue-500' : 'bg-purple-500'}`}></div>
                       <span className="text-gray-700">
-                        {userParty === 'individual' ? '個人アカウント' : '法人アカウント'}
+                        {userParty === 'individual' ? t('individualAccount') : t('corporateAccount')}
                       </span>
                     </div>
                   </div>
@@ -442,7 +476,7 @@ export default function PaymentSettingsPage() {
                 <div className="bg-yellow-50 border border-yellow-200 rounded-sm p-4 mt-4">
                   <h3 className="font-semibold text-yellow-900 mb-2 flex items-center">
                     <AlertTriangle className="w-5 h-5 mr-2" />
-                    追加情報が必要です
+                    {t('additionalInfoRequired')}
                   </h3>
                   <ul className="text-sm text-yellow-800 space-y-1 ml-7">
                     {accountStatus.requirementsDue.map((req, idx) => (
@@ -455,14 +489,14 @@ export default function PaymentSettingsPage() {
                     className="mt-4"
                     onClick={handleCompleteOnboarding}
                   >
-                    情報を追加する
+                    {t('addInformation')}
                     <ExternalLink className="w-4 h-4 ml-2" />
                   </Button>
                 </div>
               )}
 
               <div className="flex items-center text-xs text-gray-500 mt-4">
-                <span>アカウントID: {accountStatus.accountId || 'acct_xxxxxxxxx'}</span>
+                <span>{t('accountID')}{accountStatus.accountId || 'acct_xxxxxxxxx'}</span>
               </div>
             </div>
 
@@ -471,24 +505,24 @@ export default function PaymentSettingsPage() {
               <div className="bg-white p-8 rounded-sm shadow-sm">
                 <h2 className="text-lg font-bold text-gray-800 mb-6 flex items-center">
                   <Building2 className="w-6 h-6 mr-2 text-gray-700" />
-                  精算情報
+                  {t('payoutInformation')}
                 </h2>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                   <div className="border-l-4 border-blue-500 pl-4">
-                    <p className="text-xs text-gray-500 mb-1">総売上</p>
+                    <p className="text-xs text-gray-500 mb-1">{t('totalEarnings')}</p>
                     <p className="text-2xl font-bold text-gray-800">
                       {formatCurrency(payoutInfo.totalEarnings)}
                     </p>
                   </div>
                   <div className="border-l-4 border-yellow-500 pl-4">
-                    <p className="text-xs text-gray-500 mb-1">保留中</p>
+                    <p className="text-xs text-gray-500 mb-1">{t('pending')}</p>
                     <p className="text-2xl font-bold text-gray-800">
                       {formatCurrency(payoutInfo.pendingAmount)}
                     </p>
                   </div>
                   <div className="border-l-4 border-green-500 pl-4">
-                    <p className="text-xs text-gray-500 mb-1">出金可能</p>
+                    <p className="text-xs text-gray-500 mb-1">{t('available')}</p>
                     <p className="text-2xl font-bold text-gray-800">
                       {formatCurrency(payoutInfo.availableAmount)}
                     </p>
@@ -498,15 +532,15 @@ export default function PaymentSettingsPage() {
                 <div className="bg-gray-50 rounded-sm p-4 mb-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                     <div>
-                      <span className="text-gray-600">最終出金日: </span>
+                      <span className="text-gray-600">{t('lastPayout')}</span>
                       <span className="font-medium text-gray-800">
-                        {payoutInfo.lastPayoutDate || '未実施'}
+                        {payoutInfo.lastPayoutDate || t('notYet')}
                       </span>
                     </div>
                     <div>
-                      <span className="text-gray-600">次回出金予定日: </span>
+                      <span className="text-gray-600">{t('nextPayout')}</span>
                       <span className="font-medium text-gray-800">
-                        {payoutInfo.nextPayoutDate || '未定'}
+                        {payoutInfo.nextPayoutDate || t('tbd')}
                       </span>
                     </div>
                   </div>
@@ -518,23 +552,23 @@ export default function PaymentSettingsPage() {
                     className="flex-1"
                     onClick={handleRefreshStatus}
                   >
-                    情報を更新
+                    {t('refreshInformation')}
                   </Button>
                   <Button
                     variant="secondary"
                     className="flex-1"
                     onClick={() => router.push('/transactions')}
                   >
-                    取引履歴を見る
+                    {t('viewTransactionHistory')}
                   </Button>
                 </div>
 
                 <div className="mt-6 pt-6 border-t border-gray-200">
                   <p className="text-xs text-gray-500 mb-2">
-                    ℹ️ プラットフォーム手数料として売上の10%が差し引かれます
+                    {t('platformFeeNotice')}
                   </p>
                   <p className="text-xs text-gray-500">
-                    ℹ️ 出金は自動的に登録された銀行口座に振り込まれます（通常2-7営業日）
+                    {t('payoutTransferNotice')}
                   </p>
                 </div>
               </div>
@@ -546,11 +580,11 @@ export default function PaymentSettingsPage() {
         {accountStatus?.tosAcceptedAt && (
           <div className="mt-6 bg-gray-100 p-4 rounded-sm">
             <p className="text-xs text-gray-600">
-              利用規約同意日時: {accountStatus.tosAcceptedAt}
+              {t('tosAcceptedAt')}{accountStatus.tosAcceptedAt}
             </p>
             {accountStatus.tosAcceptedIp && (
               <p className="text-xs text-gray-600">
-                同意時IP: {accountStatus.tosAcceptedIp}
+                {t('ipAddress')}{accountStatus.tosAcceptedIp}
               </p>
             )}
           </div>

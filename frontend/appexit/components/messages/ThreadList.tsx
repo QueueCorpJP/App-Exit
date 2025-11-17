@@ -1,6 +1,7 @@
 'use client';
 
 import { memo, useCallback } from 'react';
+import { useLocale, useTranslations } from 'next-intl';
 import { ThreadWithLastMessage } from '@/lib/api-client';
 import { truncateDisplayName } from '@/lib/text-utils';
 
@@ -21,24 +22,27 @@ interface ThreadItemProps {
   onSelect: (thread: ThreadWithLastMessage) => void;
 }
 
-const formatTime = (timeString: string) => {
-  const date = new Date(timeString);
-  const now = new Date();
-  const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
-
-  if (diffInMinutes < 1) return 'たった今';
-  if (diffInMinutes < 60) return `${diffInMinutes}分前`;
-
-  const diffInHours = Math.floor(diffInMinutes / 60);
-  if (diffInHours < 24) return `${diffInHours}時間前`;
-
-  const diffInDays = Math.floor(diffInHours / 24);
-  if (diffInDays < 7) return `${diffInDays}日前`;
-
-  return date.toLocaleDateString('ja-JP', { month: 'short', day: 'numeric' });
-};
-
 const ThreadItem = memo(({ thread, isSelected, currentUserId, onSelect }: ThreadItemProps) => {
+  const locale = useLocale();
+  const t = useTranslations('messages');
+
+  const formatTime = (timeString: string) => {
+    const date = new Date(timeString);
+    const now = new Date();
+    const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
+
+    if (diffInMinutes < 1) return t('justNow');
+    if (diffInMinutes < 60) return t('minutesAgo', { minutes: diffInMinutes });
+
+    const diffInHours = Math.floor(diffInMinutes / 60);
+    if (diffInHours < 24) return t('hoursAgo', { hours: diffInHours });
+
+    const diffInDays = Math.floor(diffInHours / 24);
+    if (diffInDays < 7) return t('daysAgo', { days: diffInDays });
+
+    return date.toLocaleDateString(locale === 'ja' ? 'ja-JP' : 'en-US', { month: 'short', day: 'numeric' });
+  };
+
   const handleClick = useCallback(() => {
     onSelect(thread);
   }, [onSelect, thread]);
@@ -54,10 +58,10 @@ const ThreadItem = memo(({ thread, isSelected, currentUserId, onSelect }: Thread
   const otherParticipant = thread.participants?.find(p => p.id !== currentUserId);
   console.log('[THREAD-ITEM] Other participant:', otherParticipant);
 
-  const displayName = otherParticipant?.display_name ? truncateDisplayName(otherParticipant.display_name, 'post') : 'ユーザー';
+  const displayName = otherParticipant?.display_name ? truncateDisplayName(otherParticipant.display_name, 'post') : t('user');
   const iconUrl = otherParticipant?.icon_url;
 
-  const lastMessageText = thread.last_message?.text || 'メッセージを開始';
+  const lastMessageText = thread.last_message?.text || t('selectConversation');
   const lastMessageTime = thread.last_message?.created_at || thread.created_at;
 
   return (
@@ -90,7 +94,7 @@ const ThreadItem = memo(({ thread, isSelected, currentUserId, onSelect }: Thread
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1">
-            <span className="font-semibold text-sm truncate" title={otherParticipant?.display_name || 'ユーザー'}>
+            <span className="font-semibold text-sm truncate" title={otherParticipant?.display_name || t('user')}>
               {displayName}
             </span>
           </div>
@@ -118,13 +122,17 @@ function ThreadList({
   onErrorDismiss,
   isLoading = false,
 }: ThreadListProps) {
+  const locale = useLocale();
+  const t = useTranslations('messages');
 
   return (
     <div className="w-full md:w-80 border-r border-gray-200 flex flex-col h-full bg-white">
       {/* ヘッダー */}
       <div className="p-4 border-b border-gray-200 flex-shrink-0 bg-white">
         <div className="flex items-center justify-between">
-          <h1 className="text-lg font-extrabold" style={{ color: '#323232' }}>メッセージ</h1>
+          <h1 className="text-lg font-extrabold" style={{ color: '#323232' }}>
+            {t('title')}
+          </h1>
           <div className="flex gap-2">
             <button className="p-2 hover:bg-gray-100 rounded-full">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -144,7 +152,7 @@ function ThreadList({
             onClick={onErrorDismiss}
             className="mt-2 text-xs text-red-600 hover:underline"
           >
-            閉じる
+            {t('close')}
           </button>
         </div>
       )}
@@ -154,11 +162,15 @@ function ThreadList({
         {isLoading ? (
           <div className="p-4 text-center text-gray-500">
             <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-            <p className="mt-2 text-xs text-gray-500">読み込み中...</p>
+            <p className="mt-2 text-xs text-gray-500">
+              {t('loading')}
+            </p>
           </div>
         ) : threads.length === 0 ? (
           <div className="p-4 text-center text-gray-500">
-            <p className="text-sm">メッセージはありません</p>
+            <p className="text-sm">
+              {t('noMessages')}
+            </p>
           </div>
         ) : (
           threads.map((thread) => (

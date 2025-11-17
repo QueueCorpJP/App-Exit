@@ -1,0 +1,18 @@
+{
+  "title": "Search",
+  "placeholder": "Enter keyword",
+  "search": "Search",
+  "results": "Search Results",
+  "noResults": "No results found",
+  "showing": "Showing",
+  "of": "of",
+  "filterBy": "Filter by",
+  "sortBy": "Sort by",
+  "relevance": "Relevance",
+  "newest": "Newest",
+  "oldest": "Oldest",
+  "priceHighToLow": "Price: High to Low",
+  "priceLowToHigh": "Price: Low to High",
+  "popularityHigh": "Most Popular",
+  "ratingHigh": "Highest Rated"
+}

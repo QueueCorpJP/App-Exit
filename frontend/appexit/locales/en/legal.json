@@ -1,0 +1,39 @@
+{
+  "documentNotice": "This document is currently available in Japanese only. English translation will be provided in the future.",
+  "privacy": {
+    "title": "Privacy Policy"
+  },
+  "terms": {
+    "title": "Terms of Service"
+  },
+  "tokusho": {
+    "title": "Specified Commercial Transactions Act"
+  },
+  "compliance": {
+    "title": "Policy on Anti-Social Forces",
+    "intro": "Queue Inc. (hereinafter referred to as \"the Company\"), as the operator of the app and web service trading platform \"APPEXIT\", hereby declares that it will not have any relationship with anti-social forces that threaten the order and safety of civil society, and will respond firmly to unreasonable demands from anti-social forces.",
+    "basicPolicy": {
+      "title": "Basic Policy",
+      "description": "The Company complies with the following basic policies regarding anti-social forces:",
+      "items": [
+        "Sever all relationships with anti-social forces as an organization",
+        "Reject unreasonable demands from anti-social forces",
+        "Maintain no relationship whatsoever, including transactions",
+        "Take civil and criminal legal action in emergencies",
+        "Never engage in backdoor deals or provide funding"
+      ]
+    }
+  },
+  "cookiePolicy": {
+    "title": "Cookie Policy"
+  },
+  "security": {
+    "title": "Information Security Policy"
+  },
+  "safety": {
+    "title": "Safety Management Policy"
+  },
+  "customerHarassment": {
+    "title": "Customer Harassment Policy"
+  }
+}

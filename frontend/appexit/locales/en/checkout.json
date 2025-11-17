@@ -1,0 +1,21 @@
+{
+  "title": "Checkout",
+  "orderSummary": "Order Summary",
+  "productName": "Product Name",
+  "quantity": "Quantity",
+  "price": "Price",
+  "subtotal": "Subtotal",
+  "tax": "Tax",
+  "shipping": "Shipping",
+  "total": "Total",
+  "shippingAddress": "Shipping Address",
+  "billingAddress": "Billing Address",
+  "sameAsShipping": "Same as shipping",
+  "paymentMethod": "Payment Method",
+  "creditCard": "Credit Card",
+  "bankTransfer": "Bank Transfer",
+  "placeOrder": "Place Order",
+  "processing": "Processing...",
+  "termsAgree": "I agree to the Terms of Service",
+  "privacyAgree": "I agree to the Privacy Policy"
+}

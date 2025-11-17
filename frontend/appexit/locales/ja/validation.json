@@ -1,0 +1,13 @@
+{
+  "required": "この項目は必須です",
+  "invalidEmail": "有効なメールアドレスを入力してください",
+  "invalidUrl": "有効なURLを入力してください",
+  "minLength": "{min}文字以上で入力してください",
+  "maxLength": "{max}文字以内で入力してください",
+  "minValue": "{min}以上の値を入力してください",
+  "maxValue": "{max}以下の値を入力してください",
+  "invalidFormat": "形式が正しくありません",
+  "passwordMismatch": "パスワードが一致しません",
+  "fileTooLarge": "ファイルサイズが大きすぎます",
+  "invalidFileType": "このファイル形式はサポートされていません"
+}

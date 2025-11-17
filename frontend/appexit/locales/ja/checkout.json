@@ -1,0 +1,21 @@
+{
+  "title": "チェックアウト",
+  "orderSummary": "注文概要",
+  "productName": "商品名",
+  "quantity": "数量",
+  "price": "価格",
+  "subtotal": "小計",
+  "tax": "税",
+  "shipping": "送料",
+  "total": "合計",
+  "shippingAddress": "配送先住所",
+  "billingAddress": "請求先住所",
+  "sameAsShipping": "配送先と同じ",
+  "paymentMethod": "支払い方法",
+  "creditCard": "クレジットカード",
+  "bankTransfer": "銀行振込",
+  "placeOrder": "注文を確定する",
+  "processing": "処理中...",
+  "termsAgree": "利用規約に同意する",
+  "privacyAgree": "プライバシーポリシーに同意する"
+}

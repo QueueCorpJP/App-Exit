@@ -2269,10 +2269,10 @@ func (s *Server) GetSaleRequests(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// 売却リクエストを取得（投稿情報も含む）
-	var saleRequests []models.SaleRequestWithPost
+	// 売却リクエストを取得
+	var saleRequests []models.SaleRequest
 	_, err = client.From("sale_requests").
-		Select("*, post:posts(*)", "", false).
+		Select("*", "", false).
 		Eq("thread_id", threadID).
 		Order("created_at", nil).
 		ExecuteTo(&saleRequests)
@@ -2283,7 +2283,34 @@ func (s *Server) GetSaleRequests(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response.Success(w, http.StatusOK, saleRequests)
+	// 投稿情報を取得して結合
+	var saleRequestsWithPost []models.SaleRequestWithPost
+	for _, sr := range saleRequests {
+		var posts []models.Post
+		_, err = client.From("posts").
+			Select("*", "", false).
+			Eq("id", sr.PostID).
+			Limit(1, "").
+			ExecuteTo(&posts)
+
+		if err != nil || len(posts) == 0 {
+			if err != nil {
+				log.Printf("[GetSaleRequests] Failed to query post %s: %v", sr.PostID, err)
+			}
+			// 投稿が見つからない場合はnilとして扱う
+			saleRequestsWithPost = append(saleRequestsWithPost, models.SaleRequestWithPost{
+				SaleRequest: sr,
+				Post:        nil,
+			})
+		} else {
+			saleRequestsWithPost = append(saleRequestsWithPost, models.SaleRequestWithPost{
+				SaleRequest: sr,
+				Post:        &posts[0],
+			})
+		}
+	}
+
+	response.Success(w, http.StatusOK, saleRequestsWithPost)
 }
 
 // ConfirmSaleRequest confirms a sale request and processes payment

@@ -2,14 +2,17 @@
 
 import { useState } from 'react';
 import { MessageCircle, X, Send, Minimize2 } from 'lucide-react';
+import { useLocale, useTranslations } from 'next-intl';
 
 export default function ChatBot() {
+  const locale = useLocale();
+  const t = useTranslations();
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState<Array<{ text: string; isUser: boolean; timestamp: Date }>>([
     {
-      text: 'こんにちは！AppExitのサポートチャットボットです。ご質問がありましたらお気軽にお聞きください。',
+      text: t('chatbotWelcome'),
       isUser: false,
       timestamp: new Date()
     }
@@ -35,7 +38,7 @@ export default function ChatBot() {
       setMessages([
         ...newMessages,
         {
-          text: 'ご質問ありがとうございます。現在、チャットボット機能は準備中です。お急ぎの場合は、お問い合わせフォームからご連絡ください。',
+          text: t('chatbotResponse'),
           isUser: false,
           timestamp: new Date()
         }
@@ -51,7 +54,7 @@ export default function ChatBot() {
   };
 
   const formatTime = (date: Date) => {
-    return date.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+    return date.toLocaleTimeString(locale === 'ja' ? 'ja-JP' : 'en-US', { hour: '2-digit', minute: '2-digit' });
   };
 
   if (!isOpen) {
@@ -59,11 +62,11 @@ export default function ChatBot() {
       <button
         onClick={() => setIsOpen(true)}
         className="fixed bottom-6 right-6 w-16 h-16 rounded-full transition-all duration-200 flex items-center justify-center z-50 group overflow-hidden"
-        aria-label="チャットボットを開く"
+        aria-label={t('openChatbot')}
       >
         <img
           src="/chat.png"
-          alt="チャット"
+          alt={t('chat')}
           className="w-full h-full object-cover group-hover:scale-110 transition-transform"
         />
       </button>
@@ -92,8 +95,12 @@ export default function ChatBot() {
             </div>
           </div>
           <div>
-            <h3 className="font-bold text-base" style={{ color: '#fff' }}>AppExit サポート</h3>
-            <p className="text-xs" style={{ color: '#fff', opacity: 0.9 }}>チャットで質問</p>
+            <h3 className="font-bold text-base" style={{ color: '#fff' }}>
+              {t('appexitSupport')}
+            </h3>
+            <p className="text-xs" style={{ color: '#fff', opacity: 0.9 }}>
+              {t('askQuestion')}
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -103,7 +110,7 @@ export default function ChatBot() {
               setIsMinimized(!isMinimized);
             }}
             className="p-1.5 rounded transition-colors hover:bg-white/10"
-            aria-label={isMinimized ? '展開' : '最小化'}
+            aria-label={isMinimized ? t('expand') : t('minimize')}
           >
             <Minimize2 className="w-5 h-5" style={{ color: '#fff' }} />
           </button>
@@ -114,7 +121,7 @@ export default function ChatBot() {
               setIsMinimized(false);
             }}
             className="p-1.5 rounded transition-colors hover:bg-white/10"
-            aria-label="閉じる"
+            aria-label={t('close')}
           >
             <X className="w-5 h-5" style={{ color: '#fff' }} />
           </button>
@@ -162,7 +169,7 @@ export default function ChatBot() {
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="メッセージを入力..."
+                placeholder={t('typeMessage')}
                 className="flex-1 px-4 py-2.5 border rounded-full focus:outline-none focus:ring-2 focus:border-transparent text-sm"
                 style={{
                   borderColor: '#323232',
@@ -175,7 +182,7 @@ export default function ChatBot() {
                 disabled={message.trim() === ''}
                 className="w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-80"
                 style={{ backgroundColor: '#323232' }}
-                aria-label="送信"
+                aria-label={t('submit')}
               >
                 <Send className="w-5 h-5" style={{ color: '#fff' }} />
               </button>

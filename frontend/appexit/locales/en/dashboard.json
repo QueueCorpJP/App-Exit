@@ -1,0 +1,15 @@
+{
+  "title": "Dashboard",
+  "overview": "Overview",
+  "analytics": "Analytics",
+  "statistics": "Statistics",
+  "recentActivity": "Recent Activity",
+  "quickActions": "Quick Actions",
+  "notifications": "Notifications",
+  "todaysSales": "Today's Sales",
+  "totalRevenue": "Total Revenue",
+  "activeListings": "Active Listings",
+  "pendingOrders": "Pending Orders",
+  "viewAll": "View All",
+  "noActivity": "No Activity"
+}

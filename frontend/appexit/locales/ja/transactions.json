@@ -1,0 +1,25 @@
+{
+  "title": "取引履歴",
+  "history": "取引履歴",
+  "ongoing": "進行中の取引",
+  "completed": "完了した取引",
+  "cancelled": "キャンセルされた取引",
+  "transactionId": "取引ID",
+  "buyer": "買い手",
+  "seller": "売り手",
+  "amount": "金額",
+  "status": "ステータス",
+  "createdDate": "作成日",
+  "completedDate": "完了日",
+  "viewDetails": "詳細を表示",
+  "downloadReceipt": "領収書をダウンロード",
+  "contactSupport": "サポートに連絡",
+  "statuses": {
+    "pending": "保留中",
+    "processing": "処理中",
+    "completed": "完了",
+    "cancelled": "キャンセル",
+    "refunded": "返金済み",
+    "disputed": "紛争中"
+  }
+}

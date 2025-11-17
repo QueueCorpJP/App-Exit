@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations, useLocale } from 'next-intl';
 import Button from '@/components/ui/Button';
 import {
   AdvisorProfileInput,
@@ -106,7 +107,7 @@ const operationTypes = ['内製', '外注', 'ファンド', '個人投資', 'そ
 const advisorExpertiseOptions = ['PM', 'デザイン', 'マーケ', '開発', '営業', 'CS'];
 const proposalStyleOptions = ['協業', '改善提案', 'レベニューシェア', '業務委託'];
 
-const stepTitles = ['登録方法の選択', 'ロール選択', '基本プロフィール', '追加情報', '同意・完了'];
+// Removed stepTitles - not used in the component
 
 interface RegisterPageClientProps {
   error?: string;
@@ -152,7 +153,7 @@ interface AgreementsState {
   privacy: boolean;
 }
 
-function StepIndicator({ current }: { current: number }) {
+function StepIndicator({ current, t, locale }: { current: number; t: any; locale: string }) {
   return (
     <div className="mb-8">
       <div className="flex justify-center mb-6">
@@ -160,10 +161,10 @@ function StepIndicator({ current }: { current: number }) {
       </div>
       <div className="flex justify-between items-center mb-6">
         <div className="w-32"></div>
-        <h2 className="register-title-custom mb-0">新規登録</h2>
+        <h2 className="register-title-custom mb-0">{t('header.register')}</h2>
         <div className="w-32 text-right">
           <span className="text-sm font-medium" style={{ color: '#323232' }}>
-            ステップ {current} / {TOTAL_STEPS}
+            {t('registerStepIndicator', { current, total: TOTAL_STEPS })}
           </span>
         </div>
       </div>
@@ -210,6 +211,8 @@ function StepIndicator({ current }: { current: number }) {
 }
 
 export default function RegisterPageClient({ error: serverError }: RegisterPageClientProps) {
+  const t = useTranslations();
+  const locale = useLocale();
   const router = useRouter();
   const [step, setStep] = useState<number>(1);
   const [error, setError] = useState<string | undefined>(serverError);
@@ -311,13 +314,13 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
 
     // ファイルサイズチェック (5MB)
     if (file.size > 5 * 1024 * 1024) {
-      setError('画像ファイルは5MB以下にしてください');
+      setError(t('registerImageSizeLimit'));
       return;
     }
 
     // ファイルタイプチェック
     if (!file.type.startsWith('image/')) {
-      setError('画像ファイルを選択してください');
+      setError(t('registerSelectImage'));
       return;
     }
 
@@ -357,7 +360,7 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
       console.log('Avatar uploaded successfully:', publicUrl);
     } catch (err) {
       console.error('Avatar upload error:', err);
-      setError(err instanceof Error ? err.message : 'アバター画像のアップロードに失敗しました');
+      setError(err instanceof Error ? err.message : t('registerUploadFailed'));
       setAvatarFile(null);
       setAvatarPreview('');
       // エラー時でもプレビューは残す
@@ -373,15 +376,15 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
 
   const handleEmailSignup = async () => {
     if (!email || !password || !confirmPassword) {
-      setError('メールアドレスとパスワードを入力してください');
+      setError(t('registerEnterEmailPassword'));
       return;
     }
     if (password !== confirmPassword) {
-      setError('パスワードが一致しません');
+      setError(t('registerPasswordMismatch'));
       return;
     }
     if (password.length < 8) {
-      setError('パスワードは8文字以上で入力してください');
+      setError(t('registerPasswordLength'));
       return;
     }
 
@@ -390,7 +393,7 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
     try {
       const result = await registerStep1({ method: 'email', email, password });
       if (result.type !== 'email' || !result.auth) {
-        throw new Error('メール登録に失敗しました');
+        throw new Error(t('registerEmailFailed'));
       }
       // バックエンドがHTTPOnly Cookieを設定済み
       // トークンは後続のstep2-5で使用するため保持
@@ -399,7 +402,7 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
       setStep(2);
     } catch (err) {
       console.error('Email signup error:', err);
-      setError(err instanceof Error ? err.message : 'メール登録に失敗しました');
+      setError(err instanceof Error ? err.message : t('registerEmailFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -415,10 +418,10 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
         window.location.href = result.provider_url;
         return;
       }
-      throw new Error('OAuthの初期化に失敗しました');
+      throw new Error(t('registerOAuthFailed'));
     } catch (err) {
       console.error('OAuth signup error:', err);
-      setError(err instanceof Error ? err.message : 'OAuthの初期化に失敗しました');
+      setError(err instanceof Error ? err.message : t('registerOAuthFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -432,7 +435,8 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
       return [...prev, role];
     });
     // ロール選択時にエラーをクリア
-    if (error === '少なくとも1つのロールを選択してください') {
+    const errorMessages = ['少なくとも1つのロールを選択してください', 'Please select at least one role'];
+    if (errorMessages.includes(error || '')) {
       setError(undefined);
     }
   };
@@ -458,7 +462,7 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
 
   const handleSubmitStep2 = async () => {
     if (selectedRoles.length === 0) {
-      setError('少なくとも1つのロールを選択してください');
+      setError(t('registerSelectRole'));
       return;
     }
     setIsLoading(true);
@@ -476,7 +480,7 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
       setStep(3);
     } catch (err) {
       console.error('Step2 error:', err);
-      setError(err instanceof Error ? err.message : 'ロールの保存に失敗しました');
+      setError(err instanceof Error ? err.message : t('registerSaveRolesFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -484,7 +488,7 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
 
   const handleSubmitStep3 = async () => {
     if (!basicForm.displayName.trim()) {
-      setError('表示名を入力してください');
+      setError(t('registerEnterDisplayName'));
       return;
     }
     setIsLoading(true);
@@ -507,7 +511,7 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
       setStep(4);
     } catch (err) {
       console.error('Step3 error:', err);
-      setError(err instanceof Error ? err.message : '基本プロフィールの保存に失敗しました');
+      setError(err instanceof Error ? err.message : t('registerSaveProfileFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -585,7 +589,7 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
       setStep(5);
     } catch (err) {
       console.error('Step4 error:', err);
-      setError(err instanceof Error ? err.message : '追加情報の保存に失敗しました');
+      setError(err instanceof Error ? err.message : t('registerSaveInfoFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -593,11 +597,11 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
 
   const handleSubmitStep5 = async () => {
     if (!agreements.nda) {
-      setError('NDAに同意してください');
+      setError(t('registerAgreeNDA'));
       return;
     }
     if (!agreements.terms || !agreements.privacy) {
-      setError('利用規約とプライバシーポリシーに同意してください');
+      setError(t('registerAgreeTermsPrivacy'));
       return;
     }
     setIsLoading(true);
@@ -613,7 +617,7 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
       router.refresh();
     } catch (err) {
       console.error('Step5 error:', err);
-      setError(err instanceof Error ? err.message : '同意情報の送信に失敗しました');
+      setError(err instanceof Error ? err.message : t('registerSubmitAgreementFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -635,7 +639,7 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
     }
   };
 
-  const primaryButtonLabel = step === 1 ? 'メールで登録' : step === TOTAL_STEPS ? '登録を完了する' : '次へ';
+  const primaryButtonLabel = step === 1 ? t('auth.emailRegister') : step === TOTAL_STEPS ? t('auth.completeRegistration') : t('auth.next');
 
   const renderStepContent = useMemo(() => {
     switch (step) {
@@ -648,7 +652,7 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
                 onClick={() => setShowMethodOptions(!showMethodOptions)}
                 className="w-full px-4 py-3 text-left flex items-center justify-between hover:bg-gray-50 transition-all duration-200"
               >
-                <div className="text-base font-semibold text-gray-900">1. ソーシャルアカウントで登録</div>
+                <div className="text-base font-semibold text-gray-900">1. {t('auth.socialRegister')}</div>
                 <svg
                   className={`w-5 h-5 text-gray-500 transition-transform duration-200 ${showMethodOptions ? 'rotate-90' : ''}`}
                   fill="none"
@@ -661,9 +665,9 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
               {showMethodOptions && (
                 <div className="mt-3 space-y-3">
                   {([
-                    { method: 'google' as RegistrationMethod, label: 'Googleで登録' },
-                    { method: 'github' as RegistrationMethod, label: 'GitHubで登録' },
-                    { method: 'x' as RegistrationMethod, label: 'Xで登録' },
+                    { method: 'google' as RegistrationMethod, label: t('auth.registerWithGoogle') },
+                    { method: 'github' as RegistrationMethod, label: t('auth.registerWithGithub') },
+                    { method: 'x' as RegistrationMethod, label: t('auth.registerWithX') },
                   ]).map(({ method, label }) => (
                     <Button
                       key={method}
@@ -689,12 +693,12 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
                 </div>
               </div>
               <div className="px-4 py-3 mb-4">
-                <h3 className="text-base font-semibold text-gray-900">2. メールアドレスで登録</h3>
+                <h3 className="text-base font-semibold text-gray-900">2. {t('auth.emailRegister')}</h3>
               </div>
               <div className="space-y-4">
                 <div>
                   <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                    メールアドレス
+                    {t('auth.email')}
                   </label>
                   <input
                     id="email"
@@ -703,12 +707,12 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:border-gray-900 focus:outline-none"
-                    placeholder="your@example.com"
+                    placeholder={t('auth.emailPlaceholder')}
                   />
                 </div>
                 <div>
                   <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                    パスワード
+                    {t('auth.password')}
                   </label>
                   <input
                     id="password"
@@ -717,12 +721,12 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:border-gray-900 focus:outline-none"
-                    placeholder="8文字以上のパスワード"
+                    placeholder={t('auth.passwordPlaceholder')}
                   />
                 </div>
                 <div>
                   <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
-                    パスワード（確認）
+                    {t('auth.confirmPassword')}
                   </label>
                   <input
                     id="confirmPassword"
@@ -731,7 +735,7 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:border-gray-900 focus:outline-none"
-                    placeholder="パスワードを再入力"
+                    placeholder={t('registerReenterPassword')}
                   />
                 </div>
               </div>
@@ -741,7 +745,9 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
       case 2:
         return (
           <div className="space-y-6">
-            <h3 className="text-lg font-medium text-gray-900">あなたの目的に合うロールを選択してください（複数選択可）</h3>
+            <h3 className="text-lg font-medium text-gray-900">
+              {t('registerSelectRoles')}
+            </h3>
             <RoleSelector
               selectedRoles={selectedRoles}
               onToggle={(key) => toggleRole(key)}
@@ -751,10 +757,14 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
       case 3:
         return (
           <div className="space-y-6">
-            <h3 className="text-lg font-bold" style={{ color: '#323232' }}>基本プロフィール</h3>
+            <h3 className="text-lg font-bold" style={{ color: '#323232' }}>
+              {t('registerBasicProfile')}
+            </h3>
             <div className="flex flex-col gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700" htmlFor="displayName">表示名</label>
+                <label className="block text-sm font-medium text-gray-700" htmlFor="displayName">
+                  {t('displayName')}
+                </label>
                 <input
                   id="displayName"
                   type="text"
@@ -762,15 +772,17 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
                   value={basicForm.displayName}
                   onChange={(e) => setBasicForm((prev) => ({ ...prev, displayName: e.target.value }))}
                   className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:border-gray-900 focus:outline-none"
-                  placeholder="山田太郎"
+                  placeholder={t('displayNamePlaceholder')}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">アカウント区分</label>
+                <label className="block text-sm font-medium text-gray-700">
+                  {t('accountType')}
+                </label>
                 <div className="mt-1 grid grid-cols-2 gap-2">
                   {[
-                    { value: 'individual' as const, label: '個人' },
-                    { value: 'organization' as const, label: '法人' },
+                    { value: 'individual' as const, label: t('individual') },
+                    { value: 'organization' as const, label: t('organization') },
                   ].map(({ value, label }) => (
                     <button
                       key={value}
@@ -798,7 +810,9 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
                   transition: 'max-height 0.2s ease, opacity 0.2s ease'
                 }}
               >
-                <label className="block text-sm font-medium text-gray-700" htmlFor="prefecture">拠点（都道府県）</label>
+                <label className="block text-sm font-medium text-gray-700" htmlFor="prefecture">
+                  {t('registerPrefecture')}
+                </label>
                 <div className="relative">
                   <select
                     id="prefecture"
@@ -818,7 +832,7 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
                     }}
                     className="mt-1 block w-full px-3 py-2 pr-10 border border-gray-300 rounded-md text-gray-900 focus:border-gray-900 focus:outline-none appearance-none bg-white"
                   >
-                    <option value="">選択してください</option>
+                    <option value="">{t('registerPleaseSelect')}</option>
                     {prefectures.map((pref) => (
                       <option key={pref} value={pref}>
                         {pref}
@@ -848,7 +862,7 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
                 }}
               >
                 <label className="block text-sm font-medium text-gray-700" htmlFor="companyName">
-                  会社名 / 屋号（法人のみ）
+                  {t('registerCompanyName')}
                 </label>
                 <input
                   id="companyName"
@@ -856,12 +870,12 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
                   value={basicForm.companyName}
                   onChange={(e) => setBasicForm((prev) => ({ ...prev, companyName: e.target.value }))}
                   className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:border-gray-900 focus:outline-none"
-                  placeholder="株式会社サンプル"
+                  placeholder={t('registerCompanyPlaceholder')}
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  アイコン画像
+                  {t('profilePicture')}
                 </label>
                 <div className="flex items-center space-x-4">
                   {/* プレビュー画像 - クリック可能 */}
@@ -883,7 +897,7 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
                     {avatarPreview || basicForm.iconUrl ? (
                       <img
                         src={avatarPreview || basicForm.iconUrl}
-                        alt="アイコンプレビュー"
+                        alt={t('iconPreview')}
                         className="w-full h-full object-cover"
                       />
                     ) : (
@@ -898,13 +912,15 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
                     </div>
                   </label>
                   {isUploadingAvatar && (
-                    <span className="text-sm text-gray-600">アップロード中...</span>
+                    <span className="text-sm text-gray-600">
+                      {t('uploading')}
+                    </span>
                   )}
                 </div>
               </div>
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700" htmlFor="introduction">
-                  自己紹介（200字以内）
+                  {t('registerIntroduction')}
                 </label>
                 <textarea
                   id="introduction"
@@ -913,11 +929,13 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
                   className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:border-gray-900 focus:outline-none"
                   rows={4}
                   maxLength={200}
-                  placeholder="どんな目的で登録したかなどを記入してください"
+                  placeholder={t('registerIntroductionPlaceholder')}
                 />
               </div>
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700">Web / SNSリンク（任意）</label>
+                <label className="block text-sm font-medium text-gray-700">
+                  {t('registerLinks')}
+                </label>
                 <div className="space-y-3 mt-2">
                   {basicForm.links.map((link, index) => (
                     <div key={`link-${index}`} className="space-y-2">
@@ -927,7 +945,7 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
                           value={link.name}
                           onChange={(e) => updateLink(index, 'name', e.target.value)}
                           className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:border-gray-900 focus:outline-none"
-                          placeholder="リンク名（例: X, GitHub）"
+                          placeholder={t('registerLinkNamePlaceholder')}
                         />
                       </div>
                       <div className="relative">
@@ -951,7 +969,7 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
                     </div>
                   ))}
                   <Button type="button" variant="ghost" size="sm" onClick={addLinkField}>
-                    リンクを追加
+                    {t('registerAddLink')}
                   </Button>
                 </div>
               </div>
@@ -963,11 +981,13 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
           <div className="space-y-6">
             {selectedRoles.includes('seller') && (
               <section className="">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">売り手の追加情報</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                  {t('registerSellerInfo')}
+                </h3>
                 <div className="flex flex-col gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700" htmlFor="listingCount">
-                      出品予定サービス数
+                      {t('registerListingCount')}
                     </label>
                     <input
                       id="listingCount"
@@ -979,7 +999,9 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">サービスカテゴリ</label>
+                    <label className="block text-sm font-medium text-gray-700">
+                      {t('registerServiceCategories')}
+                    </label>
                     <div className="mt-2 flex flex-wrap gap-2">
                       {sellerCategoryOptions.map((option) => {
                         const isActive = sellerForm.serviceCategories.includes(option);
@@ -1007,7 +1029,7 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700" htmlFor="exitTiming">
-                      希望売却時期（ヶ月以内）
+                      {t('registerExitTiming')}
                     </label>
                     <input
                       id="exitTiming"
@@ -1017,7 +1039,7 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
                       value={sellerForm.exitTiming}
                       onChange={(e) => setSellerForm((prev) => ({ ...prev, exitTiming: e.target.value }))}
                       className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:border-gray-900 focus:outline-none"
-                      placeholder="例: 3"
+                      placeholder={t('registerTimingPlaceholder')}
                     />
                   </div>
                 </div>
@@ -1027,11 +1049,15 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
             {(selectedRoles.includes('buyer') || selectedRoles.includes('advisor')) && (
               <section className="space-y-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                  {selectedRoles.includes('advisor') ? '買い手 / 提案者の追加情報' : '買い手の追加情報'}
+                  {selectedRoles.includes('advisor')
+                    ? t('registerBuyerAdvisorInfo')
+                    : t('registerBuyerInfo')}
                 </h3>
                 <div className="flex flex-col gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">希望投資金額レンジ</label>
+                    <label className="block text-sm font-medium text-gray-700">
+                      {t('registerInvestmentRange')}
+                    </label>
                     <div className="mt-2 flex items-center gap-3">
                       <input
                         type="number"
@@ -1040,9 +1066,11 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
                         value={buyerForm.investmentMin}
                         onChange={(e) => setBuyerForm((prev) => ({ ...prev, investmentMin: e.target.value }))}
                         className="w-24 px-2 py-1.5 text-sm border border-gray-300 rounded-md text-gray-900 focus:border-gray-900 focus:outline-none"
-                        placeholder="最小"
+                        placeholder={t('registerMinimum')}
                       />
-                      <span className="font-bold text-gray-900 text-sm">万円〜</span>
+                      <span className="font-bold text-gray-900 text-sm">
+                        {t('registerMinCurrency')}
+                      </span>
                       <input
                         type="number"
                         min="0"
@@ -1050,13 +1078,17 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
                         value={buyerForm.investmentMax}
                         onChange={(e) => setBuyerForm((prev) => ({ ...prev, investmentMax: e.target.value }))}
                         className="w-24 px-2 py-1.5 text-sm border border-gray-300 rounded-md text-gray-900 focus:border-gray-900 focus:outline-none"
-                        placeholder="最大"
+                        placeholder={t('registerMaximum')}
                       />
-                      <span className="font-bold text-gray-900 text-sm">万円</span>
+                      <span className="font-bold text-gray-900 text-sm">
+                        {t('registerMaxCurrency')}
+                      </span>
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">注目カテゴリ</label>
+                    <label className="block text-sm font-medium text-gray-700">
+                      {t('registerTargetCategories')}
+                    </label>
                     <div className="mt-2 flex flex-wrap gap-2">
                       {sellerCategoryOptions.map((option) => {
                         const isActive = buyerForm.targetCategories.includes(option);
@@ -1084,7 +1116,7 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700" htmlFor="buyerDesiredAcquisitionTiming">
-                      希望買収時期（ヶ月以内）
+                      {t('registerAcquisitionTiming')}
                     </label>
                     <input
                       id="buyerDesiredAcquisitionTiming"
@@ -1094,7 +1126,7 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
                       value={buyerForm.desiredAcquisitionTiming}
                       onChange={(e) => setBuyerForm((prev) => ({ ...prev, desiredAcquisitionTiming: e.target.value }))}
                       className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:border-gray-900 focus:outline-none"
-                      placeholder="例: 6"
+                      placeholder={t('registerAcquisitionPlaceholder')}
                     />
                   </div>
                 </div>
@@ -1102,14 +1134,18 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
             )}
 
             {selectedRoles.length === 0 && (
-              <p className="text-sm text-gray-600">ステップ2でロールを選択すると、ここに対応する入力項目が表示されます。</p>
+              <p className="text-sm text-gray-600">
+                {t('registerSelectRolesHint')}
+              </p>
             )}
           </div>
         );
       case 5:
         return (
           <div className="space-y-6">
-            <h3 className="text-lg font-bold" style={{ color: '#323232' }}>同意事項</h3>
+            <h3 className="text-lg font-bold" style={{ color: '#323232' }}>
+              {t('registerAgreements')}
+            </h3>
             <div className="space-y-4">
               <label className="flex items-center gap-3 text-sm text-gray-900">
                 <input
@@ -1121,7 +1157,9 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
                   required
                 />
                 <span>
-                  <span className="font-medium">NDA（秘密保持契約）の締結に同意します（必須）</span>
+                  <span className="font-medium">
+                    {t('registerAgreeNDALabel')}
+                  </span>
                 </span>
               </label>
               <label className="flex items-center gap-3 text-sm text-gray-900">
@@ -1134,16 +1172,18 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
                   required
                 />
                 <span>
-                  <span className="font-medium">利用規約</span>に同意します（必須）{' '}
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => window.open('/terms', '_blank')}
-                    className="p-0 h-auto ml-1 underline"
-                  >
-                    内容を確認する
-                  </Button>
+                  <>
+                    {t('registerAgreeTermsLabel')}{' '}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => window.open(`/${locale}/terms`, '_blank')}
+                      className="p-0 h-auto ml-1 underline"
+                    >
+                      {t('registerViewDetails')}
+                    </Button>
+                  </>
                 </span>
               </label>
               <label className="flex items-center gap-3 text-sm text-gray-900">
@@ -1156,16 +1196,18 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
                   required
                 />
                 <span>
-                  <span className="font-medium">プライバシーポリシー</span>に同意します（必須）{' '}
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => window.open('/privacy', '_blank')}
-                    className="p-0 h-auto ml-1 underline"
-                  >
-                    内容を確認する
-                  </Button>
+                  <>
+                    {t('registerAgreePrivacyLabel')}{' '}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => window.open(`/${locale}/privacy`, '_blank')}
+                      className="p-0 h-auto ml-1 underline"
+                    >
+                      {t('registerViewDetails')}
+                    </Button>
+                  </>
                 </span>
               </label>
             </div>
@@ -1211,7 +1253,7 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
 
       <div className="min-h-screen flex flex-col justify-center py-12 sm:px-6 lg:px-8" style={{ backgroundColor: '#F9F8F7' }}>
         <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-          <StepIndicator current={step} />
+          <StepIndicator current={step} t={t} locale={locale} />
         <div className="bg-white py-8 px-6 sm:px-10">
           <form onSubmit={handleSubmit}>
             {renderStepContent}
@@ -1241,22 +1283,22 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
                 disabled={isLoading || step === 1}
                 className="w-full"
               >
-                戻る
+                {t('auth.back')}
               </Button>
             </div>
           </form>
         </div>
         <div className="mt-4 py-4 text-center">
           <p className="text-sm text-gray-600">
-            既にアカウントをお持ちの方は{' '}
+            {t('auth.hasAccount')}{' '}
             <Button
               type="button"
               variant="ghost"
               size="sm"
-              onClick={() => router.push('/login')}
+              onClick={() => router.push(`/${locale}/login`)}
               className="p-0 h-auto font-medium"
             >
-              ログイン
+              {t('auth.loginButton')}
             </Button>
           </p>
         </div>

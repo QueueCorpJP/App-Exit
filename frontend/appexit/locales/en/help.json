@@ -1,0 +1,117 @@
+{
+  "title": "Help Center",
+  "description": "If you encounter any issues while using APPEXIT, please refer to this page",
+  "sections": {
+    "gettingStarted": {
+      "title": "Getting Started",
+      "description": "Learn about APPEXIT's basic usage and service features",
+      "items": [
+        {
+          "href": "/about",
+          "title": "About APPEXIT",
+          "description": "Overview and features of our service"
+        },
+        {
+          "href": "/faq",
+          "title": "FAQ",
+          "description": "Frequently asked questions and answers"
+        },
+        {
+          "href": "/support-service",
+          "title": "Support Services",
+          "description": "Professional support from our staff"
+        }
+      ]
+    },
+    "needHelp": {
+      "title": "Need Help?",
+      "description": "For troubleshooting or questions, please contact us here",
+      "items": [
+        {
+          "href": "/contact",
+          "title": "Contact Us",
+          "description": "Questions or inquiries about our service"
+        },
+        {
+          "href": "/report",
+          "title": "Report Violations",
+          "description": "Report violations or suspicious activities"
+        },
+        {
+          "href": "/seminar",
+          "title": "Seminars & Consultations",
+          "description": "Direct support from our specialists"
+        }
+      ]
+    },
+    "termsAndPolicies": {
+      "title": "Terms & Policies",
+      "description": "Review our terms and policies for safe and secure usage",
+      "items": [
+        {
+          "href": "/terms",
+          "title": "Terms of Service",
+          "description": "Basic rules for using our service"
+        },
+        {
+          "href": "/privacy",
+          "title": "Privacy Policy",
+          "description": "How we handle personal information"
+        },
+        {
+          "href": "/cookie-policy",
+          "title": "Cookie Policy",
+          "description": "Our policy on cookie usage"
+        },
+        {
+          "href": "/tokusho",
+          "title": "Legal Notice",
+          "description": "Business information and transaction terms"
+        }
+      ]
+    },
+    "securityAndSafety": {
+      "title": "Security & Safety",
+      "description": "Our initiatives to protect your safety",
+      "items": [
+        {
+          "href": "/security",
+          "title": "Information Security Policy",
+          "description": "Our policy on protecting information assets"
+        },
+        {
+          "href": "/safety",
+          "title": "Safety Management Policy",
+          "description": "Our policy on ensuring user safety"
+        },
+        {
+          "href": "/compliance",
+          "title": "Anti-Social Forces Policy",
+          "description": "Exclusion of anti-social forces"
+        },
+        {
+          "href": "/customer-harassment",
+          "title": "Customer Harassment Policy",
+          "description": "For healthy communication"
+        }
+      ]
+    },
+    "emergencyContacts": {
+      "title": "Emergency Contacts",
+      "contacts": [
+        {
+          "label": "Customer Support:",
+          "email": "support@appexit.jp"
+        },
+        {
+          "label": "Security Related:",
+          "email": "security@appexit.jp"
+        },
+        {
+          "label": "Safety Management:",
+          "email": "safety@appexit.jp"
+        }
+      ]
+    }
+  }
+}

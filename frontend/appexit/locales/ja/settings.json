@@ -1,0 +1,41 @@
+{
+  "title": "設定",
+  "description": "アカウント設定を管理します。",
+  "profile": {
+    "title": "プロフィール設定",
+    "description": "プロフィール情報を編集します。"
+  },
+  "payment": {
+    "title": "支払い設定",
+    "description": "支払い方法を管理します。"
+  },
+  "account": "アカウント",
+  "notifications": "通知",
+  "privacy": "プライバシー",
+  "billing": "請求",
+  "profileSettings": "プロフィール設定",
+  "paymentSettings": "支払い設定",
+  "languageSettings": "言語設定",
+  "japanese": "日本語",
+  "english": "English",
+  "displayName": "表示名",
+  "bio": "自己紹介",
+  "avatar": "アバター",
+  "changeAvatar": "アバターを変更",
+  "currentPassword": "現在のパスワード",
+  "newPassword": "新しいパスワード",
+  "confirmNewPassword": "新しいパスワード(確認)",
+  "changePassword": "パスワードを変更",
+  "emailNotifications": "メール通知",
+  "pushNotifications": "プッシュ通知",
+  "saveChanges": "変更を保存",
+  "cancelChanges": "変更をキャンセル",
+  "deleteAccount": "アカウントを削除",
+  "deleteAccountWarning": "この操作は取り消せません",
+  "help": {
+    "title": "サポート",
+    "description": "ご不明な点がございましたら",
+    "separator": " や ",
+    "suffix": " をご確認ください。"
+  }
+}

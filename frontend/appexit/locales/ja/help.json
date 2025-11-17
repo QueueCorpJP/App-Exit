@@ -1,0 +1,117 @@
+{
+  "title": "ヘルプセンター",
+  "description": "APPEXITのご利用にあたって、困ったときはこちらをご確認ください",
+  "sections": {
+    "gettingStarted": {
+      "title": "はじめての方へ",
+      "description": "APPEXITの基本的な使い方やサービス内容をご確認いただけます",
+      "items": [
+        {
+          "href": "/about",
+          "title": "APPEXITについて",
+          "description": "サービスの概要や特徴をご紹介します"
+        },
+        {
+          "href": "/faq",
+          "title": "よくある質問（FAQ）",
+          "description": "多くのお客様から寄せられる質問と回答"
+        },
+        {
+          "href": "/support-service",
+          "title": "サポートサービス",
+          "description": "専門スタッフによるサポート内容のご案内"
+        }
+      ]
+    },
+    "needHelp": {
+      "title": "お困りのとき",
+      "description": "トラブルや疑問がある場合は、こちらからお問い合わせください",
+      "items": [
+        {
+          "href": "/contact",
+          "title": "お問い合わせ",
+          "description": "サービスに関するご質問やご相談はこちら"
+        },
+        {
+          "href": "/report",
+          "title": "違反報告",
+          "description": "規約違反や不審な行為を発見した場合"
+        },
+        {
+          "href": "/seminar",
+          "title": "説明会・相談会",
+          "description": "専門スタッフが直接サポートいたします"
+        }
+      ]
+    },
+    "termsAndPolicies": {
+      "title": "利用規約・ポリシー",
+      "description": "安心してご利用いただくための各種規約とポリシーをご確認ください",
+      "items": [
+        {
+          "href": "/terms",
+          "title": "利用規約",
+          "description": "サービス利用時の基本的なルール"
+        },
+        {
+          "href": "/privacy",
+          "title": "プライバシーポリシー",
+          "description": "個人情報の取り扱いについて"
+        },
+        {
+          "href": "/cookie-policy",
+          "title": "クッキーポリシー",
+          "description": "Cookieの使用に関する方針"
+        },
+        {
+          "href": "/tokusho",
+          "title": "特定商取引法に基づく表記",
+          "description": "事業者情報と取引条件"
+        }
+      ]
+    },
+    "securityAndSafety": {
+      "title": "セキュリティ・安全管理",
+      "description": "お客様の安全を守るための取り組みをご紹介します",
+      "items": [
+        {
+          "href": "/security",
+          "title": "情報セキュリティ基本方針",
+          "description": "情報資産の保護に関する方針"
+        },
+        {
+          "href": "/safety",
+          "title": "安全管理方針",
+          "description": "利用者の安全確保に関する方針"
+        },
+        {
+          "href": "/compliance",
+          "title": "反社会的勢力に対する基本方針",
+          "description": "反社会的勢力の排除について"
+        },
+        {
+          "href": "/customer-harassment",
+          "title": "カスタマーハラスメントに対する考え方",
+          "description": "健全なコミュニケーションのために"
+        }
+      ]
+    },
+    "emergencyContacts": {
+      "title": "緊急時の連絡先",
+      "contacts": [
+        {
+          "label": "カスタマーサポート：",
+          "email": "support@appexit.jp"
+        },
+        {
+          "label": "セキュリティ関連：",
+          "email": "security@appexit.jp"
+        },
+        {
+          "label": "安全管理関連：",
+          "email": "safety@appexit.jp"
+        }
+      ]
+    }
+  }
+}

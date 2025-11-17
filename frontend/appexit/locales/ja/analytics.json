@@ -1,0 +1,20 @@
+{
+  "title": "分析",
+  "overview": "概要",
+  "performance": "パフォーマンス",
+  "trends": "トレンド",
+  "insights": "インサイト",
+  "metrics": "指標",
+  "pageViews": "ページビュー",
+  "uniqueVisitors": "ユニークビジター",
+  "bounceRate": "直帰率",
+  "avgSessionDuration": "平均セッション時間",
+  "conversionRate": "コンバージョン率",
+  "revenue": "収益",
+  "growth": "成長率",
+  "comparison": "比較",
+  "lastMonth": "先月",
+  "lastWeek": "先週",
+  "yesterday": "昨日",
+  "today": "今日"
+}

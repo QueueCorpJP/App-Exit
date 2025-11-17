@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations, useLocale } from 'next-intl';
 import { useAuth } from '@/lib/auth-context';
 import Button from '@/components/ui/Button';
 import { loginWithBackend, loginWithOAuth, LoginMethod } from '@/lib/auth-api';
@@ -11,6 +12,8 @@ interface LoginPageClientProps {
 }
 
 export default function LoginPageClient({ error: serverError }: LoginPageClientProps) {
+  const t = useTranslations();
+  const locale = useLocale();
   const [error, setError] = useState(serverError);
   const [isLoading, setIsLoading] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
@@ -32,10 +35,10 @@ export default function LoginPageClient({ error: serverError }: LoginPageClientP
         window.location.href = result.provider_url;
         return;
       }
-      throw new Error('OAuthの初期化に失敗しました');
+      throw new Error(t('auth.loginError'));
     } catch (err) {
       console.error('[LOGIN] OAuth login error:', err);
-      setError(err instanceof Error ? err.message : 'OAuthログインに失敗しました');
+      setError(err instanceof Error ? err.message : t('auth.loginError'));
     } finally {
       setIsLoading(false);
     }
@@ -65,7 +68,7 @@ export default function LoginPageClient({ error: serverError }: LoginPageClientP
       router.refresh();
     } catch (err) {
       console.error('Login error:', err);
-      setError(err instanceof Error ? err.message : 'ログインに失敗しました');
+      setError(err instanceof Error ? err.message : t('auth.loginError'));
       setIsLoading(false);
     }
   }
@@ -89,13 +92,13 @@ export default function LoginPageClient({ error: serverError }: LoginPageClientP
           <div className="flex justify-center mb-6">
             <img src="/icon.png" alt="AppExit" className="h-12 w-auto" />
           </div>
-          <h2 className="login-title-custom">ログイン</h2>
+          <h2 className="login-title-custom">{t('auth.loginTitle')}</h2>
 
         <div className="bg-white py-8 px-4 sm:px-10">
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                メールアドレス
+                {t('auth.email')}
               </label>
               <div className="mt-1">
                 <input
@@ -117,14 +120,14 @@ export default function LoginPageClient({ error: serverError }: LoginPageClientP
                     e.currentTarget.style.borderColor = '#D1D5DB'
                     e.currentTarget.style.outline = 'none'
                   }}
-                  placeholder="your@example.com"
+                  placeholder={t('auth.emailPlaceholder')}
                 />
               </div>
             </div>
 
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                パスワード
+                {t('auth.password')}
               </label>
               <div className="mt-1">
                 <input
@@ -146,7 +149,7 @@ export default function LoginPageClient({ error: serverError }: LoginPageClientP
                     e.currentTarget.style.borderColor = '#D1D5DB'
                     e.currentTarget.style.outline = 'none'
                   }}
-                  placeholder="パスワードを入力"
+                  placeholder={t('auth.passwordPlaceholder')}
                 />
               </div>
             </div>
@@ -163,13 +166,13 @@ export default function LoginPageClient({ error: serverError }: LoginPageClientP
                   }}
                 />
                 <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">
-                  ログイン状態を保持
+                  {t('auth.rememberMe')}
                 </label>
               </div>
 
               <div className="text-sm">
                 <a href="#" className="font-medium" style={{ color: '#4285FF' }} onMouseEnter={(e) => e.currentTarget.style.color = '#3367D6'} onMouseLeave={(e) => e.currentTarget.style.color = '#4285FF'}>
-                  パスワードを忘れた場合
+                  {t('auth.forgotPassword')}
                 </a>
               </div>
             </div>
@@ -185,14 +188,14 @@ export default function LoginPageClient({ error: serverError }: LoginPageClientP
               variant="primary"
               className="w-full"
               isLoading={isLoading}
-              loadingText="ログイン中..."
+              loadingText={`${t('auth.loginButton')}...`}
               style={{
                 backgroundColor: isHovered ? '#D14C54' : '#E65D65',
               }}
               onMouseEnter={() => setIsHovered(true)}
               onMouseLeave={() => setIsHovered(false)}
             >
-              ログイン
+              {t('auth.loginButton')}
             </Button>
           </form>
 
@@ -202,7 +205,7 @@ export default function LoginPageClient({ error: serverError }: LoginPageClientP
                 <div className="w-full border-t border-gray-300" />
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-gray-500">または</span>
+                <span className="px-2 bg-white text-gray-500">{t('loginOr')}</span>
               </div>
             </div>
 
@@ -232,22 +235,22 @@ export default function LoginPageClient({ error: serverError }: LoginPageClientP
                     d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
                   />
                 </svg>
-                <span className="ml-2">Googleでログイン</span>
+                <span className="ml-2">{t('loginWithGoogle')}</span>
               </Button>
             </div>
           </div>
         </div>
 
         <p className="mt-6 text-center text-sm text-gray-600">
-          または{' '}
+          {t('auth.noAccount')}{' '}
           <Button
             type="button"
             variant="ghost"
             size="sm"
-            onClick={() => router.push('/register')}
+            onClick={() => router.push(`/${locale}/register`)}
             className="p-0 h-auto font-medium"
           >
-            新しいアカウントを作成
+            {t('header.register')}
           </Button>
         </p>
       </div>

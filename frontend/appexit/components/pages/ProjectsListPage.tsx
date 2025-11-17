@@ -6,6 +6,7 @@ import { SearchCheck, SlidersHorizontal, X, ChevronDown, ChevronUp } from 'lucid
 import { getImageUrls } from '@/lib/storage';
 import ProjectCard from '@/components/ui/ProjectCard';
 import { postApi, Post, AuthorProfile } from '@/lib/api-client';
+import { useTranslations } from 'next-intl';
 
 interface ProjectWithImage {
   id: string;
@@ -33,34 +34,35 @@ interface ProjectWithImage {
 type PostType = 'all' | 'board' | 'transaction' | 'secret';
 type SortOption = 'newest' | 'oldest' | 'price-high' | 'price-low' | 'revenue-high' | 'revenue-low' | 'profit-high' | 'profit-low';
 
-const CATEGORIES = [
-  'ソーシャル',
-  'EC・マーケットプレイス',
-  'ゲーム',
-  'ユーティリティ',
-  '生産性',
-  'エンターテイメント',
-  'ヘルスケア',
-  '教育',
-  'ビジネス',
-  'ライフスタイル',
-  'フード・ドリンク',
-  '旅行',
-  '写真・動画',
-  '音楽',
-  'ニュース',
-  'スポーツ',
-  '天気',
-  'ナビゲーション',
-  'ファイナンス',
-  '医療',
-  'ショッピング',
-  'ブック',
-  'その他'
-];
-
 export default function ProjectsListPage() {
+  const t = useTranslations();
   const searchParams = useSearchParams();
+
+  const CATEGORIES = [
+    { key: 'social', label: t('categories.social') },
+    { key: 'ecommerce', label: t('categories.ecommerce') },
+    { key: 'game', label: t('categories.game') },
+    { key: 'education', label: t('categories.education') },
+    { key: 'health', label: t('categories.health') },
+    { key: 'finance', label: t('categories.finance') },
+    { key: 'productivity', label: t('categories.productivity') },
+    { key: 'entertainment', label: t('categories.entertainment') },
+    { key: 'news', label: t('categories.news') },
+    { key: 'travel', label: t('categories.travel') },
+    { key: 'food', label: t('categories.food') },
+    { key: 'lifestyle', label: t('categories.lifestyle') },
+    { key: 'sports', label: t('categories.sports') },
+    { key: 'music', label: t('categories.music') },
+    { key: 'photo', label: t('categories.photo') },
+    { key: 'communication', label: t('categories.communication') },
+    { key: 'utilities', label: t('categories.utilities') },
+    { key: 'weather', label: t('categories.weather') },
+    { key: 'navigation', label: t('categories.navigation') },
+    { key: 'medical', label: t('categories.medical') },
+    { key: 'matching', label: t('categories.matching') },
+    { key: 'ai', label: t('categories.ai') },
+    { key: 'other', label: t('categories.other') },
+  ];
   const [projects, setProjects] = useState<ProjectWithImage[]>([]);
   const [filteredProjects, setFilteredProjects] = useState<ProjectWithImage[]>([]);
   const [loading, setLoading] = useState(true);
@@ -170,19 +172,19 @@ export default function ProjectsListPage() {
         'https://placehold.co/600x400/e2e8f0/64748b?text=No+Image';
 
       let badge: string | undefined;
-      if (post.type === 'board') badge = '掲示板';
-      else if (post.type === 'secret') badge = 'シークレット';
-      else if (post.type === 'transaction') badge = '取引';
+      if (post.type === 'board') badge = t('projects.postTypes.board');
+      else if (post.type === 'secret') badge = t('projects.postTypes.secret');
+      else if (post.type === 'transaction') badge = t('projects.postTypes.transaction');
 
       const categories = post.app_categories && post.app_categories.length > 0
         ? post.app_categories
-        : ['カテゴリ不明'];
+        : [t('categories.unknown')];
 
       const profitMargin = post.monthly_revenue && post.monthly_cost !== undefined && post.monthly_revenue > 0
         ? ((post.monthly_revenue - post.monthly_cost) / post.monthly_revenue) * 100
         : undefined;
 
-      const status = post.is_active ? '募集中' : '成約済み';
+      const status = post.is_active ? t('common.recruiting') : t('common.completed');
 
       return {
         id: post.id,
@@ -361,11 +363,11 @@ export default function ProjectsListPage() {
     }
   };
 
-  const toggleCategory = (category: string) => {
+  const toggleCategory = (categoryLabel: string) => {
     setSelectedCategories(prev =>
-      prev.includes(category)
-        ? prev.filter(c => c !== category)
-        : [...prev, category]
+      prev.includes(categoryLabel)
+        ? prev.filter(c => c !== categoryLabel)
+        : [...prev, categoryLabel]
     );
   };
 
@@ -412,7 +414,7 @@ export default function ProjectsListPage() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0 mb-6">
             <div className="flex items-center gap-2 sm:gap-3">
               <SlidersHorizontal size={20} className="sm:w-[22px] sm:h-[22px]" style={{ color: '#E65D65' }} />
-              <h2 className="text-lg sm:text-xl font-bold text-gray-500">検索</h2>
+              <h2 className="text-lg sm:text-xl font-bold text-gray-500">{t('filters.search')}</h2>
               {activeFilterCount > 0 && (
                 <span className="px-2 sm:px-3 py-1 text-xs font-bold rounded-full" style={{ backgroundColor: '#E65D65', color: '#fff' }}>
                   {activeFilterCount}
@@ -426,13 +428,13 @@ export default function ProjectsListPage() {
                   className="text-xs sm:text-sm py-1.5 sm:py-2 px-3 sm:px-4 rounded-md border-2 hover:opacity-80 transition-opacity font-bold whitespace-nowrap"
                   style={{ borderColor: '#E65D65', color: '#E65D65' }}
                 >
-                  クリア
+                  {t('filters.clear')}
                 </button>
               )}
               <button
                 onClick={() => setShowFilters(!showFilters)}
                 className="p-1.5 sm:p-2 hover:opacity-80 rounded-md transition-opacity text-gray-500"
-                title={showFilters ? 'フィルターを閉じる' : 'フィルターを開く'}
+                title={showFilters ? t('filters.close') : t('filters.open')}
               >
                 {showFilters ? <ChevronUp size={20} className="sm:w-[22px] sm:h-[22px]" /> : <ChevronDown size={20} className="sm:w-[22px] sm:h-[22px]" />}
               </button>
@@ -455,7 +457,7 @@ export default function ProjectsListPage() {
               {appliedPostTypes.map((type) => (
                 <span key={type} className="px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm flex items-center gap-1 sm:gap-2 border" style={{ backgroundColor: '#fff', borderColor: '#9CA3AF' }}>
                   <span className="font-bold text-gray-500">
-                    {type === 'transaction' ? '取引' : type === 'board' ? '掲示板' : 'シークレット'}
+                    {type === 'transaction' ? t('projects.postTypes.transaction') : type === 'board' ? t('projects.postTypes.board') : t('projects.postTypes.secret')}
                   </span>
                 </span>
               ))}
@@ -467,8 +469,8 @@ export default function ProjectsListPage() {
               {(appliedPriceMin || appliedPriceMax) && (
                 <span className="px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm flex items-center gap-1 sm:gap-2 border" style={{ backgroundColor: '#fff', borderColor: '#9CA3AF' }}>
                   <span className="font-bold whitespace-nowrap text-gray-500">
-                    {appliedPriceMin && `${Number(appliedPriceMin).toLocaleString()}円〜`}
-                    {appliedPriceMax && `${Number(appliedPriceMax).toLocaleString()}円`}
+                    {appliedPriceMin && `${Number(appliedPriceMin).toLocaleString()}${t('common.jpyCurrency')}${t('filters.from')}`}
+                    {appliedPriceMax && `${Number(appliedPriceMax).toLocaleString()}${t('common.jpyCurrency')}`}
                   </span>
                 </span>
               )}
@@ -495,7 +497,7 @@ export default function ProjectsListPage() {
                   <SearchCheck className="absolute left-3 top-1/2 transform -translate-y-1/2" style={{ color: '#E65D65' }} size={20} />
                   <input
                     type="text"
-                    placeholder="検索"
+                    placeholder={t('filters.search')}
                     value={searchInput}
                     onChange={(e) => setSearchInput(e.target.value)}
                     onKeyDown={handleSearchKeyDown}
@@ -510,13 +512,13 @@ export default function ProjectsListPage() {
                 {/* 投稿タイプ */}
                 <div>
                   <label className="block text-sm font-bold mb-2 text-gray-500">
-                    タイプ
+                    {t('filters.type')}
                   </label>
                   <div className="space-y-2">
                     {[
-                      { value: 'transaction', label: '取引' },
-                      { value: 'board', label: '掲示板' },
-                      { value: 'secret', label: 'シークレット' }
+                      { value: 'transaction', label: t('projects.postTypes.transaction') },
+                      { value: 'board', label: t('projects.postTypes.board') },
+                      { value: 'secret', label: t('projects.postTypes.secret') }
                     ].map(type => (
                       <label key={type.value} className="flex items-center gap-2 cursor-pointer">
                         <input
@@ -535,10 +537,10 @@ export default function ProjectsListPage() {
                 {/* ステータス */}
                 <div>
                   <label className="block text-sm font-bold mb-2 text-gray-500">
-                    状態
+                    {t('filters.status')}
                   </label>
                   <div className="space-y-2">
-                    {['募集中', '成約済み'].map(status => (
+                    {[t('common.recruiting'), t('common.completed')].map(status => (
                       <label key={status} className="flex items-center gap-2 cursor-pointer">
                         <input
                           type="checkbox"
@@ -556,19 +558,19 @@ export default function ProjectsListPage() {
                 {/* カテゴリ */}
                 <div>
                   <label className="block text-sm font-bold mb-2 text-gray-500">
-                    カテゴリ
+                    {t('filters.category')}
                   </label>
                   <div className="space-y-2 max-h-32 overflow-y-auto pr-2">
                     {CATEGORIES.map(category => (
-                      <label key={category} className="flex items-center gap-2 cursor-pointer">
+                      <label key={category.key} className="flex items-center gap-2 cursor-pointer">
                         <input
                           type="checkbox"
-                          checked={selectedCategories.includes(category)}
-                          onChange={() => toggleCategory(category)}
+                          checked={selectedCategories.includes(category.label)}
+                          onChange={() => toggleCategory(category.label)}
                           className="w-4 h-4 rounded flex-shrink-0"
                           style={{ accentColor: '#E65D65' }}
                         />
-                        <span className="text-sm font-bold text-gray-500">{category}</span>
+                        <span className="text-sm font-bold text-gray-500">{category.label}</span>
                       </label>
                     ))}
                   </div>
@@ -577,21 +579,21 @@ export default function ProjectsListPage() {
                 {/* 価格帯 */}
                 <div>
                   <label className="block text-sm font-bold mb-2 text-gray-500">
-                    価格
+                    {t('filters.price')}
                   </label>
                   <div className="flex items-center gap-2">
                     <input
                       type="number"
-                      placeholder="最小"
+                      placeholder={t('filters.min')}
                       value={priceMin}
                       onChange={(e) => setPriceMin(e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:ring-2 text-sm font-bold text-gray-500"
                       style={{ '--tw-ring-color': '#E65D65' } as React.CSSProperties}
                     />
-                    <span className="text-sm font-bold whitespace-nowrap text-gray-500">〜</span>
+                    <span className="text-sm font-bold whitespace-nowrap text-gray-500">{t('filters.from')}</span>
                     <input
                       type="number"
-                      placeholder="最大"
+                      placeholder={t('filters.max')}
                       value={priceMax}
                       onChange={(e) => setPriceMax(e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:ring-2 text-sm font-bold text-gray-500"
@@ -603,21 +605,21 @@ export default function ProjectsListPage() {
                 {/* 月商 */}
                 <div>
                   <label className="block text-sm font-bold mb-2 text-gray-500">
-                    月商
+                    {t('filters.monthlyRevenue')}
                   </label>
                   <div className="flex items-center gap-2">
                     <input
                       type="number"
-                      placeholder="最小"
+                      placeholder={t('filters.min')}
                       value={revenueMin}
                       onChange={(e) => setRevenueMin(e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:ring-2 text-sm font-bold text-gray-500"
                       style={{ '--tw-ring-color': '#E65D65' } as React.CSSProperties}
                     />
-                    <span className="text-sm font-bold whitespace-nowrap text-gray-500">〜</span>
+                    <span className="text-sm font-bold whitespace-nowrap text-gray-500">{t('filters.from')}</span>
                     <input
                       type="number"
-                      placeholder="最大"
+                      placeholder={t('filters.max')}
                       value={revenueMax}
                       onChange={(e) => setRevenueMax(e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:ring-2 text-sm font-bold text-gray-500"
@@ -629,7 +631,7 @@ export default function ProjectsListPage() {
                 {/* 利益率 */}
                 <div>
                   <label className="block text-sm font-bold mb-2 text-gray-500">
-                    利益率
+                    {t('filters.profitMargin')}
                   </label>
                   <input
                     type="number"
@@ -645,7 +647,7 @@ export default function ProjectsListPage() {
                 {availableTechStacks.length > 0 && (
                   <div className="md:col-span-2 lg:col-span-3">
                     <label className="block text-sm font-bold mb-2 text-gray-500">
-                      技術
+                      {t('filters.technology')}
                     </label>
                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 max-h-40 overflow-y-auto p-3 rounded-md border border-gray-200">
                       {availableTechStacks.map(tech => (
@@ -672,7 +674,7 @@ export default function ProjectsListPage() {
                   className="w-full sm:w-auto px-6 sm:px-8 py-2.5 sm:py-3 rounded-sm text-white font-bold hover:opacity-90 transition-opacity text-sm sm:text-base"
                   style={{ backgroundColor: '#E65D65' }}
                 >
-                  検索
+                  {t('filters.searchButton')}
                 </button>
               </div>
             </div>
@@ -682,24 +684,24 @@ export default function ProjectsListPage() {
         {/* ソートと結果数 */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
           <p className="font-bold text-gray-500">
-            {loading ? '読み込み中...' : `${filteredProjects.length}件`}
+            {loading ? t('common.loading') : t('filters.resultsCount', { count: filteredProjects.length })}
           </p>
           <div className="flex items-center gap-2">
-            <label className="text-sm font-bold text-gray-500">並び替え</label>
+            <label className="text-sm font-bold text-gray-500">{t('filters.sort')}</label>
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as SortOption)}
               className="px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:ring-2 text-sm font-bold text-gray-500"
               style={{ '--tw-ring-color': '#E65D65' } as React.CSSProperties}
             >
-              <option value="newest">新着順</option>
-              <option value="oldest">古い順</option>
-              <option value="price-high">価格高</option>
-              <option value="price-low">価格低</option>
-              <option value="revenue-high">月商高</option>
-              <option value="revenue-low">月商低</option>
-              <option value="profit-high">利益率高</option>
-              <option value="profit-low">利益率低</option>
+              <option value="newest">{t('projects.sortBy.newest')}</option>
+              <option value="oldest">{t('projects.sortBy.oldest')}</option>
+              <option value="price-high">{t('projects.sortBy.priceHigh')}</option>
+              <option value="price-low">{t('projects.sortBy.priceLow')}</option>
+              <option value="revenue-high">{t('projects.sortBy.revenueHigh')}</option>
+              <option value="revenue-low">{t('projects.sortBy.revenueLow')}</option>
+              <option value="profit-high">{t('projects.sortBy.profitHigh')}</option>
+              <option value="profit-low">{t('projects.sortBy.profitLow')}</option>
             </select>
           </div>
         </div>
@@ -717,19 +719,19 @@ export default function ProjectsListPage() {
             <SearchCheck className="mx-auto mb-4" style={{ color: '#E65D65' }} size={48} />
             {activeFilterCount === 0 ? (
               <>
-                <p className="text-lg font-bold mb-2 text-gray-500">検索してください</p>
-                <p className="font-bold text-gray-500">条件を設定して検索</p>
+                <p className="text-lg font-bold mb-2 text-gray-500">{t('projects.searchPrompt')}</p>
+                <p className="font-bold text-gray-500">{t('projects.setConditions')}</p>
               </>
             ) : (
               <>
-                <p className="text-lg font-bold mb-2 text-gray-500">見つかりませんでした</p>
-                <p className="font-bold mb-4 text-gray-500">条件を変更してください</p>
+                <p className="text-lg font-bold mb-2 text-gray-500">{t('projects.noResults')}</p>
+                <p className="font-bold mb-4 text-gray-500">{t('projects.changeConditions')}</p>
                 <button
                   onClick={clearAllFilters}
                   className="px-6 py-2 rounded-sm text-white hover:opacity-90 transition-opacity font-bold"
                   style={{ backgroundColor: '#E65D65' }}
                 >
-                  クリア
+                  {t('filters.clear')}
                 </button>
               </>
             )}

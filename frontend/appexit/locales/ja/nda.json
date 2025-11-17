@@ -1,0 +1,17 @@
+{
+  "title": "秘密保持契約(NDA)",
+  "agreement": "契約内容",
+  "introduction": "このプロジェクトの詳細情報を閲覧するには、秘密保持契約に署名する必要があります。",
+  "terms": "契約条件",
+  "iAgree": "同意します",
+  "sign": "署名する",
+  "signed": "署名済み",
+  "signedDate": "署名日",
+  "downloadPDF": "PDFをダウンロード",
+  "viewDocument": "契約書を表示",
+  "fullName": "氏名",
+  "company": "会社名",
+  "position": "役職",
+  "signature": "署名",
+  "date": "日付"
+}

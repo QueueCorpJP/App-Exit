@@ -1,18 +1,37 @@
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
+import createMiddleware from 'next-intl/middleware';
+import { NextRequest, NextResponse } from 'next/server';
+import { locales, defaultLocale } from './i18n/config';
 
 /**
- * Next.js Middleware
+ * Next.js Middleware with i18n support
  *
- * Cookie ベースの認証チェック
- * - auth_token Cookieの存在をチェック
- * - 認証が必要なページへのアクセスを制御
+ * 1. next-intl による locale routing
+ * 2. Cookie ベースの認証チェック
  */
+
+// next-intl middleware
+const intlMiddleware = createMiddleware({
+  locales,
+  defaultLocale,
+  localePrefix: 'always'
+});
+
 export function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl
+  const { pathname } = request.nextUrl;
+
+  // 静的ファイルを除外（manifest.jsonなど）
+  if (pathname.startsWith('/manifest.json') || pathname.match(/\.(json|ico|png|jpg|jpeg|svg|gif|webp|woff|woff2|ttf|eot)$/)) {
+    return NextResponse.next();
+  }
+
+  // next-intl で locale をハンドリング
+  const response = intlMiddleware(request);
+
+  // locale を含むパスから locale を除外したパスを取得
+  const pathnameWithoutLocale = pathname.replace(/^\/(ja|en)/, '') || '/';
 
   // 認証トークンを取得
-  const authToken = request.cookies.get('auth_token')?.value
+  const authToken = request.cookies.get('auth_token')?.value;
 
   // 公開ページ（認証不要）
   const publicPaths = [
@@ -35,55 +54,51 @@ export function middleware(request: NextRequest) {
     '/seminar',       // セミナー
     '/support-service', // サポートサービス
     '/projects',      // プロダクト一覧（公開）
-    '/_next',
-    '/api',
-    '/favicon.ico',
-    '/icon.png',
-  ]
+  ];
 
   // 認証が必要なページ（公開ページリストより優先）
   const protectedPaths = [
     '/projects/new',  // プロダクト投稿ページ（認証必須）
-  ]
+  ];
 
   // 認証が必要なページかチェック
-  const isProtectedPath = protectedPaths.some(path => pathname.startsWith(path))
+  const isProtectedPath = protectedPaths.some(path => pathnameWithoutLocale.startsWith(path));
 
   // 公開ページへのアクセスは常に許可
   const isPublicPath = publicPaths.some(path => {
     // ルートパス（/）の場合は完全一致のみ
     if (path === '/') {
-      return pathname === '/'
+      return pathnameWithoutLocale === '/';
     }
     // /projectsの場合は、/projects/newで始まるパスを除外
     if (path === '/projects') {
-      return pathname.startsWith('/projects') && !pathname.startsWith('/projects/new')
+      return pathnameWithoutLocale.startsWith('/projects') && !pathnameWithoutLocale.startsWith('/projects/new');
     }
     // その他のパスは前方一致
-    return pathname.startsWith(path)
-  })
+    return pathnameWithoutLocale.startsWith(path);
+  });
+
   if (isPublicPath) {
-    return NextResponse.next()
+    return response;
   }
 
   // 認証が必要なページへのアクセス
   if (!authToken && (isProtectedPath || !isPublicPath)) {
     // 未認証の場合、ログインページにリダイレクト
-    const loginUrl = new URL('/login', request.url)
-    loginUrl.searchParams.set('redirect', pathname)
-    return NextResponse.redirect(loginUrl)
+    const locale = pathname.split('/')[1] || defaultLocale;
+    const loginUrl = new URL(`/${locale}/login`, request.url);
+    loginUrl.searchParams.set('redirect', pathnameWithoutLocale);
+    return NextResponse.redirect(loginUrl);
   }
 
   // 認証済み、アクセス許可
-  return NextResponse.next()
+  return response;
 }
 
 // Middlewareを適用するパスを設定
 export const config = {
   matcher: [
-    /*
-     * すべてのパスにマッチ（静的ファイルと一部のパスを除く）
-     */
-    '/((?!_next/static|_next/image|favicon.ico).*)',
+    // i18n routing のために必要
+    '/((?!api|_next|_vercel|.*\\..*).*)',
   ],
-}
+};

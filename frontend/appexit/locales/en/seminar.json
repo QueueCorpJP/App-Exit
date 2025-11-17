@@ -1,0 +1,136 @@
+{
+  "title": "Seminars & Consultations",
+  "subtitle": "Our expert staff will provide detailed explanations about buying and selling apps and web services",
+  "onlineSeminar": {
+    "title": "Online Seminar",
+    "badge": "Free · By Appointment",
+    "recommendedFor": {
+      "title": "Recommended For",
+      "items": [
+        "Learn about APPEXIT in detail",
+        "Considering selling your app or service",
+        "Want to understand fees and transaction flow",
+        "Just want to hear about the service casually"
+      ]
+    },
+    "eventInfo": {
+      "title": "Event Information",
+      "schedule": "Schedule:",
+      "scheduleValue": "Weekdays 10:00-19:00 (30-60 minutes per session)",
+      "format": "Format:",
+      "formatValue": "Zoom, Google Meet, etc.",
+      "fee": "Fee:",
+      "feeValue": "Free",
+      "capacity": "Capacity:",
+      "capacityValue": "Individual sessions (one-on-one)"
+    },
+    "content": {
+      "title": "Seminar Content",
+      "items": [
+        "APPEXIT features and benefits",
+        "Selling and buying process and timeline",
+        "Detailed fee structure",
+        "Review criteria and required documents",
+        "Success case studies",
+        "Q&A session"
+      ]
+    },
+    "bookButton": "Book Online Seminar"
+  },
+  "individualConsultation": {
+    "title": "Individual Consultation",
+    "badge": "Free · Confidential",
+    "recommendedFor": {
+      "title": "Recommended For",
+      "items": [
+        "Discuss specific projects",
+        "Get an estimate of selling price",
+        "Need advice before listing",
+        "Considering purchasing a specific project"
+      ]
+    },
+    "consultationDetails": {
+      "title": "Consultation Details",
+      "hours": "Hours:",
+      "hoursValue": "Weekdays 10:00-19:00 (30-90 minutes per session)",
+      "format": "Format:",
+      "formatValue": "Online or In-person (Tokyo office)",
+      "fee": "Fee:",
+      "feeValue": "Free",
+      "confidentiality": "Confidentiality:",
+      "confidentialityValue": "NDA available"
+    },
+    "topics": {
+      "title": "Consultation Topics",
+      "items": [
+        "Valuation and market pricing",
+        "Optimal timing for selling",
+        "Listing materials preparation support",
+        "Due diligence preparation",
+        "Contract review",
+        "Other transaction-related questions"
+      ]
+    },
+    "bookButton": "Book Individual Consultation"
+  },
+  "faq": {
+    "title": "Frequently Asked Questions",
+    "items": [
+      {
+        "question": "Q. Are seminars and consultations really free?",
+        "answer": "Yes, they are completely free. There is no charge for attending seminars or consultations. Fees only apply upon successful transaction completion if you decide to list or purchase."
+      },
+      {
+        "question": "Q. What do I need to participate?",
+        "answer": "For online sessions, you need an internet connection and a device capable of using video calling tools like Zoom or Google Meet. You may be asked to complete a brief questionnaire in advance."
+      },
+      {
+        "question": "Q. Can I participate without a specific project?",
+        "answer": "Absolutely. Feel free to join even if you're just considering selling in the future or simply gathering information."
+      },
+      {
+        "question": "Q. Will my consultation content be kept confidential?",
+        "answer": "Yes, all consultation content is strictly managed and will not be disclosed to third parties. We can also sign an NDA (Non-Disclosure Agreement) if needed."
+      },
+      {
+        "question": "Q. Can I cancel my reservation?",
+        "answer": "Yes, you can cancel your reservation. We would appreciate notification by the day before."
+      },
+      {
+        "question": "Q. Are weekends and holidays available?",
+        "answer": "Generally we only operate on weekdays, but if you have special circumstances requiring weekend or holiday consultation, please contact us individually. We will do our best to accommodate your schedule."
+      }
+    ]
+  },
+  "applicationFlow": {
+    "title": "Application Process",
+    "steps": [
+      {
+        "number": "1",
+        "title": "Apply",
+        "description": "Select your preferred date and time from the form"
+      },
+      {
+        "number": "2",
+        "title": "Schedule Confirmation",
+        "description": "Our staff will contact you to confirm the schedule"
+      },
+      {
+        "number": "3",
+        "title": "Preparation",
+        "description": "We will send you online connection details and materials"
+      },
+      {
+        "number": "4",
+        "title": "Attend Session",
+        "description": "Our expert staff will provide detailed explanations and consultation"
+      }
+    ]
+  },
+  "cta": {
+    "title": "Feel Free to Contact Us",
+    "subtitle": "Our expert staff will support your questions and consultations about buying and selling apps and web services",
+    "seminarButton": "Book Seminar",
+    "consultationButton": "Book Individual Consultation"
+  }
+}

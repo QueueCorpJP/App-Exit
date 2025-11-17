@@ -1,0 +1,178 @@
+{
+  "header": {
+    "title": "Support Services",
+    "subtitle": "Comprehensive support to ensure successful app and web service transactions"
+  },
+  "features": {
+    "dedicated": {
+      "title": "Dedicated Account Manager",
+      "description": "Experienced staff provides consistent support from listing to closing"
+    },
+    "secure": {
+      "title": "Safe & Secure",
+      "description": "Support for contract creation, due diligence, and escrow services ensures safe transactions"
+    },
+    "fast": {
+      "title": "Fast Processing",
+      "description": "Quick matching and smooth transaction progress for the fastest possible closing"
+    }
+  },
+  "services": {
+    "title": "Our Services",
+    "seller": {
+      "title": "Seller Support Services",
+      "items": {
+        "valuation": {
+          "title": "Valuation & Market Advice",
+          "description": "Based on historical transaction data and market trends, we advise on appropriate selling prices to support high-value sales.",
+          "details": [
+            "Analysis of comparable transaction prices",
+            "Sale price simulation",
+            "Pricing strategy development"
+          ]
+        },
+        "listing": {
+          "title": "Listing Materials Creation Support",
+          "description": "Support for creating attractive listing pages. Experts advise on key points that attract buyers.",
+          "details": [
+            "Organization of selling points",
+            "Material template provision",
+            "Review and feedback"
+          ]
+        },
+        "matching": {
+          "title": "Buyer Matching",
+          "description": "Actively introduce qualified buyer candidates. Achieve smooth matching.",
+          "details": [
+            "Buyer database utilization",
+            "Condition matching",
+            "Negotiation facilitation"
+          ]
+        },
+        "dueDiligence": {
+          "title": "Due Diligence Support",
+          "description": "Support for responding to buyer questions and preparing materials. Proceed with transactions confidently.",
+          "details": [
+            "Required documents checklist",
+            "Question response support",
+            "Information disclosure scope advice"
+          ]
+        },
+        "contract": {
+          "title": "Contract Creation & Negotiation Support",
+          "description": "Experts support from contract term negotiation to contract creation.",
+          "details": [
+            "Contract template provision",
+            "Term negotiation advice",
+            "Attorney referral (optional)"
+          ]
+        },
+        "handover": {
+          "title": "Handover Support",
+          "description": "Support for smooth handover after closing. Prevent issues before they occur.",
+          "details": [
+            "Handover checklist",
+            "Technical transfer support",
+            "After-sales follow-up"
+          ]
+        }
+      }
+    },
+    "buyer": {
+      "title": "Buyer Support Services",
+      "items": {
+        "introduction": {
+          "title": "Project Introduction & Matching",
+          "description": "Actively introduce projects that match your preferences. Priority access to unlisted projects.",
+          "details": [
+            "Requirement gathering",
+            "Unlisted project introduction",
+            "Priority notification of new listings"
+          ]
+        },
+        "analysis": {
+          "title": "Project Analysis & Evaluation Support",
+          "description": "Support for analyzing and evaluating projects of interest. Provide information needed for purchase decisions.",
+          "details": [
+            "Profitability analysis",
+            "Growth potential evaluation",
+            "Risk factor identification"
+          ]
+        },
+        "dueDiligence": {
+          "title": "Due Diligence Support",
+          "description": "Support for detailed technical and business investigations. Expert verification can be arranged.",
+          "details": [
+            "Verification checklist",
+            "Technical DD (audit) support",
+            "Expert referral"
+          ]
+        },
+        "negotiation": {
+          "title": "Price Negotiation Support",
+          "description": "Achieve purchase at fair prices. Advise on key negotiation points.",
+          "details": [
+            "Market pricing information",
+            "Negotiation strategy development",
+            "Term adjustment mediation"
+          ]
+        },
+        "payment": {
+          "title": "Contract & Payment Support",
+          "description": "Support for safe transactions from contract review to payment.",
+          "details": [
+            "Contract review",
+            "Escrow services",
+            "Payment method advice"
+          ]
+        },
+        "operations": {
+          "title": "Handover & Operations Support",
+          "description": "Support from post-purchase handover to operational launch. Operation management services available if needed.",
+          "details": [
+            "Handover schedule management",
+            "Technical support",
+            "Operation management service (optional)"
+          ]
+        }
+      }
+    }
+  },
+  "optional": {
+    "title": "Optional Services",
+    "attorney": {
+      "title": "Attorney Referral",
+      "description": "Referral to attorneys experienced in M&A. Support for contract creation and legal review.",
+      "note": "* Additional fees apply"
+    },
+    "accountant": {
+      "title": "Tax Accountant Referral",
+      "description": "Referral to tax and accounting experts. Support for tax planning and financial due diligence.",
+      "note": "* Additional fees apply"
+    },
+    "technicalDD": {
+      "title": "Technical DD (Audit)",
+      "description": "Detailed technical investigation by engineers. Verify code quality and security.",
+      "note": "* Additional fees apply"
+    }
+  },
+  "pricing": {
+    "title": "Support Pricing",
+    "basic": {
+      "label": "Basic Support",
+      "price": "Free",
+      "description": "Seminars, consultations, and dedicated account manager support are all available for free"
+    },
+    "success": {
+      "label": "Transaction Success Fee",
+      "price": "Seller: 10% / Buyer: 5%",
+      "description": "Fees only apply upon successful transaction. No fees if the deal doesn't close"
+    }
+  },
+  "cta": {
+    "title": "Start with a Free Consultation",
+    "subtitle": "Our expert staff will propose the best support tailored to your situation",
+    "consultation": "Request Free Consultation",
+    "seminar": "Attend Seminar"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "title": "検索",
+  "placeholder": "キーワードを入力",
+  "search": "検索する",
+  "results": "検索結果",
+  "noResults": "検索結果が見つかりませんでした",
+  "showing": "表示中",
+  "of": "件中",
+  "filterBy": "絞り込み",
+  "sortBy": "並び替え",
+  "relevance": "関連性",
+  "newest": "新しい順",
+  "oldest": "古い順",
+  "priceHighToLow": "価格が高い順",
+  "priceLowToHigh": "価格が安い順",
+  "popularityHigh": "人気順",
+  "ratingHigh": "評価が高い順"
+}

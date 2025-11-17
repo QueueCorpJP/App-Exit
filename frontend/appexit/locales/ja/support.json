@@ -1,0 +1,23 @@
+{
+  "documentNotice": "",
+  "help": {
+    "title": "ヘルプセンター"
+  },
+  "contact": {
+    "title": "お問い合わせ",
+    "name": "お名前",
+    "email": "メールアドレス",
+    "subject": "件名",
+    "message": "メッセージ",
+    "submit": "送信する"
+  },
+  "seminar": {
+    "title": "説明会・相談会"
+  },
+  "supportService": {
+    "title": "サポートサービス"
+  },
+  "report": {
+    "title": "違反報告"
+  }
+}

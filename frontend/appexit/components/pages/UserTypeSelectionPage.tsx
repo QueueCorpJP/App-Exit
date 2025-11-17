@@ -2,21 +2,28 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useLocale, useTranslations } from 'next-intl'
 import Button from '@/components/ui/Button'
 
-export default function UserTypeSelectionPage() {
+interface UserTypeSelectionPageProps {
+  pageDict?: Record<string, any>;
+}
+
+export default function UserTypeSelectionPage({ pageDict }: UserTypeSelectionPageProps = {}) {
   const [role, setRole] = useState<'buyer' | 'seller' | null>(null)
   const [party, setParty] = useState<'organization' | 'individual' | null>(null)
   const [error, setError] = useState<string | undefined>()
   const [isPending, setIsPending] = useState(false)
   const router = useRouter()
+  const locale = useLocale()
+  const t = useTranslations()
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setError(undefined)
 
     if (!role || !party) {
-      setError('すべての必須項目を選択してください')
+      setError(t('userTypeSelectAll'))
       return
     }
 
@@ -25,7 +32,7 @@ export default function UserTypeSelectionPage() {
     const age = formData.get('age') as string
 
     if (!displayName) {
-      setError('表示名を入力してください')
+      setError(t('userTypeEnterName'))
       return
     }
 
@@ -62,7 +69,7 @@ export default function UserTypeSelectionPage() {
       console.log('[PROFILE] Response:', result)
 
       if (!response.ok) {
-        setError(result.error || 'プロフィール作成に失敗しました')
+        setError(result.error || t('userTypeCreateFailed'))
         setIsPending(false)
         return
       }
@@ -73,7 +80,7 @@ export default function UserTypeSelectionPage() {
       router.refresh()
     } catch (error) {
       console.error('Profile creation error:', error)
-      setError('プロフィール作成中にエラーが発生しました')
+      setError(t('userTypeCreateError'))
       setIsPending(false)
     }
   }
@@ -82,16 +89,16 @@ export default function UserTypeSelectionPage() {
     <div className="min-h-screen flex items-center justify-center p-4" style={{ backgroundColor: '#F9F8F7' }}>
       <form onSubmit={handleSubmit} className="bg-white border-2 border-gray-900 p-8 max-w-2xl w-full">
         <h1 className="text-3xl font-bold text-center text-gray-900 mb-2">
-          プロフィール設定
+          {t('userTypeTitle')}
         </h1>
         <p className="text-center text-gray-600 mb-8">
-          あなたの情報を入力してください
+          {t('userTypeSubtitle')}
         </p>
 
         {/* ユーザータイプ選択 */}
         <div className="mb-6">
           <h2 className="text-xl font-semibold text-gray-900 mb-4">
-            1. あなたは買い手ですか? それとも売り手ですか?
+            {t('userTypeQuestion1')}
           </h2>
           <input type="hidden" name="role" value={role || ''} />
           <div className="grid grid-cols-2 gap-4">
@@ -105,9 +112,11 @@ export default function UserTypeSelectionPage() {
               }`}
             >
               <div className="text-4xl mb-2">🛒</div>
-              <div className="font-semibold text-lg">買い手</div>
+              <div className="font-semibold text-lg">
+                {t('buyer')}
+              </div>
               <div className="text-sm text-gray-600 mt-1">
-                プロダクトを購入したい
+                {t('userTypeBuyerDesc')}
               </div>
             </button>
 
@@ -121,9 +130,11 @@ export default function UserTypeSelectionPage() {
               }`}
             >
               <div className="text-4xl mb-2">💼</div>
-              <div className="font-semibold text-lg">売り手</div>
+              <div className="font-semibold text-lg">
+                {t('seller')}
+              </div>
               <div className="text-sm text-gray-600 mt-1">
-                プロダクトを販売したい
+                {t('userTypeSellerDesc')}
               </div>
             </button>
           </div>
@@ -132,7 +143,7 @@ export default function UserTypeSelectionPage() {
         {/* エンティティタイプ選択 */}
         <div className="mb-6">
           <h2 className="text-xl font-semibold text-gray-900 mb-4">
-            2. 法人ですか? それとも個人ですか?
+            {t('userTypeQuestion2')}
           </h2>
           <input type="hidden" name="party" value={party || ''} />
           <div className="grid grid-cols-2 gap-4">
@@ -146,9 +157,11 @@ export default function UserTypeSelectionPage() {
               }`}
             >
               <div className="text-4xl mb-2">🏢</div>
-              <div className="font-semibold text-lg">法人</div>
+              <div className="font-semibold text-lg">
+                {t('organization')}
+              </div>
               <div className="text-sm text-gray-600 mt-1">
-                会社として利用
+                {t('userTypeOrgDesc')}
               </div>
             </button>
 
@@ -162,9 +175,11 @@ export default function UserTypeSelectionPage() {
               }`}
             >
               <div className="text-4xl mb-2">👤</div>
-              <div className="font-semibold text-lg">個人</div>
+              <div className="font-semibold text-lg">
+                {t('individual')}
+              </div>
               <div className="text-sm text-gray-600 mt-1">
-                個人として利用
+                {t('userTypeIndDesc')}
               </div>
             </button>
           </div>
@@ -173,14 +188,14 @@ export default function UserTypeSelectionPage() {
         {/* 表示名入力 */}
         <div className="mb-6">
           <label htmlFor="display_name" className="block text-sm font-medium text-gray-700 mb-2">
-            3. 表示名 <span className="text-red-500">*</span>
+            {t('userTypeDisplayName')} <span className="text-red-500">*</span>
           </label>
           <input
             id="display_name"
             name="display_name"
             type="text"
             className="w-full px-4 py-3 border-2 border-gray-300 focus:border-blue-500 focus:outline-none text-gray-900"
-            placeholder="山田太郎"
+            placeholder={t('displayNamePlaceholder')}
             required
           />
         </div>
@@ -188,7 +203,7 @@ export default function UserTypeSelectionPage() {
         {/* 年齢入力 */}
         <div className="mb-6">
           <label htmlFor="age" className="block text-sm font-medium text-gray-700 mb-2">
-            4. 年齢（任意）
+            {t('userTypeAge')}
           </label>
           <input
             id="age"
@@ -197,7 +212,7 @@ export default function UserTypeSelectionPage() {
             min="13"
             max="120"
             className="w-full px-4 py-3 border-2 border-gray-300 focus:border-blue-500 focus:outline-none text-gray-900"
-            placeholder="25"
+            placeholder={t('userTypeAgePlaceholder')}
           />
         </div>
 
@@ -217,9 +232,9 @@ export default function UserTypeSelectionPage() {
           className="w-full"
           disabled={!role || !party || isPending}
           isLoading={isPending}
-          loadingText="プロフィール作成中..."
+          loadingText={t('userTypeCreating')}
         >
-          完了
+          {t('completed')}
         </Button>
       </form>
     </div>

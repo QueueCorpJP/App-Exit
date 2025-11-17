@@ -1,0 +1,222 @@
+{
+  "title": "Customer Harassment Policy",
+  "introduction": "Queue Inc. (hereinafter referred to as \"the Company\"), as an enterprise operating the app and web service trading platform \"APPEXIT,\" places importance on ensuring that all employees can work in a safe and healthy environment. We hereby declare that we will take firm action against excessive demands from customers (including both sellers and buyers) and socially unreasonable behavior (customer harassment).",
+  "section1": {
+    "title": "1. Basic Policy",
+    "content": "As an app and web service trading platform, the Company aims to provide an environment where both sellers and buyers can transact with confidence. We sincerely accept opinions and requests from customers and strive to improve our services. However, we may restrict our response to the following behaviors or take legal measures, considering them as customer harassment.",
+    "stance": {
+      "title": "Our Stance",
+      "items": [
+        "We prioritize the physical and mental health and safety of our employees",
+        "We value mutual respect between customers (sellers and buyers) and employees",
+        "We will not comply with demands that exceed socially acceptable limits",
+        "We will cooperate with police and lawyers as necessary",
+        "We strive to maintain a healthy trading environment"
+      ]
+    }
+  },
+  "section2": {
+    "title": "2. Definition of Customer Harassment",
+    "intro": "The Company defines the following behaviors as customer harassment:",
+    "categories": {
+      "violent": {
+        "title": "(1) Violent and Threatening Behavior",
+        "items": [
+          "Physical violence or threats of violence",
+          "Threatening with loud voices or shouting",
+          "Intimidating actions such as throwing or hitting objects",
+          "Behavior that threatens the safety of employees"
+        ]
+      },
+      "mental": {
+        "title": "(2) Mental Attacks",
+        "items": [
+          "Statements denying personality, insulting behavior",
+          "Discriminatory remarks (gender, race, nationality, age, disability, etc.)",
+          "Persistent scolding or preaching",
+          "Slander on social media or the internet"
+        ]
+      },
+      "excessive": {
+        "title": "(3) Excessive Demands",
+        "items": [
+          "Demands exceeding the platform's terms of service",
+          "Compensation demands for transaction troubles not attributable to the Company",
+          "Demands for fee waivers or unreasonable discounts",
+          "Demands for unfair preferential treatment over other users",
+          "Demands to force or obstruct transactions with specific sellers or buyers",
+          "Demands for money or bribes from individual employees",
+          "Unreasonable demands for changes to conditions after sale completion"
+        ]
+      },
+      "obstruction": {
+        "title": "(4) Business Obstruction",
+        "items": [
+          "Long-term detention, squatting in online calls",
+          "Persistent phone calls, emails, or chat messages",
+          "Repeating the same inquiries",
+          "Repeatedly demanding changes in responders without valid reason",
+          "Coercing recording, videotaping, or screenshots",
+          "Repeated contact outside business hours or late at night",
+          "Applications for false information or fraudulent transactions"
+        ]
+      },
+      "sexual": {
+        "title": "(5) Sexual Behavior",
+        "items": [
+          "Sexual remarks or obscene behavior",
+          "Demands for romantic relationships or sexual relations",
+          "Inappropriate comments about appearance",
+          "Unnecessary physical contact"
+        ]
+      },
+      "authority": {
+        "title": "(6) Behavior Using Authority",
+        "items": [
+          "Threats such as \"I'll spread it on social media\" or \"I'll write bad reviews on review sites\"",
+          "Intimidation such as \"I'll consult a lawyer\" (excluding legitimate exercise of rights)",
+          "Threats such as \"I'll tell the media\" or \"I'll make it news\"",
+          "Unreasonable pressure such as \"I'll report to the consumer center\"",
+          "Unjust threats such as \"I'll report to relevant government agencies\"",
+          "Pressure using influential positions"
+        ]
+      }
+    }
+  },
+  "section3": {
+    "title": "3. Response Policy",
+    "intro": "When determined to be customer harassment, the Company will take the following actions:",
+    "categories": {
+      "warning": {
+        "title": "(1) Warning and Response Restrictions",
+        "items": [
+          "Warnings against inappropriate behavior",
+          "Restrictions on response time and methods (written only, specific time periods only, etc.)",
+          "Fixing or changing response staff",
+          "Multiple staff response",
+          "Recording calls, keeping records of exchanges"
+        ]
+      },
+      "restriction": {
+        "title": "(2) Service Provision Restriction/Suspension",
+        "items": [
+          "Temporary or permanent account suspension",
+          "Refusal of future service use",
+          "Restriction of listing/purchase functions",
+          "Restriction of messaging functions",
+          "Cancellation of ongoing transactions",
+          "Platform withdrawal processing"
+        ]
+      },
+      "legal": {
+        "title": "(3) Legal Measures",
+        "items": [
+          "Reporting to police",
+          "Warnings through lawyers",
+          "Filing civil lawsuits (compensation claims, etc.)",
+          "Criminal prosecution (threat, insult, business obstruction, etc.)"
+        ]
+      }
+    }
+  },
+  "section4": {
+    "title": "4. Legitimate Opinions and Requests",
+    "intro": "The Company sincerely accepts legitimate opinions, requests, and feedback from customers. The following communications do not constitute customer harassment:",
+    "items": [
+      "Appropriate feedback on platform malfunctions or technical issues",
+      "Confirmation of transaction conditions or terms of service",
+      "Consultation on transaction troubles based on legitimate rights",
+      "Reasonable questions about fees or service content",
+      "Constructive suggestions for service improvement",
+      "Legitimate inquiries about app/service transfers",
+      "Legitimate negotiations regarding sales contracts",
+      "Requests within the range of social norms"
+    ],
+    "note": "However, even for these contents, if the manner or frequency is unreasonable by social norms, it may be judged as customer harassment."
+  },
+  "section5": {
+    "title": "5. Response to Employees",
+    "intro": "The Company takes the following measures to prevent employees from being victims of customer harassment:",
+    "categories": {
+      "education": {
+        "title": "Education and Training",
+        "items": [
+          "Regular training on customer harassment",
+          "Learning appropriate response methods",
+          "Dissemination of escalation procedures"
+        ]
+      },
+      "support": {
+        "title": "Support System",
+        "items": [
+          "Establishment of consultation desks",
+          "Support from supervisors and colleagues",
+          "Consultation with specialists (lawyers, counselors, etc.) as needed",
+          "Mental care for victimized employees"
+        ]
+      },
+      "environment": {
+        "title": "Work Environment Improvement",
+        "items": [
+          "Building a system where employees do not respond alone",
+          "Preservation of records and evidence",
+          "Securing safe response locations"
+        ]
+      }
+    }
+  },
+  "section6": {
+    "title": "6. Request to Customers",
+    "intro": "The Company strives to ensure that all customers (sellers and buyers) can use our services comfortably. To maintain a healthy trading environment, we ask for your cooperation on the following points:",
+    "items": [
+      "Please understand that employees are also human beings",
+      "Please engage in constructive communication based on mutual respect",
+      "Please try to engage in calm dialogue without becoming emotional",
+      "Please make requests within the range of social norms",
+      "Please comply with the platform's terms of service",
+      "Please understand employee explanations and judgments",
+      "Please treat transaction partners (sellers/buyers) with courtesy"
+    ]
+  },
+  "section7": {
+    "title": "7. Related Laws and Regulations",
+    "intro": "Customer harassment may violate the following laws and regulations:",
+    "items": [
+      "Penal Code (threat, coercion, insult, defamation, business obstruction, etc.)",
+      "Act on Prevention of Unjust Acts by Organized Crime Group Members",
+      "Anti-Stalking Act",
+      "Minor Offenses Act",
+      "Civil Code (tort)",
+      "Act on Comprehensive Promotion of Labor Measures (power harassment prevention measures)"
+    ]
+  },
+  "section8": {
+    "title": "8. Consultation Contact",
+    "intro": "For consultations or inquiries regarding customer harassment, please contact the following:",
+    "customerContact": {
+      "title": "Customer Consultation Contact",
+      "company": "Queue Inc. Customer Support",
+      "email": "Email: support@appexit.jp",
+      "phone": "Phone: +81-3-5324-2678",
+      "hours": "Reception Hours: Weekdays 10:00-18:00 (Excluding weekends and holidays)"
+    },
+    "employeeContact": {
+      "title": "Internal Consultation Contact for Employees",
+      "department": "HR Department Harassment Consultation Desk",
+      "email": "Email: harassment@appexit.jp",
+      "note": "*This is a contact for employees only"
+    }
+  },
+  "section9": {
+    "title": "9. Review of This Policy",
+    "content": "The Company will review this policy as appropriate in response to changes in social conditions, revisions of laws and regulations, etc. If there are any changes, they will be published on this website."
+  },
+  "finally": {
+    "title": "Finally",
+    "content": "As an app and web service trading platform, the Company aims to build a healthy trading environment based on mutual respect between customers (sellers and buyers) and employees. While we sincerely accept opinions and requests from customers as valuable opportunities for service improvement, we also consider it our important responsibility to protect the human rights and dignity of our employees, and to provide an environment where all users can transact with confidence. We kindly ask for your understanding and cooperation."
+  },
+  "footer": {
+    "established": "Established: November 1, 2025",
+    "lastRevised": "Last Revised: November 1, 2025"
+  }
+}

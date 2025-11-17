@@ -1,0 +1,26 @@
+{
+  "privacy": {
+    "title": "プライバシーポリシー"
+  },
+  "terms": {
+    "title": "利用規約"
+  },
+  "tokusho": {
+    "title": "特定商取引法に基づく表記"
+  },
+  "compliance": {
+    "title": "反社会的勢力に対する基本方針"
+  },
+  "cookiePolicy": {
+    "title": "クッキーポリシー"
+  },
+  "security": {
+    "title": "情報セキュリティ基本方針"
+  },
+  "safety": {
+    "title": "安全管理方針"
+  },
+  "customerHarassment": {
+    "title": "カスタマーハラスメントに対する方針"
+  }
+}

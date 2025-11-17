@@ -1,0 +1,30 @@
+{
+  "title": "APPEXIT - App Trading Platform",
+  "description": "Supporting Safe and Secure App Trading",
+  "hero": {
+    "title": "App Trading Platform\nfor Individual Developers",
+    "subtitle": "Sell your apps and pass them on to the next developer",
+    "cta": "Get Started Free",
+    "learnMore": "Learn More"
+  },
+  "features": {
+    "title": "APPEXIT Features",
+    "safe": "Safe Transactions",
+    "safeDescription": "Peace of mind with dedicated support",
+    "fair": "Fair Pricing",
+    "fairDescription": "Fair pricing with AI valuation",
+    "secure": "Secure Payment",
+    "secureDescription": "Safe with escrow payment"
+  },
+  "featuredProjects": "Featured Projects",
+  "viewAll": "View All",
+  "recentListings": "Recent Listings",
+  "popularCategories": "Popular Categories",
+  "howItWorks": "How It Works",
+  "testimonials": "Testimonials",
+  "recommended": "Recommended Products",
+  "latestProducts": "Latest Products",
+  "trending": "Trending Now",
+  "monthlyRevenue": "Monthly Revenue",
+  "profitMargin": "Profit Margin"
+}

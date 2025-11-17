@@ -1,4 +1,7 @@
 import type { NextConfig } from "next";
+import createNextIntlPlugin from 'next-intl/plugin';
+
+const withNextIntl = createNextIntlPlugin('./i18n/request.ts');
 
 const nextConfig: NextConfig = {
   images: {
@@ -29,6 +32,23 @@ const nextConfig: NextConfig = {
     contentDispositionType: 'attachment',
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
+
+  // バンドルサイズ最適化
+  experimental: {
+    optimizePackageImports: ['lucide-react', 'next-intl'],
+  },
+
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      // クライアントサイドのTree-shaking強化
+      config.optimization = {
+        ...config.optimization,
+        usedExports: true,
+        sideEffects: false,
+      };
+    }
+    return config;
+  },
 };
 
-export default nextConfig;
+export default withNextIntl(nextConfig);

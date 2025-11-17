@@ -2,15 +2,16 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { useLocale, useTranslations } from 'next-intl';
 import { messageApi } from '@/lib/api-client';
 import { FileText, Download, Trash2, X, FileSignature } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { useAuth } from '@/lib/auth-context';
-import { PDFDocument } from 'pdf-lib';
 
 interface ContractDocumentPageProps {
   threadId: string;
   contractId: string;
+  pageDict?: Record<string, any>;
 }
 
 interface ContractDocument {
@@ -35,8 +36,10 @@ interface ContractSignature {
 }
 
 
-export default function ContractDocumentPage({ threadId, contractId }: ContractDocumentPageProps) {
+export default function ContractDocumentPage({ threadId, contractId, pageDict }: ContractDocumentPageProps) {
   const router = useRouter();
+  const locale = useLocale();
+  const t = useTranslations();
   const { user } = useAuth();
   const [contract, setContract] = useState<ContractDocument | null>(null);
   const [loading, setLoading] = useState(true);
@@ -80,7 +83,7 @@ export default function ContractDocumentPage({ threadId, contractId }: ContractD
         console.log('[ContractDocumentPage] Found contract:', foundContract);
 
         if (!foundContract) {
-          setError('契約書が見つかりませんでした');
+          setError(t('contractNotFound'));
           return;
         }
 
@@ -113,6 +116,7 @@ export default function ContractDocumentPage({ threadId, contractId }: ContractD
              foundContract.file_name?.toLowerCase().endsWith('.pdf')) &&
             foundContract.signed_url) {
           try {
+            const { PDFDocument } = await import('pdf-lib');
             const response = await fetch(foundContract.signed_url);
             const arrayBuffer = await response.arrayBuffer();
             const pdfDoc = await PDFDocument.load(arrayBuffer);
@@ -123,7 +127,7 @@ export default function ContractDocumentPage({ threadId, contractId }: ContractD
         }
       } catch (err) {
         console.error('[ContractDocumentPage] Failed to fetch contract:', err);
-        setError('契約書の取得に失敗しました');
+        setError(t('contractFetchFailed'));
       } finally {
         setLoading(false);
       }
@@ -141,11 +145,11 @@ export default function ContractDocumentPage({ threadId, contractId }: ContractD
     try {
       setIsDeleting(true);
       // TODO: 削除APIエンドポイントができたら実装
-      alert('削除機能は現在実装中です');
+      alert(t('contractDeleteInDev'));
       setShowDeleteConfirm(false);
     } catch (err) {
       console.error('Failed to delete contract:', err);
-      alert('削除に失敗しました');
+      alert(t('deleteFailed'));
     } finally {
       setIsDeleting(false);
     }
@@ -158,10 +162,13 @@ export default function ContractDocumentPage({ threadId, contractId }: ContractD
       setIsSaving(true);
 
       // PDFの場合、署名を埋め込んだ新しいPDFを作成
-      if ((contract.content_type === 'application/pdf' || 
-           contract.file_name?.toLowerCase().endsWith('.pdf')) && 
+      if ((contract.content_type === 'application/pdf' ||
+           contract.file_name?.toLowerCase().endsWith('.pdf')) &&
           contract.signed_url) {
-        
+
+        // pdf-libを動的にインポート
+        const { PDFDocument } = await import('pdf-lib');
+
         // 元のPDFを取得
         const response = await fetch(contract.signed_url);
         const arrayBuffer = await response.arrayBuffer();
@@ -228,11 +235,11 @@ export default function ContractDocumentPage({ threadId, contractId }: ContractD
         await messageApi.updateContract(contract.id, pdfBlob, contract.file_name);
         console.log('[ContractDocumentPage] Upload complete');
 
-        alert('署名をPDFに追加しました');
+        alert(t('contractSignatureAddedToPdf'));
       } else {
         // 画像の場合は従来通りデータベースに保存
         await messageApi.addContractSignature(contract.id, signatureData);
-        alert('署名を保存しました');
+        alert(t('contractSignatureSaved'));
       }
 
       setSignatureData(null);
@@ -251,6 +258,7 @@ export default function ContractDocumentPage({ threadId, contractId }: ContractD
              updatedContract.file_name?.toLowerCase().endsWith('.pdf')) &&
             updatedContract.signed_url) {
           try {
+            const { PDFDocument } = await import('pdf-lib');
             // キャッシュバスティングのためタイムスタンプを追加
             const cacheBustedUrl = `${updatedContract.signed_url}${updatedContract.signed_url.includes('?') ? '&' : '?'}t=${Date.now()}`;
             const response = await fetch(cacheBustedUrl);
@@ -275,7 +283,7 @@ export default function ContractDocumentPage({ threadId, contractId }: ContractD
       }
     } catch (err) {
       console.error('Failed to save signature:', err);
-      alert('署名の保存に失敗しました');
+      alert(t('contractSignatureSaveFailed'));
     } finally {
       setIsSaving(false);
     }
@@ -297,7 +305,7 @@ export default function ContractDocumentPage({ threadId, contractId }: ContractD
       document.body.removeChild(a);
     } catch (err) {
       console.error('Failed to download:', err);
-      alert('ダウンロードに失敗しました');
+      alert(t('downloadFailed'));
     }
   };
 
@@ -372,7 +380,7 @@ export default function ContractDocumentPage({ threadId, contractId }: ContractD
   };
 
   const formatFileSize = (bytes?: number) => {
-    if (!bytes) return '不明';
+    if (!bytes) return t('contractFileSizeUnknown');
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`;
     return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
@@ -380,12 +388,12 @@ export default function ContractDocumentPage({ threadId, contractId }: ContractD
 
   const getContractTypeName = (contractType: string) => {
     const typeMap: Record<string, string> = {
-      'nda': '秘密保持契約（NDA）',
-      'loi': '基本合意書（LOI / MOU）',
-      'dd': 'デューデリジェンス関連の資料',
-      'transfer': '事業譲渡契約',
-      'handover': '引継ぎ業務委託契約',
-      'custom': 'その他の契約書',
+      'nda': t('contractTypeNDA'),
+      'loi': t('contractTypeLOI'),
+      'dd': t('contractTypeDD'),
+      'transfer': t('contractTypeTransfer'),
+      'handover': t('contractTypeHandover'),
+      'custom': t('contractTypeCustom'),
     };
     return typeMap[contractType] || contractType;
   };
@@ -393,12 +401,21 @@ export default function ContractDocumentPage({ threadId, contractId }: ContractD
   // 契約状態の判定
   const getContractStatus = () => {
     if (!contract?.signatures || contract.signatures.length === 0) {
-      return { text: '未署名', color: 'bg-gray-100 text-gray-800' };
+      return {
+        text: t('contractStatusUnsigned'),
+        color: 'bg-gray-100 text-gray-800'
+      };
     }
     if (contract.signatures.length === 1) {
-      return { text: '一方署名済み', color: 'bg-yellow-100 text-yellow-800' };
+      return {
+        text: t('contractStatusPartial'),
+        color: 'bg-yellow-100 text-yellow-800'
+      };
     }
-    return { text: '双方署名済み', color: 'bg-green-100 text-green-800' };
+    return {
+      text: t('contractStatusFully'),
+      color: 'bg-green-100 text-green-800'
+    };
   };
 
   const contractStatus = contract ? getContractStatus() : null;
@@ -408,7 +425,9 @@ export default function ContractDocumentPage({ threadId, contractId }: ContractD
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#F9F8F7' }}>
         <div className="text-center">
           <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2" style={{ borderColor: '#E65D65' }}></div>
-          <p className="mt-4 text-gray-600">読み込み中...</p>
+          <p className="mt-4 text-gray-600">
+            {t('loading')}
+          </p>
         </div>
       </div>
     );
@@ -428,18 +447,22 @@ export default function ContractDocumentPage({ threadId, contractId }: ContractD
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
               </button>
-              <h1 className="text-xl font-bold" style={{ color: '#323232' }}>契約書</h1>
+              <h1 className="text-xl font-bold" style={{ color: '#323232' }}>
+                {t('contractDocumentTitle')}
+              </h1>
             </div>
           </div>
         </div>
         <div className="flex items-center justify-center py-20">
           <div className="text-center">
-            <p className="mb-4" style={{ color: '#E65D65' }}>{error || '契約書が見つかりませんでした'}</p>
+            <p className="mb-4" style={{ color: '#E65D65' }}>
+              {error || t('contractNotFound')}
+            </p>
             <Button
               onClick={() => router.push(`/messages/${threadId}`)}
               variant="outline"
             >
-              メッセージに戻る
+              {t('contractBackToMessages')}
             </Button>
           </div>
         </div>
@@ -474,21 +497,21 @@ export default function ContractDocumentPage({ threadId, contractId }: ContractD
               <button
                 onClick={() => setShowSignaturePad(true)}
                 className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-                title="署名"
+                title={t('contractSign')}
               >
                 <FileSignature className="w-5 h-5 text-gray-600" />
               </button>
               <button
                 onClick={handleDownload}
                 className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-                title="ダウンロード"
+                title={t('contractDownload')}
               >
                 <Download className="w-5 h-5 text-gray-600" />
               </button>
               <button
                 onClick={() => setShowDeleteConfirm(true)}
                 className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-                title="削除"
+                title={t('delete')}
               >
                 <Trash2 className="w-5 h-5 text-red-600" />
               </button>
@@ -506,10 +529,16 @@ export default function ContractDocumentPage({ threadId, contractId }: ContractD
             <div className="flex-1">
               <h2 className="text-lg font-semibold mb-3" style={{ color: '#323232' }}>{contract.file_name}</h2>
               <div className="flex items-center gap-6 text-sm text-gray-500">
-                <span>種類: {getContractTypeName(contract.contract_type)}</span>
-                <span>サイズ: {formatFileSize(contract.file_size)}</span>
+                <span>
+                  {t('contractType')}: {getContractTypeName(contract.contract_type)}
+                </span>
+                <span>
+                  {t('contractSize')}: {formatFileSize(contract.file_size)}
+                </span>
                 {contract.signatures && contract.signatures.length > 0 && (
-                  <span>署名数: {contract.signatures.length}名</span>
+                  <span>
+                    {t('contractSignatures')}: {t('contractSignatureCount', { count: contract.signatures.length })}
+                  </span>
                 )}
               </div>
             </div>
@@ -522,7 +551,7 @@ export default function ContractDocumentPage({ threadId, contractId }: ContractD
         {/* プレビュー/署名エリア */}
         <div className="bg-white rounded-lg border border-gray-200 p-6">
           <h3 className="text-lg font-semibold mb-4" style={{ color: '#323232' }}>
-            契約書プレビュー
+            {t('contractPreview')}
           </h3>
 
           {/* 画像と署名のオーバーレイ表示エリア */}
@@ -613,10 +642,12 @@ export default function ContractDocumentPage({ threadId, contractId }: ContractD
                     // その他のファイル形式はダウンロードのみ
                     <div className="flex flex-col items-center justify-center p-12">
                       <FileText className="w-16 h-16 text-gray-400 mb-4" />
-                      <p className="text-gray-600 mb-4">このファイル形式はプレビューできません</p>
+                      <p className="text-gray-600 mb-4">
+                        {t('contractFileCannotPreview')}
+                      </p>
                       <Button onClick={handleDownload} variant="outline">
                         <Download className="w-4 h-4 mr-2" />
-                        ダウンロード
+                        {t('contractDownload')}
                       </Button>
                     </div>
                   )}
@@ -624,10 +655,12 @@ export default function ContractDocumentPage({ threadId, contractId }: ContractD
               ) : (
                 <div className="flex flex-col items-center justify-center p-12">
                   <FileText className="w-16 h-16 text-gray-400 mb-4" />
-                  <p className="text-gray-600 mb-4">ファイルが見つかりません</p>
+                  <p className="text-gray-600 mb-4">
+                    {t('contractFileNotFound')}
+                  </p>
                   <Button onClick={handleDownload} variant="outline">
                     <Download className="w-4 h-4 mr-2" />
-                    ダウンロード
+                    {t('contractDownload')}
                   </Button>
                 </div>
               )}
@@ -637,7 +670,7 @@ export default function ContractDocumentPage({ threadId, contractId }: ContractD
           {/* 署名コントロールエリア */}
           <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
             <h4 className="text-md font-semibold mb-4" style={{ color: '#323232' }}>
-              署名管理
+              {t('contractSignatureManagement')}
             </h4>
             {signatureData ? (
               <div className="flex gap-3">
@@ -649,14 +682,14 @@ export default function ContractDocumentPage({ threadId, contractId }: ContractD
                   variant="outline"
                   className="flex-1"
                 >
-                  再描画
+                  {t('contractRedraw')}
                 </Button>
                 <Button
                   onClick={() => setSignatureData(null)}
                   variant="outline"
                   className="flex-1"
                 >
-                  キャンセル
+                  {t('cancel')}
                 </Button>
                 <Button
                   onClick={handleSaveSignature}
@@ -664,15 +697,15 @@ export default function ContractDocumentPage({ threadId, contractId }: ContractD
                   className="flex-1"
                   style={{ backgroundColor: '#E65D65', color: '#fff' }}
                 >
-                  {isSaving ? '保存中...' : '署名を保存'}
+                  {isSaving ? t('saving') : t('contractSaveSignature')}
                 </Button>
               </div>
             ) : (
               <div className="flex gap-3 items-center">
                 <p className="text-sm text-gray-600">
                   {contract.signatures && contract.signatures.length > 0
-                    ? `保存済み署名: ${contract.signatures.length}件`
-                    : '署名がありません'}
+                    ? `${t('contractSavedSignatures')}: ${t('contractSavedSignatureCount', { count: contract.signatures.length })}`
+                    : t('contractNoSignatures')}
                 </p>
                 <Button
                   onClick={() => setShowSignaturePad(true)}
@@ -680,7 +713,7 @@ export default function ContractDocumentPage({ threadId, contractId }: ContractD
                   className="ml-auto"
                 >
                   <FileSignature className="w-4 h-4 mr-2" />
-                  新しい署名を追加
+                  {t('contractAddSignature')}
                 </Button>
               </div>
             )}
@@ -695,7 +728,7 @@ export default function ContractDocumentPage({ threadId, contractId }: ContractD
             <div style={{ backgroundColor: '#fff' }} className="rounded-lg p-6 max-w-2xl w-full mx-4">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold" style={{ color: '#323232' }}>
-                  署名を描画してください
+                  {t('contractDrawSignature')}
                 </h3>
                 <button
                   onClick={() => {
@@ -716,7 +749,9 @@ export default function ContractDocumentPage({ threadId, contractId }: ContractD
               {pdfPageCount && pdfPageCount > 1 && (
                 <div className="mb-4 p-3 bg-gray-50 rounded border border-gray-200">
                   <p className="text-sm text-gray-700 mb-2">
-                    このPDFは{pdfPageCount}ページあります。署名をどのページに配置しますか？
+                    {locale === 'ja'
+                      ? `このPDFは${pdfPageCount}ページあります。署名をどのページに配置しますか？`
+                      : `This PDF has ${pdfPageCount} pages. Where would you like to place your signature?`}
                   </p>
                   <div className="flex gap-4">
                     <label className="flex items-center cursor-pointer">
@@ -726,7 +761,9 @@ export default function ContractDocumentPage({ threadId, contractId }: ContractD
                         onChange={() => setSignToAllPages(false)}
                         className="mr-2"
                       />
-                      <span className="text-sm">最後のページのみ</span>
+                      <span className="text-sm">
+                        {t('contractLastPageOnly')}
+                      </span>
                     </label>
                     <label className="flex items-center cursor-pointer">
                       <input
@@ -735,7 +772,9 @@ export default function ContractDocumentPage({ threadId, contractId }: ContractD
                         onChange={() => setSignToAllPages(true)}
                         className="mr-2"
                       />
-                      <span className="text-sm">すべてのページ</span>
+                      <span className="text-sm">
+                        {t('contractAllPages')}
+                      </span>
                     </label>
                   </div>
                 </div>
@@ -768,7 +807,7 @@ export default function ContractDocumentPage({ threadId, contractId }: ContractD
                   className="flex-1"
                   style={{ borderColor: '#323232', color: '#323232' }}
                 >
-                  クリア
+                  {t('contractClear')}
                 </Button>
                 <Button
                   onClick={() => {
@@ -778,7 +817,7 @@ export default function ContractDocumentPage({ threadId, contractId }: ContractD
                   className="flex-1"
                   style={{ backgroundColor: '#323232', color: '#fff' }}
                 >
-                  署名を確定
+                  {t('contractConfirmSignature')}
                 </Button>
               </div>
             </div>
@@ -790,7 +829,9 @@ export default function ContractDocumentPage({ threadId, contractId }: ContractD
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center" style={{ zIndex: 9999 }}>
           <div style={{ backgroundColor: '#fff' }} className="rounded-lg p-6 max-w-md w-full mx-4">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold" style={{ color: '#323232' }}>削除の確認</h3>
+              <h3 className="text-lg font-semibold" style={{ color: '#323232' }}>
+                {t('contractConfirmDelete')}
+              </h3>
               <button
                 onClick={() => setShowDeleteConfirm(false)}
                 className="p-1 rounded-full transition-colors"
@@ -802,7 +843,7 @@ export default function ContractDocumentPage({ threadId, contractId }: ContractD
               </button>
             </div>
             <p style={{ color: '#323232' }} className="mb-6">
-              この契約書を削除してもよろしいですか？この操作は取り消せません。
+              {t('contractDeleteConfirmMessage')}
             </p>
             <div className="flex gap-3 justify-end">
               <Button
@@ -811,7 +852,7 @@ export default function ContractDocumentPage({ threadId, contractId }: ContractD
                 disabled={isDeleting}
                 style={{ borderColor: '#323232', color: '#323232' }}
               >
-                キャンセル
+                {t('cancel')}
               </Button>
               <Button
                 onClick={handleDelete}
@@ -819,7 +860,7 @@ export default function ContractDocumentPage({ threadId, contractId }: ContractD
                 disabled={isDeleting}
                 style={{ backgroundColor: '#323232', color: '#fff', borderColor: '#323232' }}
               >
-                {isDeleting ? '削除中...' : '削除'}
+                {isDeleting ? t('contractDeleting') : t('delete')}
               </Button>
             </div>
           </div>

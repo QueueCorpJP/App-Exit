@@ -1,0 +1,25 @@
+{
+  "title": "Transaction History",
+  "history": "Transaction History",
+  "ongoing": "Ongoing Transactions",
+  "completed": "Completed Transactions",
+  "cancelled": "Cancelled Transactions",
+  "transactionId": "Transaction ID",
+  "buyer": "Buyer",
+  "seller": "Seller",
+  "amount": "Amount",
+  "status": "Status",
+  "createdDate": "Created Date",
+  "completedDate": "Completed Date",
+  "viewDetails": "View Details",
+  "downloadReceipt": "Download Receipt",
+  "contactSupport": "Contact Support",
+  "statuses": {
+    "pending": "Pending",
+    "processing": "Processing",
+    "completed": "Completed",
+    "cancelled": "Cancelled",
+    "refunded": "Refunded",
+    "disputed": "Disputed"
+  }
+}

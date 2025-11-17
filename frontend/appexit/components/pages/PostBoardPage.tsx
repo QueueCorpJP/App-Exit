@@ -7,6 +7,9 @@ import { ArrowLeft, ArrowUp, ArrowDown, MessageCircle, Share2, MoreHorizontal, A
 import { postApi, commentApi, PostCommentWithDetails } from '@/lib/api-client';
 import { uploadImage, getImageUrls } from '@/lib/storage';
 import Image from 'next/image';
+import { useTranslations } from 'next-intl';
+import { useLocale } from 'next-intl';
+import { usePageDict } from '@/lib/page-dict';
 
 interface Post {
   id: string;
@@ -50,11 +53,14 @@ interface SidebarData {
 interface PostBoardPageProps {
   initialPosts: Post[];
   sidebarData?: SidebarData;
+  pageDict?: Record<string, any>;
 }
 
-export default function PostBoardPage({ initialPosts = [], sidebarData }: PostBoardPageProps) {
+export default function PostBoardPage({ initialPosts = [], sidebarData, pageDict = {} }: PostBoardPageProps) {
   const router = useRouter();
   const { user, profile } = useAuth();
+  const locale = useLocale();
+  const tp = usePageDict(pageDict);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [posts, setPosts] = useState<PostWithImageUrl[]>([]);
@@ -201,7 +207,7 @@ export default function PostBoardPage({ initialPosts = [], sidebarData }: PostBo
     e.preventDefault();
 
     if (!user) {
-      setError('ログインが必要です');
+      setError(tp('loginRequired'));
       return;
     }
 
@@ -233,7 +239,7 @@ export default function PostBoardPage({ initialPosts = [], sidebarData }: PostBo
       router.refresh();
     } catch (err) {
       console.error('Post creation error:', err);
-      setError(err instanceof Error ? err.message : '投稿に失敗しました');
+      setError(err instanceof Error ? err.message : tp('postFailed'));
     } finally {
       setLoading(false);
     }
@@ -355,7 +361,7 @@ export default function PostBoardPage({ initialPosts = [], sidebarData }: PostBo
               onClick={() => setReplyToUser(displayName)}
             >
               <MessageCircle className="w-4 h-4" />
-              <span>返信</span>
+              <span>{tp('reply')}</span>
             </button>
           </div>
         </div>
@@ -371,10 +377,10 @@ export default function PostBoardPage({ initialPosts = [], sidebarData }: PostBo
     const diffHours = Math.floor(diffMs / 3600000);
     const diffDays = Math.floor(diffMs / 86400000);
 
-    if (diffMins < 1) return 'たった今';
-    if (diffMins < 60) return `${diffMins}分前`;
-    if (diffHours < 24) return `${diffHours}時間前`;
-    return `${diffDays}日前`;
+    if (diffMins < 1) return tp('justNow');
+    if (diffMins < 60) return `${diffMins}${tp('minutesAgo')}`;
+    if (diffHours < 24) return `${diffHours}${tp('hoursAgo')}`;
+    return `${diffDays}${tp('daysAgo')}`;
   };
 
   // 外側のクリックで共有メニューを閉じる
@@ -436,8 +442,8 @@ export default function PostBoardPage({ initialPosts = [], sidebarData }: PostBo
           <div className="flex items-center gap-4 mt-3 ml-8">
             <div className="w-20" />
             <div className="flex items-baseline gap-3">
-              <h1 className="text-2xl" style={{ color: '#4a4a4a', fontWeight: '800' }}>掲示板投稿</h1>
-              <p className="text-sm" style={{ color: '#6b7280', fontWeight: '700' }}>気軽にやり取りしよう</p>
+              <h1 className="text-2xl" style={{ color: '#4a4a4a', fontWeight: '800' }}>{tp('boardPostTitle')}</h1>
+              <p className="text-sm" style={{ color: '#6b7280', fontWeight: '700' }}>{tp('subtitle')}</p>
             </div>
           </div>
 
@@ -476,7 +482,7 @@ export default function PostBoardPage({ initialPosts = [], sidebarData }: PostBo
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                 className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="タイトルを入力..."
+                placeholder={tp('titlePlaceholder')}
               />
             </div>
 
@@ -487,13 +493,13 @@ export default function PostBoardPage({ initialPosts = [], sidebarData }: PostBo
                 value={formData.body}
                 onChange={(e) => setFormData({ ...formData, body: e.target.value })}
                 className="w-full px-4 py-2 pb-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="詳細を記載してください..."
+                placeholder={tp('bodyPlaceholder')}
               />
               <button
                 type="submit"
                 disabled={loading}
                 className="absolute bottom-2 right-2 p-2 text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                title={loading ? '投稿中...' : '投稿する'}
+                title={loading ? tp('posting') : tp('submitPost')}
               >
                 <Send className="w-5 h-5 rotate-45" />
               </button>
@@ -516,7 +522,7 @@ export default function PostBoardPage({ initialPosts = [], sidebarData }: PostBo
             <div className="flex items-center">
               <label className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-900 cursor-pointer">
                 <ImageIcon className="w-5 h-5" />
-                <span className="text-sm">画像を追加</span>
+                <span className="text-sm">{tp('addImage')}</span>
                 <input
                   type="file"
                   accept="image/*"
@@ -532,8 +538,8 @@ export default function PostBoardPage({ initialPosts = [], sidebarData }: PostBo
         <div className="space-y-4">
           {posts.length === 0 && (
             <div className="bg-white rounded-lg p-12 text-center">
-              <p className="text-gray-500 mb-2">まだ投稿がありません</p>
-              <p className="text-sm text-gray-400">最初の投稿を作成してみましょう！</p>
+              <p className="text-gray-500 mb-2">{tp('noPosts')}</p>
+              <p className="text-sm text-gray-400">{tp('createFirstPost')}</p>
             </div>
           )}
 
@@ -554,7 +560,7 @@ export default function PostBoardPage({ initialPosts = [], sidebarData }: PostBo
                   >
                     @{post.author_user_id.substring(0, 8)}
                   </button>
-                  <span className="text-sm text-gray-500">• {new Date(post.created_at).toLocaleDateString('ja-JP')}</span>
+                  <span className="text-sm text-gray-500">• {new Date(post.created_at).toLocaleDateString(locale === 'ja' ? 'ja-JP' : 'en-US')}</span>
                   {/* 自分の投稿にのみ三点マークを表示 */}
                   {user?.id === post.author_user_id && (
                     <button className="ml-auto">
@@ -614,7 +620,7 @@ export default function PostBoardPage({ initialPosts = [], sidebarData }: PostBo
                       onClick={() => toggleShareMenu(post.id)}
                     >
                       <Share2 className="w-5 h-5" />
-                      <span className="text-sm font-bold">共有</span>
+                      <span className="text-sm font-bold">{tp('share')}</span>
                     </button>
 
                     {/* 共有メニュードロップダウン */}
@@ -625,21 +631,21 @@ export default function PostBoardPage({ initialPosts = [], sidebarData }: PostBo
                           className="w-full flex items-center gap-3 px-4 py-2 hover:bg-gray-100 transition-colors text-left"
                         >
                           <Twitter className="w-5 h-5 text-blue-400" />
-                          <span className="text-sm font-medium">Twitter で共有</span>
+                          <span className="text-sm font-medium">{tp('shareTwitter')}</span>
                         </button>
                         <button
                           onClick={() => handleShare('facebook', post)}
                           className="w-full flex items-center gap-3 px-4 py-2 hover:bg-gray-100 transition-colors text-left"
                         >
                           <Facebook className="w-5 h-5 text-blue-600" />
-                          <span className="text-sm font-medium">Facebook で共有</span>
+                          <span className="text-sm font-medium">{tp('shareFacebook')}</span>
                         </button>
                         <button
                           onClick={() => handleShare('linkedin', post)}
                           className="w-full flex items-center gap-3 px-4 py-2 hover:bg-gray-100 transition-colors text-left"
                         >
                           <Linkedin className="w-5 h-5 text-blue-700" />
-                          <span className="text-sm font-medium">LinkedIn で共有</span>
+                          <span className="text-sm font-medium">{tp('shareLinkedIn')}</span>
                         </button>
                       </div>
                     )}
@@ -660,7 +666,7 @@ export default function PostBoardPage({ initialPosts = [], sidebarData }: PostBo
                   <div className="flex flex-col gap-2">
                     {replyToUser && (
                       <div className="flex items-center gap-2 text-xs text-blue-600">
-                        <span>@{replyToUser} に返信中</span>
+                        <span>{tp('replyingTo').replace('{user}', replyToUser)}</span>
                         <button onClick={() => setReplyToUser(null)} className="hover:text-red-600">
                           <X className="w-3 h-3" />
                         </button>
@@ -677,14 +683,14 @@ export default function PostBoardPage({ initialPosts = [], sidebarData }: PostBo
                             handleSubmitComment(post.id);
                           }
                         }}
-                        placeholder={replyToUser ? `@${replyToUser} に返信...` : "コメントを追加..."}
+                        placeholder={replyToUser ? tp('replyingTo').replace('{user}', replyToUser) : tp('addComment')}
                         className="flex-1 px-4 py-2.5 pr-12 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                       />
                       <button
                         onClick={() => handleSubmitComment(post.id)}
                         disabled={!commentInputs[post.id]?.trim()}
                         className="absolute right-2 p-2 text-blue-500 hover:text-blue-700 disabled:text-gray-300 disabled:cursor-not-allowed transition-colors"
-                        title="送信"
+                        title={tp('send')}
                       >
                         <Send className="w-5 h-5" />
                       </button>
@@ -702,8 +708,8 @@ export default function PostBoardPage({ initialPosts = [], sidebarData }: PostBo
                     ) : (
                       <div className="text-center text-gray-500 text-sm py-8">
                         <MessageCircle className="w-12 h-12 mx-auto mb-2 text-gray-300" />
-                        <p>まだコメントがありません</p>
-                        <p className="text-xs mt-1">最初のコメントを投稿しましょう！</p>
+                        <p>{tp('noComments')}</p>
+                        <p className="text-xs mt-1">{tp('createFirstComment')}</p>
                       </div>
                     )}
                   </div>
@@ -722,35 +728,35 @@ export default function PostBoardPage({ initialPosts = [], sidebarData }: PostBo
                 {sidebarData?.stats.first_post_date && (
                   <div className="flex items-center gap-2 text-sm text-gray-600 mb-3">
                     <Calendar className="w-4 h-4" />
-                    <span>{new Date(sidebarData.stats.first_post_date).toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' })}に作成されました</span>
+                    <span>{new Date(sidebarData.stats.first_post_date).toLocaleDateString(locale === 'ja' ? 'ja-JP' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric' })}{tp('createdOn')}</span>
                   </div>
                 )}
                 <div className="flex items-center gap-2 text-sm text-gray-600 mb-4">
                   <Globe className="w-4 h-4" />
-                  <span>公開</span>
+                  <span>{tp('public')}</span>
                 </div>
 
                 {/* Stats */}
                 <div className="grid grid-cols-2 gap-4 mb-4 pb-4 border-b border-gray-200">
                   <div>
                     <div className="text-2xl font-bold">{sidebarData?.stats.total_posts || 0}</div>
-                    <div className="text-xs text-gray-600">総投稿数</div>
+                    <div className="text-xs text-gray-600">{tp('totalPosts')}</div>
                   </div>
                   <div>
                     <div className="text-2xl font-bold">{sidebarData?.stats.total_comments || 0}</div>
-                    <div className="text-xs text-gray-600">総コメント数</div>
+                    <div className="text-xs text-gray-600">{tp('totalComments')}</div>
                   </div>
                 </div>
                 <div className="mb-4 pb-4 border-b border-gray-200">
                   <div className="text-lg font-bold">{sidebarData?.stats.unique_authors || 0}</div>
-                  <div className="text-xs text-gray-600">ユニークな投稿者</div>
+                  <div className="text-xs text-gray-600">{tp('uniqueAuthors')}</div>
                 </div>
               </div>
 
               {/* Popular Posts Card */}
               {sidebarData && sidebarData.popular_posts && sidebarData.popular_posts.length > 0 && (
                 <div className="bg-white rounded-lg p-4 border border-gray-100">
-                  <h3 className="text-sm font-semibold mb-3">人気の投稿</h3>
+                  <h3 className="text-sm font-semibold mb-3">{tp('popularPosts')}</h3>
                   <div className="space-y-3">
                     {sidebarData.popular_posts.map((post) => (
                       <button
@@ -762,7 +768,7 @@ export default function PostBoardPage({ initialPosts = [], sidebarData }: PostBo
                           <Flame className="w-4 h-4 text-orange-500 flex-shrink-0 mt-0.5" />
                           <div className="flex-1 min-w-0">
                             <div className="text-sm font-medium text-gray-900 line-clamp-2">{post.title}</div>
-                            <div className="text-xs text-gray-500 mt-1">{post.like_count}いいね</div>
+                            <div className="text-xs text-gray-500 mt-1">{post.like_count}{tp('likes')}</div>
                           </div>
                         </div>
                       </button>
@@ -774,7 +780,7 @@ export default function PostBoardPage({ initialPosts = [], sidebarData }: PostBo
               {/* Recent Posts Card */}
               {sidebarData && sidebarData.recent_posts && sidebarData.recent_posts.length > 0 && (
                 <div className="bg-white rounded-lg p-4 border border-gray-100">
-                  <h3 className="text-sm font-semibold mb-3">最近の投稿</h3>
+                  <h3 className="text-sm font-semibold mb-3">{tp('recentPosts')}</h3>
                   <div className="space-y-3">
                     {sidebarData.recent_posts.map((post) => (
                       <button

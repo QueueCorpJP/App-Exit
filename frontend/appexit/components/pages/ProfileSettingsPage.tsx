@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslations, useLocale } from 'next-intl'
 import Button from '@/components/ui/Button'
 import { profileApi, type Profile, postApi, type Post } from '@/lib/api-client'
 import { uploadAvatarImage } from '@/lib/storage'
@@ -11,7 +12,14 @@ import { useAuth } from '@/lib/auth-context'
 
 type TabType = 'profile' | 'watching' | 'myposts';
 
-export default function ProfileSettingsPage() {
+interface ProfileSettingsPageProps {
+  pageDict?: any;
+  locale: string;
+}
+
+export default function ProfileSettingsPage({ pageDict, locale: propLocale }: ProfileSettingsPageProps) {
+  const t = useTranslations()
+  const locale = propLocale || useLocale()
   const router = useRouter()
   const { user } = useAuth()
   const [isLoading, setIsLoading] = useState(true)
@@ -67,11 +75,11 @@ export default function ProfileSettingsPage() {
         setAge(profile.age || undefined)
         setAvatarPreview(profile.icon_url || '')
       } else {
-        setError('プロフィールが見つかりません')
+        setError(t('profileNotFound'))
       }
     } catch (err) {
       console.error('Failed to load profile:', err)
-      setError('プロフィールの取得に失敗しました')
+      setError(t('failedToLoadProfile'))
     } finally {
       setIsLoading(false)
     }
@@ -215,13 +223,13 @@ export default function ProfileSettingsPage() {
 
     // ファイルサイズチェック (5MB)
     if (file.size > 5 * 1024 * 1024) {
-      setError('画像サイズは5MB以下にしてください')
+      setError(t('imageSizeLimit'))
       return
     }
 
     // ファイルタイプチェック
     if (!file.type.startsWith('image/')) {
-      setError('画像ファイルを選択してください')
+      setError(t('selectImageFile'))
       return
     }
 
@@ -248,7 +256,7 @@ export default function ProfileSettingsPage() {
       }
     } catch (err) {
       console.error('Avatar upload error:', err)
-      setError(err instanceof Error ? err.message : 'アバター画像のアップロードに失敗しました')
+      setError(err instanceof Error ? err.message : t('failedToUploadAvatar'))
       setAvatarFile(null)
       setAvatarPreview(profile?.icon_url || '')
     } finally {
@@ -261,7 +269,7 @@ export default function ProfileSettingsPage() {
 
     // バリデーション
     if (!displayName.trim()) {
-      alert('名前を入力してください')
+      alert(t('enterName'))
       return
     }
 
@@ -287,17 +295,17 @@ export default function ProfileSettingsPage() {
         const updatedProfile = await profileApi.updateProfile(updateData)
 
         if (updatedProfile) {
-          alert('プロフィールを更新しました')
+          alert(t('profileUpdated'))
           // 更新されたプロフィールを再取得
           await loadProfile()
         }
       } else {
-        alert('変更がありません')
+        alert(t('noChanges'))
       }
     } catch (error) {
       console.error('保存エラー:', error)
-      setError('プロフィールの更新に失敗しました')
-      alert('保存に失敗しました')
+      setError(t('failedToUpdateProfile'))
+      alert(t('failedToSave'))
     } finally {
       setIsSaving(false)
     }
@@ -315,9 +323,11 @@ export default function ProfileSettingsPage() {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#F9F8F7' }}>
         <div className="text-center">
-          <p className="text-red-600 mb-4">プロフィールが見つかりません</p>
+          <p className="text-red-600 mb-4">
+            {t('profileNotFound')}
+          </p>
           <Button onClick={() => router.push('/dashboard')}>
-            ダッシュボードに戻る
+            {t('backToDashboard')}
           </Button>
         </div>
       </div>
@@ -330,7 +340,7 @@ export default function ProfileSettingsPage() {
     <div className="min-h-screen" style={{ backgroundColor: '#F9F8F7' }}>
       <div className="max-w-3xl mx-auto px-4 py-8">
         <h1 className="text-lg text-center mb-8" style={{ color: '#323232', fontWeight: 900 }}>
-          プロフィール
+          {t('profile')}
         </h1>
 
         {/* タブナビゲーション */}
@@ -343,7 +353,7 @@ export default function ProfileSettingsPage() {
                 : 'text-gray-500 hover:text-gray-700'
             }`}
           >
-            プロフィール設定
+            {t('profileSettings')}
           </button>
           <button
             onClick={() => setActiveTab('watching')}
@@ -353,7 +363,7 @@ export default function ProfileSettingsPage() {
                 : 'text-gray-500 hover:text-gray-700'
             }`}
           >
-            ウォッチ中 ({watchingPosts.length})
+            {t('watching')} ({watchingPosts.length})
           </button>
           <button
             onClick={() => setActiveTab('myposts')}
@@ -363,7 +373,7 @@ export default function ProfileSettingsPage() {
                 : 'text-gray-500 hover:text-gray-700'
             }`}
           >
-            投稿 ({myPosts.length})
+            {t('posts')} ({myPosts.length})
           </button>
         </div>
 
@@ -380,7 +390,7 @@ export default function ProfileSettingsPage() {
           {/* アバター画像 */}
           <div className="mb-8">
             <label className="block text-sm font-semibold text-gray-700 mb-4">
-              アイコン画像
+              {t('profilePicture')}
             </label>
             <div className="flex items-center space-x-4">
               {/* プレビュー画像 - クリック可能 */}
@@ -402,7 +412,7 @@ export default function ProfileSettingsPage() {
                 {avatarPreview ? (
                   <img
                     src={avatarPreview}
-                    alt="アイコンプレビュー"
+                    alt={t('iconPreview')}
                     className="w-full h-full object-cover"
                   />
                 ) : (
@@ -416,11 +426,13 @@ export default function ProfileSettingsPage() {
                 </div>
               </label>
               {isUploadingAvatar && (
-                <span className="text-sm text-gray-600">アップロード中...</span>
+                <span className="text-sm text-gray-600">
+                  {t('uploading')}
+                </span>
               )}
               {!isUploadingAvatar && (
                 <div className="text-sm text-gray-500">
-                  クリックして画像を選択
+                  {t('clickToSelectImage')}
                 </div>
               )}
             </div>
@@ -429,18 +441,18 @@ export default function ProfileSettingsPage() {
           {/* 名前 */}
           <div className="mb-6">
             <label className="block text-sm font-semibold text-gray-700 mb-2">
-              表示名 <span className="text-red-500">*</span>
+              {t('displayName')} <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
-              placeholder="山田太郎"
+              placeholder={t('displayNamePlaceholder')}
               required
               className="w-full px-4 py-3 border border-gray-300 rounded-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
             <p className="text-xs text-gray-500 mt-1">
-              本名またはハンドルネーム
+              {t('displayNameHint')}
             </p>
           </div>
 
@@ -449,7 +461,7 @@ export default function ProfileSettingsPage() {
             {/* ユーザータイプ表示 */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
-                アカウントタイプ
+                {t('accountType')}
               </label>
               <div className="flex items-center space-x-3">
                 <span className={`px-4 py-2.5 rounded-sm font-semibold text-sm border transition-all ${
@@ -457,25 +469,25 @@ export default function ProfileSettingsPage() {
                     ? 'bg-white text-gray-800 border-gray-800'
                     : 'bg-white text-gray-600 border-gray-300'
                 }`}>
-                  {profile.role === 'seller' ? '売り手' : '買い手'}
+                  {profile.role === 'seller' ? t('seller') : t('buyer')}
                 </span>
                 <span className={`px-4 py-2.5 rounded-sm font-semibold text-sm border transition-all ${
                   profile.party === 'organization'
                     ? 'bg-white text-gray-800 border-gray-800'
                     : 'bg-white text-gray-600 border-gray-300'
                 }`}>
-                  {profile.party === 'organization' ? '法人' : '個人'}
+                  {profile.party === 'organization' ? t('organization') : t('individual')}
                 </span>
               </div>
               <p className="text-xs text-gray-500 mt-2">
-                アカウントタイプは変更できません
+                {t('accountTypeCannotChange')}
               </p>
             </div>
 
             {/* 年齢 */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
-                年齢
+                {t('age')}
               </label>
               <input
                 type="number"
@@ -497,21 +509,21 @@ export default function ProfileSettingsPage() {
               className="flex-1"
               onClick={() => router.back()}
             >
-              キャンセル
+              {t('cancel')}
             </Button>
             <Button
               type="submit"
               variant="primary"
               className="flex-1"
               isLoading={isSaving}
-              loadingText="保存中..."
+              loadingText={t('saving')}
               style={{
                 backgroundColor: isHovered ? '#D14C54' : '#E65D65',
               }}
               onMouseEnter={() => setIsHovered(true)}
               onMouseLeave={() => setIsHovered(false)}
             >
-              保存する
+              {t('save')}
             </Button>
           </div>
         </form>
@@ -545,23 +557,23 @@ export default function ProfileSettingsPage() {
                     </div>
                     <div>
                       <h3 className="text-base font-bold text-gray-800 flex items-center">
-                        決済登録完了
+                        {t('paymentSetupComplete')}
                         <span className="ml-2 px-2 py-0.5 text-xs font-semibold bg-green-100 text-green-700 rounded-full">
-                          認証済み
+                          {t('verified')}
                         </span>
                       </h3>
                       <p className="text-sm text-gray-600 mt-1">
-                        Stripe決済アカウントが登録されています
+                        {t('stripeAccountRegistered')}
                       </p>
                       <div className="flex items-center mt-2 space-x-2">
                         <div className="flex items-center text-xs text-green-600">
                           <CheckCircle2 className="w-3.5 h-3.5 mr-1" strokeWidth={2.5} />
-                          本人確認完了
+                          {t('identityVerified')}
                         </div>
                         <span className="text-gray-300">•</span>
                         <div className="flex items-center text-xs text-green-600">
                           <CheckCircle2 className="w-3.5 h-3.5 mr-1" strokeWidth={2.5} />
-                          売上受取可能
+                          {t('paymentEnabled')}
                         </div>
                       </div>
                     </div>
@@ -587,16 +599,16 @@ export default function ProfileSettingsPage() {
                     </div>
                     <div>
                       <h3 className="text-base font-bold text-gray-800 flex items-center">
-                        本人確認が必要です
+                        {t('identityVerificationRequired')}
                         <span className="ml-2 px-2 py-0.5 text-xs font-semibold bg-yellow-100 text-yellow-700 rounded-full">
-                          要確認
+                          {t('required')}
                         </span>
                       </h3>
                       <p className="text-sm text-gray-600 mt-1">
-                        Stripeの本人確認を完了してください
+                        {t('completeStripeVerification')}
                       </p>
                       <p className="text-xs text-yellow-600 mt-2">
-                        ⚠️ 本人確認が完了するまで売上の受取はできません
+                        {t('cannotReceiveUntilVerified')}
                       </p>
                     </div>
                   </>
@@ -621,16 +633,16 @@ export default function ProfileSettingsPage() {
                     </div>
                     <div>
                       <h3 className="text-base font-bold text-gray-800 flex items-center">
-                        決済設定
+                        {t('paymentSettings')}
                         <span className="ml-2 px-2 py-0.5 text-xs font-semibold bg-blue-100 text-blue-700 rounded-full">
-                          未設定
+                          {t('notSet')}
                         </span>
                       </h3>
                       <p className="text-sm text-gray-600 mt-1">
-                        売上を受け取るにはStripe決済の設定が必要です
+                        {t('stripeSetupRequired')}
                       </p>
                       <p className="text-xs text-blue-600 mt-2">
-                        💡 数分で簡単に設定できます
+                        {t('easySetup')}
                       </p>
                     </div>
                   </>
@@ -640,7 +652,7 @@ export default function ProfileSettingsPage() {
                 variant={profile.stripe_account_id && profile.stripe_onboarding_completed ? "outline" : "primary"}
                 onClick={() => router.push('/settings/payment')}
               >
-                {profile.stripe_account_id && profile.stripe_onboarding_completed ? '設定を確認' : profile.stripe_account_id ? '本人確認を完了' : '設定を開始'}
+                {profile.stripe_account_id && profile.stripe_onboarding_completed ? t('viewSettings') : profile.stripe_account_id ? t('completeVerification') : t('startSetup')}
               </Button>
             </div>
           </div>
@@ -689,7 +701,7 @@ export default function ProfileSettingsPage() {
                       variant="outline"
                       className="px-8"
                     >
-                      {isLoadingPosts ? '読み込み中...' : 'もっと読み込む'}
+                      {isLoadingPosts ? t('loading') : t('loadMore')}
                     </Button>
                   </div>
                 )}
@@ -699,16 +711,14 @@ export default function ProfileSettingsPage() {
             {isLoadingPosts && displayPosts.length === 0 && (
               <div className="flex items-center justify-center py-12">
                 <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-600"></div>
-                <p className="ml-3 text-gray-600">読み込み中...</p>
+                <p className="ml-3 text-gray-600">{t('loading')}</p>
               </div>
             )}
 
             {!isLoadingPosts && displayPosts.length === 0 && (
               <div className="bg-white p-8 rounded-sm text-center">
                 <p className="text-gray-500">
-                  {activeTab === 'watching'
-                    ? 'まだプロダクトをウォッチしていません'
-                    : 'まだプロダクトを投稿していません'}
+                  {activeTab === 'watching' ? t('noProductsWatched') : t('noProductsPosted')}
                 </p>
                 <Button
                   onClick={() => router.push(activeTab === 'watching' ? '/' : '/projects/new')}
@@ -718,7 +728,7 @@ export default function ProfileSettingsPage() {
                     color: '#fff'
                   }}
                 >
-                  {activeTab === 'watching' ? 'プロダクトを探す' : 'プロダクトを投稿する'}
+                  {activeTab === 'watching' ? t('exploreProducts') : t('postProduct')}
                 </Button>
               </div>
             )}
