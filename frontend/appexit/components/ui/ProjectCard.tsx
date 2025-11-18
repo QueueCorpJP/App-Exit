@@ -4,6 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { Eye } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import StorageImage from './StorageImage';
 import { activeViewApi } from '@/lib/api-client';
 import { truncateDisplayName } from '@/lib/text-utils';
@@ -57,6 +58,7 @@ export default function ProjectCard({
   authorProfile,
   activeViewCount = 0
 }: ProjectCardProps) {
+  const t = useTranslations('common');
   const isLarge = size === 'large';
   const [imageError, setImageError] = useState(false);
   const [isWatching, setIsWatching] = useState(false);
@@ -104,16 +106,20 @@ export default function ProjectCard({
 
   // 成約状況のバッジ色を決定
   const getStatusBadgeColor = (status: string) => {
-    switch (status) {
-      case '募集中':
-        return 'bg-green-100 text-green-800';
-      case '交渉中':
-        return 'bg-yellow-100 text-yellow-800';
-      case '成約済み':
-        return 'bg-gray-100 text-gray-800';
-      default:
-        return 'bg-green-100 text-green-800';
+    // 翻訳されたステータス文字列を取得
+    const recruiting = t('recruiting');
+    const inNegotiation = t('inNegotiation');
+    const completed = t('completed');
+
+    // 翻訳後の文字列と元の日本語の両方に対応
+    if (status === recruiting || status === '募集中') {
+      return 'bg-green-100 text-green-800';
+    } else if (status === inNegotiation || status === '交渉中') {
+      return 'bg-yellow-100 text-yellow-800';
+    } else if (status === completed || status === '成約済み') {
+      return 'bg-gray-100 text-gray-800';
     }
+    return 'bg-green-100 text-green-800';
   };
 
   // ウォッチボタンのクリック処理
@@ -150,11 +156,11 @@ export default function ProjectCard({
       
       // エラーメッセージを表示
       if (error?.status === 401) {
-        alert('ログインが必要です');
+        alert(t('loginRequired'));
       } else if (error?.data?.error) {
         alert(error.data.error);
       } else {
-        alert('アクティブビューの更新に失敗しました');
+        alert(t('failedToSave'));
       }
       
       // エラーが発生した場合は状態を元に戻さない（すでに変更していないため）
@@ -221,18 +227,18 @@ export default function ProjectCard({
           {/* 価格・月商・利益率 */}
           <div className="mb-3 space-y-1">
             <div className="flex items-center gap-2">
-              <span className="text-xs text-gray-500">希望価格:</span>
+              <span className="text-xs text-gray-500">{t('price')}:</span>
               <span className="font-bold text-lg" style={{ color: '#323232' }}>{price.toLocaleString()}円</span>
             </div>
             {monthlyRevenue !== undefined && (
               <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-500">月商:</span>
+                <span className="text-xs text-gray-500">{t('monthlyRevenue')}:</span>
                 <span className="font-semibold text-sm" style={{ color: '#323232' }}>{monthlyRevenue.toLocaleString()}円</span>
               </div>
             )}
             {profitMargin !== undefined && profitMargin > 0 && (
               <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-500">利益率:</span>
+                <span className="text-xs text-gray-500">{t('profitMargin')}:</span>
                 <span className="font-semibold text-sm" style={{ color: '#323232' }}>{profitMargin.toFixed(0)}%</span>
               </div>
             )}
@@ -253,7 +259,7 @@ export default function ProjectCard({
           {/* 更新日 */}
           {updatedAt && (
             <div className="text-xs text-gray-400 mb-3">
-              更新日: {formatDate(updatedAt)}
+              {t('updated')}: {formatDate(updatedAt)}
             </div>
           )}
 
@@ -293,7 +299,7 @@ export default function ProjectCard({
                 ? 'bg-red-500 text-white hover:bg-red-600'
                 : 'bg-white text-gray-700 hover:bg-gray-50'
             }`}
-            aria-label={isWatching ? 'ウォッチ解除' : 'ウォッチ'}
+            aria-label={isWatching ? t('unwatch') : t('watch')}
           >
             <Eye className="w-5 h-5" />
           </button>

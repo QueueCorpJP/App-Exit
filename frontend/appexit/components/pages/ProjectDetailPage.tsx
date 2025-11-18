@@ -60,7 +60,7 @@ export default function ProjectDetailPage({
   const displayImagePath = postDetails?.eyecatch_url || initialData?.imagePath || null;
   const displayCategory = postDetails?.app_categories?.[0] || initialData?.category || tGlobal('common.category');
   const displayPrice = postDetails?.price || initialData?.price;
-  const displayStatus = postDetails ? (postDetails.is_active ? tGlobal('transaction.statuses.pending') : tGlobal('transaction.statuses.completed')) : (initialData?.status || tGlobal('transaction.statuses.pending'));
+  const displayStatus = postDetails ? (postDetails.is_active ? tGlobal('transactions.statuses.pending') : tGlobal('transactions.statuses.completed')) : (initialData?.status || tGlobal('transactions.statuses.pending'));
   const displayAppealText = postDetails?.appeal_text || postDetails?.body || tGlobal('common.loading');
 
   // 投稿者のプロフィール情報
@@ -73,9 +73,9 @@ export default function ProjectDetailPage({
 
   // 成約状況のバッジ色
   const getStatusBadgeColor = (status: string) => {
-    const pendingText = tGlobal('transaction.statuses.pending');
-    const processingText = tGlobal('transaction.statuses.processing');
-    const completedText = tGlobal('transaction.statuses.completed');
+    const pendingText = tGlobal('transactions.statuses.pending');
+    const processingText = tGlobal('transactions.statuses.processing');
+    const completedText = tGlobal('transactions.statuses.completed');
 
     // 翻訳されたステータス名で判定
     if (status === pendingText) {

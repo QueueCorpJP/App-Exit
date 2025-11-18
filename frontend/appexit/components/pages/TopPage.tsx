@@ -37,16 +37,23 @@ interface TopPageProps {
 
 export default function TopPage({ initialPosts = [], useMockCarousel = true, pageDict = {} }: TopPageProps) {
   const t = useTranslations(); // common辞書用
+  const tHome = useTranslations('home'); // home辞書用
   const locale = useLocale();
 
   // ページ専用辞書を取得するヘルパー関数
   const tp = (key: string): string => {
-    const keys = key.split('.');
-    let value: any = pageDict;
-    for (const k of keys) {
-      value = value?.[k];
+    // まずuseTranslations('home')から取得を試みる
+    try {
+      return tHome(key);
+    } catch {
+      // フォールバックとしてpageDictから取得
+      const keys = key.split('.');
+      let value: any = pageDict;
+      for (const k of keys) {
+        value = value?.[k];
+      }
+      return value || key;
     }
-    return value || key;
   };
   const [posts, setPosts] = useState<Post[]>(initialPosts);
   const [projects, setProjects] = useState<ProjectWithImage[]>([]);
