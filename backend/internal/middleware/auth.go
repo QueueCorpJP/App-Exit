@@ -52,7 +52,8 @@ func AuthWithSupabase(supabaseJWTSecret string, supabaseService *services.Supaba
 					if _, isSensitive := sensitiveHeaders[strings.Title(strings.ToLower(key))]; isSensitive {
 						fmt.Printf("[AUTH]   %s: [REDACTED]\n", key)
 					} else {
-						fmt.Printf("[AUTH]   %s: %s\n", key, value)
+						// 値の長さのみを表示して、実際の値は出力しない（セキュリティ上の理由）
+					fmt.Printf("[AUTH]   %s: [value length: %d]\n", key, len(value))
 					}
 				}
 			}
@@ -81,7 +82,7 @@ func AuthWithSupabase(supabaseJWTSecret string, supabaseService *services.Supaba
 				fmt.Printf("[AUTH] r.Cookie() failed, manually parsing Cookie header...\n")
 				cookieHeader := r.Header.Get("Cookie")
 				if cookieHeader != "" {
-					fmt.Printf("[AUTH] Raw Cookie header: %s\n", cookieHeader[:min(100, len(cookieHeader))])
+					fmt.Printf("[AUTH] Cookie header found (length: %d)\n", len(cookieHeader))
 					// Cookie形式: "name1=value1; name2=value2; ..."
 					cookies := strings.Split(cookieHeader, ";")
 					for _, c := range cookies {

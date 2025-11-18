@@ -2497,9 +2497,7 @@ func (s *Server) ConfirmSaleRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req struct {
-		SaleRequestID string `json:"sale_request_id"`
-	}
+	var req models.ConfirmSaleRequestRequest
 	if !utils.DecodeAndValidate(r, w, &req) {
 		return
 	}

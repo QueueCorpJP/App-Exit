@@ -93,7 +93,10 @@ func SetupRoutes(cfg *config.Config) http.Handler {
 			}
 			safeHeaders[k] = v
 		}
-		fmt.Printf("[ROUTER] Headers: %v\n", safeHeaders)
+		// 本番環境ではセキュリティ上の理由でヘッダーを出力しない
+		if !cfg.IsProduction() {
+			fmt.Printf("[ROUTER] Headers: %v\n", safeHeaders)
+		}
 		fmt.Printf("[ROUTER] Calling auth middleware...\n")
 		auth(server.HandleThreads)(w, r)
 		fmt.Printf("========== ROUTER END ==========\n\n")

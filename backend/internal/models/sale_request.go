@@ -34,6 +34,11 @@ type CreateSaleRequestRequest struct {
 	PhoneNumber string `json:"phone_number,omitempty" validate:"omitempty,e164"`
 }
 
+// ConfirmSaleRequestRequest is used to confirm a sale request
+type ConfirmSaleRequestRequest struct {
+	SaleRequestID string `json:"sale_request_id" validate:"required"`
+}
+
 // SaleRequestWithPost includes sale request with post information
 type SaleRequestWithPost struct {
 	SaleRequest

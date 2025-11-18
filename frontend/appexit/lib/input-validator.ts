@@ -25,17 +25,18 @@ export interface ValidationResult {
 }
 
 // XSS攻撃パターン
+// [\s\S]を使用して改行を含むすべての文字にマッチ
 const XSS_PATTERNS = [
-  /<script[^>]*>.*?<\/script>/gi,
-  /<iframe[^>]*>.*?<\/iframe>/gi,
-  /<object[^>]*>.*?<\/object>/gi,
+  /<script[\s\S]*?<\/script>/gi,
+  /<iframe[\s\S]*?<\/iframe>/gi,
+  /<object[\s\S]*?<\/object>/gi,
   /<embed[^>]*>/gi,
-  /<applet[^>]*>.*?<\/applet>/gi,
+  /<applet[\s\S]*?<\/applet>/gi,
   /javascript:/gi,
   /on\w+\s*=/gi, // onclick, onload, etc.
   /<link[^>]*>/gi,
   /<meta[^>]*>/gi,
-  /<style[^>]*>.*?<\/style>/gi,
+  /<style[\s\S]*?<\/style>/gi,
   /expression\s*\(/gi, // CSS expression
   /@import/gi,
   /vbscript:/gi,

@@ -91,6 +91,10 @@ func ValidateStruct(s interface{}) error {
 		return validateCreateSaleRequestRequest(v)
 	case *models.CreateSaleRequestRequest:
 		return validateCreateSaleRequestRequest(*v)
+	case models.ConfirmSaleRequestRequest:
+		return validateConfirmSaleRequestRequest(v)
+	case *models.ConfirmSaleRequestRequest:
+		return validateConfirmSaleRequestRequest(*v)
 	default:
 		return fmt.Errorf("validation not implemented for type %T", s)
 	}
@@ -384,6 +388,15 @@ func validateCreateSaleRequestRequest(req models.CreateSaleRequestRequest) error
 
 	// Validate phone number if provided
 	if err := ValidatePhoneNumber(req.PhoneNumber); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func validateConfirmSaleRequestRequest(req models.ConfirmSaleRequestRequest) error {
+	// Validate sale_request_id is required
+	if err := ValidateRequired("sale_request_id", req.SaleRequestID); err != nil {
 		return err
 	}
 
