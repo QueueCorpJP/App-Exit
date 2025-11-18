@@ -24,19 +24,23 @@ export interface ValidationResult {
   errors: string[];
 }
 
+// ReDoS攻撃を防ぐための最大入力長（10KB）
+const MAX_INPUT_LENGTH = 10000;
+
 // XSS攻撃パターン
-// [\s\S]を使用して改行を含むすべての文字にマッチ
+// ReDoS攻撃を防ぐため、possessive quantifiers的なアプローチを使用
+// タグの開始から終了まで最大1000文字に制限
 const XSS_PATTERNS = [
-  /<script[\s\S]*?<\/script>/gi,
-  /<iframe[\s\S]*?<\/iframe>/gi,
-  /<object[\s\S]*?<\/object>/gi,
-  /<embed[^>]*>/gi,
-  /<applet[\s\S]*?<\/applet>/gi,
+  /<script(?:\s[^>]{0,1000})?>[\s\S]{0,1000}?<\/script>/gi,
+  /<iframe(?:\s[^>]{0,1000})?>[\s\S]{0,1000}?<\/iframe>/gi,
+  /<object(?:\s[^>]{0,1000})?>[\s\S]{0,1000}?<\/object>/gi,
+  /<embed[^>]{0,1000}>/gi,
+  /<applet(?:\s[^>]{0,1000})?>[\s\S]{0,1000}?<\/applet>/gi,
   /javascript:/gi,
   /on\w+\s*=/gi, // onclick, onload, etc.
-  /<link[^>]*>/gi,
-  /<meta[^>]*>/gi,
-  /<style[\s\S]*?<\/style>/gi,
+  /<link[^>]{0,1000}>/gi,
+  /<meta[^>]{0,1000}>/gi,
+  /<style(?:\s[^>]{0,1000})?>[\s\S]{0,1000}?<\/style>/gi,
   /expression\s*\(/gi, // CSS expression
   /@import/gi,
   /vbscript:/gi,
@@ -82,7 +86,14 @@ export function sanitizeText(
 
   let sanitized = value;
 
-  // 2. 長さチェック（DoS防止）
+  // 2. ReDoS攻撃防止: 最大入力長チェック
+  if (sanitized.length > MAX_INPUT_LENGTH) {
+    result.isValid = false;
+    result.errors.push(`Input too long. Maximum ${MAX_INPUT_LENGTH} characters allowed for security reasons.`);
+    sanitized = sanitized.substring(0, MAX_INPUT_LENGTH);
+  }
+
+  // 3. 長さチェック（DoS防止）
   if (sanitized.length > maxLength) {
     result.isValid = false;
     result.errors.push(`Input exceeds maximum length of ${maxLength} characters`);
