@@ -366,10 +366,10 @@ export default function ProjectDetailPage({
             {/* タブ風のナビゲーション */}
             <div className="bg-white rounded-sm">
               <div className="">
-                <nav className="flex space-x-8 px-6 border-b border-gray-200" aria-label="Tabs">
+                <nav className="flex justify-between px-2 sm:px-6 border-b border-gray-200" aria-label="Tabs">
                   <button
                     onClick={() => setActiveTab('overview')}
-                    className={`py-4 px-4 text-sm font-bold transition-colors ${
+                    className={`py-4 flex-1 text-sm font-bold transition-colors ${
                       activeTab === 'overview'
                         ? 'border-b-2'
                         : 'text-gray-500 hover:text-gray-700'
@@ -381,7 +381,7 @@ export default function ProjectDetailPage({
                   </button>
                   <button
                     onClick={() => setActiveTab('activity')}
-                    className={`py-4 px-4 text-sm font-bold transition-colors ${
+                    className={`py-4 flex-1 text-sm font-bold transition-colors ${
                       activeTab === 'activity'
                         ? 'border-b-2'
                         : 'text-gray-500 hover:text-gray-700'
@@ -393,7 +393,7 @@ export default function ProjectDetailPage({
                   </button>
                   <button
                     onClick={() => setActiveTab('comments')}
-                    className={`py-4 px-4 text-sm font-bold transition-colors ${
+                    className={`py-4 flex-1 text-sm font-bold transition-colors ${
                       activeTab === 'comments'
                         ? 'border-b-2'
                         : 'text-gray-500 hover:text-gray-700'
