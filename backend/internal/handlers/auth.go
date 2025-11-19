@@ -383,13 +383,29 @@ func (s *Server) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if req.IconURL != nil && *req.IconURL != "" {
-		iconURLResult := utils.SanitizeURL(*req.IconURL)
-		if !iconURLResult.IsValid {
-			fmt.Printf("[UPDATE PROFILE] ❌ ERROR: Invalid icon URL: %v\n", iconURLResult.Errors)
-			response.Error(w, http.StatusBadRequest, "Invalid icon URL")
-			return
+		// icon_urlは完全なURLまたはSupabase Storageのパスを許可
+		iconURL := *req.IconURL
+
+		// 完全なURL（http/https）の場合のみサニタイズチェック
+		if strings.HasPrefix(iconURL, "http://") || strings.HasPrefix(iconURL, "https://") {
+			iconURLResult := utils.SanitizeURL(iconURL)
+			if !iconURLResult.IsValid {
+				fmt.Printf("[UPDATE PROFILE] ❌ ERROR: Invalid icon URL: %v\n", iconURLResult.Errors)
+				response.Error(w, http.StatusBadRequest, "Invalid icon URL")
+				return
+			}
+			req.IconURL = &iconURLResult.Sanitized
+		} else {
+			// Storageパスの場合は基本的なサニタイズのみ（パストラバーサル対策）
+			if strings.Contains(iconURL, "..") || strings.Contains(iconURL, "\\") {
+				fmt.Printf("[UPDATE PROFILE] ❌ ERROR: Invalid storage path (path traversal detected)\n")
+				response.Error(w, http.StatusBadRequest, "Invalid storage path")
+				return
+			}
+			// NULL文字削除
+			iconURL = strings.ReplaceAll(iconURL, "\x00", "")
+			req.IconURL = &iconURL
 		}
-		req.IconURL = &iconURLResult.Sanitized
 	}
 
 	// 更新データを構築

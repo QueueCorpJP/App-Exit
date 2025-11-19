@@ -1,5 +1,6 @@
 import ProjectDetailPage from '@/components/pages/ProjectDetailPage';
 import type { Locale } from '@/i18n/config';
+import { loadPageDictionary } from '@/lib/i18n-utils';
 
 interface PageProps {
   params: Promise<{

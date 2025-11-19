@@ -1,16 +1,19 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
-import { CreditCard, CheckCircle2, AlertCircle } from 'lucide-react';
+import { CreditCard, CheckCircle2, AlertCircle, X } from 'lucide-react';
 import { profileApi, Profile } from '@/lib/api-client';
 import { useAuth } from '@/lib/auth-context';
 import { postApi, Post } from '@/lib/api-client';
 import { truncateDisplayName } from '@/lib/text-utils';
 import { usePageDict } from '@/lib/page-dict';
+import ProjectCard from '@/components/ui/ProjectCard';
+import Button from '@/components/ui/Button';
+import { getImageUrls } from '@/lib/storage';
 
 interface ProfilePageProps {
   pageDict?: Record<string, any>;
@@ -24,8 +27,19 @@ export default function ProfilePage({ pageDict = {} }: ProfilePageProps) {
   const tp = usePageDict(pageDict);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
-  const [activeTab, setActiveTab] = useState<'all' | 'board' | 'transaction' | 'secret'>('all');
+  const [watchingPosts, setWatchingPosts] = useState<Post[]>([]);
+  const [activeTab, setActiveTab] = useState<'all' | 'board' | 'transaction' | 'secret' | 'watching'>('all');
   const [loading, setLoading] = useState(true);
+  const [isLoadingWatching, setIsLoadingWatching] = useState(false);
+  const [hasMoreWatching, setHasMoreWatching] = useState(true);
+  const [watchingOffset, setWatchingOffset] = useState(0);
+  const [isLoadingPosts, setIsLoadingPosts] = useState(false);
+  const [hasMorePosts, setHasMorePosts] = useState(true);
+  const [postsOffset, setPostsOffset] = useState(0);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const POSTS_PER_PAGE = 12;
 
   useEffect(() => {
     let isMounted = true;
@@ -50,19 +64,22 @@ export default function ProfilePage({ pageDict = {} }: ProfilePageProps) {
         const profile = await profileApi.getProfile();
         if (isMounted && profile) {
           console.log('[ProfilePage] Loaded profile:', profile);
-          console.log('[ProfilePage] stripe_account_id:', profile.stripe_account_id);
-          console.log('[ProfilePage] stripe_onboarding_completed:', profile.stripe_onboarding_completed);
           setProfile(profile);
         }
 
         // ユーザーの投稿を取得（エラーが発生してもプロフィールは表示する）
+        // スケーラビリティ改善: ページネーション対応
         try {
           const posts = await postApi.getPosts({
             author_user_id: currentUser.id,
-            limit: 50
+            limit: POSTS_PER_PAGE,
+            offset: 0
           });
           if (isMounted) {
-            setPosts(Array.isArray(posts) ? posts : []);
+            const postsArray = Array.isArray(posts) ? posts : [];
+            setPosts(postsArray);
+            setPostsOffset(POSTS_PER_PAGE);
+            setHasMorePosts(postsArray.length >= POSTS_PER_PAGE);
           }
         } catch (postError) {
           console.error('Failed to fetch posts:', postError);
@@ -83,6 +100,189 @@ export default function ProfilePage({ pageDict = {} }: ProfilePageProps) {
       isMounted = false;
     };
   }, [currentUser?.id, authLoading]);
+
+  useEffect(() => {
+    if (currentUser?.id && activeTab === 'watching') {
+      loadWatchingPosts();
+    }
+  }, [currentUser?.id, activeTab]);
+
+  // メニュー外クリックで閉じる
+  useEffect(() => {
+    const handleClickOutside = () => setOpenMenuId(null);
+    if (openMenuId) {
+      document.addEventListener('click', handleClickOutside);
+      return () => document.removeEventListener('click', handleClickOutside);
+    }
+  }, [openMenuId]);
+
+  const loadWatchingPosts = async (loadMore = false) => {
+    if (!currentUser?.id) {
+      console.log('[ProfilePage] No user ID, skipping watching posts load');
+      return;
+    }
+
+    try {
+      console.log('[ProfilePage] Loading active views for user:', currentUser.id);
+      setIsLoadingWatching(true);
+
+      const offset = loadMore ? watchingOffset : 0;
+      const { supabase } = await import('@/lib/supabase');
+
+      // ページネーション付きでアクティブビューを取得
+      const { data: activeViews, error: activeViewError } = await supabase
+        .from('product_active_views')
+        .select('post_id, created_at')
+        .eq('user_id', currentUser.id)
+        .order('created_at', { ascending: false })
+        .range(offset, offset + POSTS_PER_PAGE - 1);
+
+      if (activeViewError) {
+        console.error('[ProfilePage] Failed to load active views:', activeViewError);
+        if (!loadMore) setWatchingPosts([]);
+        return;
+      }
+
+      console.log('[ProfilePage] Active views:', activeViews);
+
+      if (!activeViews || activeViews.length === 0) {
+        console.log('[ProfilePage] No more active views found');
+        setHasMoreWatching(false);
+        if (!loadMore) setWatchingPosts([]);
+        return;
+      }
+
+      // これ以上データがないかチェック
+      if (activeViews.length < POSTS_PER_PAGE) {
+        setHasMoreWatching(false);
+      }
+
+      // アクティブビューの投稿IDを取得
+      const postIds = activeViews.map(av => av.post_id);
+      console.log('[ProfilePage] Post IDs from active views:', postIds);
+
+      // 投稿の詳細を一括取得（N+1問題を回避、必要なフィールドのみ取得）
+      const { data: posts, error: postsError } = await supabase
+        .from('posts')
+        .select(`
+          id,
+          title,
+          app_categories,
+          eyecatch_url,
+          price,
+          monthly_revenue,
+          monthly_cost,
+          updated_at,
+          author_user_id,
+          type,
+          is_active,
+          created_at
+        `)
+        .in('id', postIds);
+
+      if (postsError) {
+        console.error('[ProfilePage] Failed to load posts:', postsError);
+        if (!loadMore) setWatchingPosts([]);
+        return;
+      }
+
+      console.log('[ProfilePage] Loaded watching posts:', posts);
+
+      // アクティブビュー数を取得（既に取得したactiveViewsデータを再利用 - スケーラビリティ改善）
+      // 注: 全ユーザーのビュー数が必要な場合は別途APIで集計データを取得する必要がある
+      // 現在は閲覧中の投稿なので各投稿に1つのビューがあることが保証されている
+      const activeViewCountMap = new Map<string, number>();
+      // ページネーションされたactiveViewsは現在のユーザーのビューのみなので、
+      // 正確なビュー数が必要な場合はバックエンドでGROUP BYを使用すべき
+      // ここでは簡易的に1としてマーク（または別途API追加が必要）
+      postIds.forEach(postId => {
+        activeViewCountMap.set(postId, 1); // 最低1（現在のユーザー）
+      });
+
+      // 画像パスを収集して署名付きURLを取得
+      const imagePaths = (posts || []).map(post => post.eyecatch_url).filter((path): path is string => !!path);
+      const imageUrlMap = imagePaths.length > 0 ? await getImageUrls(imagePaths) : new Map();
+
+      // 投稿データに画像URLと計算フィールドを追加
+      const typedPosts: Post[] = (posts || []).map(post => {
+        const imageUrl = post.eyecatch_url ? 
+          (imageUrlMap.get(post.eyecatch_url) || 'https://placehold.co/600x400/e2e8f0/64748b?text=No+Image') :
+          'https://placehold.co/600x400/e2e8f0/64748b?text=No+Image';
+        
+        const profitMargin = post.monthly_revenue && post.monthly_cost !== undefined && post.monthly_revenue > 0
+          ? ((post.monthly_revenue - post.monthly_cost) / post.monthly_revenue) * 100
+          : undefined;
+
+        return {
+          ...post,
+          image_url: imageUrl,
+          image_path: post.eyecatch_url || null,
+          desired_price: post.price || 0,
+          profit_margin: profitMargin,
+          status: post.is_active ? '募集中' : '成約済み',
+          active_view_count: activeViewCountMap.get(post.id) || 0
+        } as Post;
+      });
+
+      if (loadMore) {
+        setWatchingPosts(prev => [...prev, ...typedPosts]);
+        setWatchingOffset(offset + POSTS_PER_PAGE);
+      } else {
+        setWatchingPosts(typedPosts);
+        setWatchingOffset(POSTS_PER_PAGE);
+      }
+    } catch (err) {
+      console.error('[ProfilePage] Failed to load watched posts:', err);
+      if (!loadMore) setWatchingPosts([]);
+    } finally {
+      setIsLoadingWatching(false);
+    }
+  };
+
+  const loadMorePosts = async () => {
+    if (!currentUser?.id || isLoadingPosts || !hasMorePosts) {
+      return;
+    }
+
+    try {
+      setIsLoadingPosts(true);
+      const morePosts = await postApi.getPosts({
+        author_user_id: currentUser.id,
+        limit: POSTS_PER_PAGE,
+        offset: postsOffset
+      });
+
+      const newPosts = Array.isArray(morePosts) ? morePosts : [];
+      setPosts(prev => [...prev, ...newPosts]);
+      setPostsOffset(prev => prev + POSTS_PER_PAGE);
+      setHasMorePosts(newPosts.length >= POSTS_PER_PAGE);
+    } catch (error) {
+      console.error('[ProfilePage] Failed to load more posts:', error);
+    } finally {
+      setIsLoadingPosts(false);
+    }
+  };
+
+  const handleDeletePost = async (postId: string) => {
+    if (!currentUser?.id || isDeleting) return;
+
+    try {
+      setIsDeleting(true);
+      await postApi.deletePost(postId);
+
+      // ローカル状態から削除
+      setPosts(prev => prev.filter(p => p.id !== postId));
+      setWatchingPosts(prev => prev.filter(p => p.id !== postId));
+
+      setDeleteConfirmId(null);
+      setOpenMenuId(null);
+    } catch (error) {
+      console.error('[ProfilePage] Failed to delete post:', error);
+      alert(t('errors.deleteFailed') || '削除に失敗しました');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -130,9 +330,11 @@ export default function ProfilePage({ pageDict = {} }: ProfilePageProps) {
     }
   };
 
-  const filteredPosts = activeTab === 'all' 
-    ? posts 
-    : posts.filter(post => post.type === activeTab);
+  const filteredPosts = useMemo(() => {
+    if (activeTab === 'watching') return watchingPosts;
+    if (activeTab === 'all') return posts;
+    return posts.filter(post => post.type === activeTab);
+  }, [activeTab, watchingPosts, posts]);
 
   if (loading) {
     return (
@@ -219,57 +421,6 @@ export default function ProfilePage({ pageDict = {} }: ProfilePageProps) {
             >
               {tp('editProfile')}
             </Link>
-            {profile.stripe_account_id && profile.stripe_onboarding_completed ? (
-              <Link
-                href="/settings/payment"
-                className="relative w-12 h-12 flex items-center justify-center group"
-                title={tp('paymentSetupComplete')}
-              >
-                <div className="relative">
-                  <svg className="w-8 h-8 text-emerald-600 group-hover:text-emerald-700 transition-colors" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/>
-                  </svg>
-                  {/* チェックマークオーバーレイ */}
-                  <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-emerald-500 rounded-full flex items-center justify-center shadow-md">
-                    <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7" />
-                    </svg>
-                  </div>
-                </div>
-              </Link>
-            ) : profile.stripe_account_id ? (
-              <Link
-                href="/settings/payment"
-                className="relative w-12 h-12 flex items-center justify-center group"
-                title={tp('identityVerificationRequired')}
-              >
-                <div className="relative">
-                  <svg className="w-8 h-8 text-amber-600 group-hover:text-amber-700 transition-colors" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/>
-                  </svg>
-                  {/* 警告マークオーバーレイ */}
-                  <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-amber-500 rounded-full flex items-center justify-center shadow-md">
-                    <span className="text-white text-xs font-bold leading-none">!</span>
-                  </div>
-                </div>
-              </Link>
-            ) : (
-              <Link
-                href="/settings/payment"
-                className="relative w-12 h-12 flex items-center justify-center group"
-                title={tp('paymentSetupRequired')}
-              >
-                <div className="relative">
-                  <svg className="w-8 h-8 text-indigo-600 group-hover:text-indigo-700 transition-colors" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/>
-                  </svg>
-                  {/* プラスマークオーバーレイ */}
-                  <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-indigo-500 rounded-full flex items-center justify-center shadow-md">
-                    <span className="text-white text-sm font-bold leading-none">+</span>
-                  </div>
-                </div>
-              </Link>
-            )}
           </div>
         </div>
 
@@ -327,6 +478,7 @@ export default function ProfilePage({ pageDict = {} }: ProfilePageProps) {
             { id: 'board' as const, label: tp('board'), count: posts.filter((p: Post) => p.type === 'board').length },
             { id: 'transaction' as const, label: tp('transaction'), count: posts.filter((p: Post) => p.type === 'transaction').length },
             { id: 'secret' as const, label: tp('secret'), count: posts.filter((p: Post) => p.type === 'secret').length },
+            { id: 'watching' as const, label: t('common.watching'), count: watchingPosts.length },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -347,23 +499,114 @@ export default function ProfilePage({ pageDict = {} }: ProfilePageProps) {
 
         {/* タブコンテンツ */}
         <div className="py-4">
-          <div className="space-y-0">
-            {filteredPosts.length === 0 ? (
-              <div className="text-center py-12">
-                <p className="text-gray-500">
-                  {activeTab === 'all' 
-                    ? tp('noPosts')
-                    : tp('noPostsInCategory').replace('{category}', getPostTypeLabel(activeTab))}
-                </p>
-              </div>
-            ) : (
-              filteredPosts.map((post) => (
-                <Link
+          {activeTab === 'watching' ? (
+            <div>
+              {isLoadingWatching && watchingPosts.length === 0 ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-600"></div>
+                  <p className="ml-3 text-gray-600">{t('common.loading')}</p>
+                </div>
+              ) : watchingPosts.length > 0 ? (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {watchingPosts.map((post) => (
+                      <ProjectCard
+                        key={post.id}
+                        id={post.id}
+                        title={post.title}
+                        category={post.app_categories || []}
+                        image={post.image_url || ''}
+                        imagePath={post.image_path || null}
+                        price={post.desired_price || 0}
+                        monthlyRevenue={post.monthly_revenue}
+                        monthlyCost={post.monthly_cost}
+                        profitMargin={post.profit_margin}
+                        status={post.status}
+                        updatedAt={post.updated_at}
+                        authorProfile={post.author_profile}
+                        activeViewCount={post.active_view_count}
+                      />
+                    ))}
+                  </div>
+                  {hasMoreWatching && (
+                    <div className="flex justify-center mt-8">
+                      <Button
+                        onClick={() => loadWatchingPosts(true)}
+                        disabled={isLoadingWatching}
+                        variant="outline"
+                        className="px-8"
+                      >
+                        {isLoadingWatching ? t('common.loading') : t('common.loadMore')}
+                      </Button>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="bg-white p-8 rounded-sm text-center">
+                  <p className="text-gray-500">{t('common.noProductsWatched')}</p>
+                  <Button
+                    onClick={() => router.push('/')}
+                    className="mt-4"
+                    style={{
+                      backgroundColor: '#E65D65',
+                      color: '#fff'
+                    }}
+                  >
+                    {t('common.exploreProducts')}
+                  </Button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-0">
+              {filteredPosts.length === 0 ? (
+                <div className="text-center py-12">
+                  <p className="text-gray-500">
+                    {activeTab === 'all' 
+                      ? tp('noPosts')
+                      : tp('noPostsInCategory').replace('{category}', getPostTypeLabel(activeTab))}
+                  </p>
+                </div>
+              ) : (
+                filteredPosts.map((post) => (
+                <div
                   key={post.id}
-                  href={`/projects/${post.id}`}
-                  className="block border-b border-gray-200 py-4 px-4 hover:bg-gray-50 transition-colors"
+                  className="relative border-b border-gray-200 py-4 px-4 hover:bg-gray-50 transition-colors"
                 >
-                  <div className="flex items-start space-x-3">
+                  {/* 三点メニュー */}
+                  <div className="absolute top-4 right-4">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setOpenMenuId(openMenuId === post.id ? null : post.id);
+                      }}
+                      className="p-2 hover:bg-gray-200 rounded-full transition-colors"
+                      aria-label="メニュー"
+                    >
+                      <svg className="w-5 h-5 text-gray-600" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+                      </svg>
+                    </button>
+
+                    {/* ドロップダウンメニュー */}
+                    {openMenuId === post.id && (
+                      <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10 border border-gray-200">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeleteConfirmId(post.id);
+                            setOpenMenuId(null);
+                          }}
+                          className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                        >
+                          削除
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <Link href={`/projects/${post.id}`} className="block">
+                    <div className="flex items-start space-x-3 pr-10">
                     <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0 overflow-hidden">
                       {profile.icon_url ? (
                         <Image
@@ -380,28 +623,22 @@ export default function ProfilePage({ pageDict = {} }: ProfilePageProps) {
                     <div className="flex-1 min-w-0">
                       <div className="mb-1">
                         {/* デスクトップ: 横並び */}
-                        <div className="hidden sm:flex items-center justify-between">
+                        <div className="hidden sm:flex items-center">
                           <div className="flex items-center space-x-2">
                             <span className="font-semibold text-gray-900" title={profile.display_name}>{truncateDisplayName(profile.display_name, 'post')}</span>
                             <span className="text-gray-500 text-sm">@{profile.id.substring(0, 8)}</span>
                             <span className="text-gray-500 text-sm">·</span>
                             <span className="text-gray-500 text-sm">{formatDate(post.created_at)}</span>
                           </div>
-                          <span className={`px-2 py-1 text-xs font-semibold rounded ${getPostTypeBadgeColor(post.type)}`}>
-                            {getPostTypeLabel(post.type)}
-                          </span>
                         </div>
                         
                         {/* モバイル: 縦並び */}
                         <div className="sm:hidden">
-                          <div className="flex items-center justify-between mb-1">
+                          <div className="flex items-center mb-1">
                             <div className="flex items-center space-x-2">
                               <span className="font-semibold text-gray-900" title={profile.display_name}>{truncateDisplayName(profile.display_name, 'post')}</span>
                               <span className="text-gray-500 text-sm">@{profile.id.substring(0, 8)}</span>
                             </div>
-                            <span className={`px-2 py-1 text-xs font-semibold rounded ${getPostTypeBadgeColor(post.type)}`}>
-                              {getPostTypeLabel(post.type)}
-                            </span>
                           </div>
                           <div className="text-gray-500 text-sm">
                             {formatDate(post.created_at)}
@@ -412,19 +649,26 @@ export default function ProfilePage({ pageDict = {} }: ProfilePageProps) {
                       {post.body && (
                         <p className="text-gray-700 mb-2 line-clamp-2">{post.body}</p>
                       )}
-                      {(post.price || (post.budget_min && post.budget_max)) && (
-                        <div className="mb-2">
-                          {post.price ? (
-                            <span className="text-lg font-bold text-green-600">
-                              ¥{post.price.toLocaleString()}
-                            </span>
-                          ) : (
-                            <span className="text-sm text-gray-600">
-                              {tp('budget')}: ¥{post.budget_min?.toLocaleString()} - ¥{post.budget_max?.toLocaleString()}
-                            </span>
-                          )}
+                      <div className="flex items-center justify-between mb-2">
+                        {(post.price || (post.budget_min && post.budget_max)) && (
+                          <div>
+                            {post.price ? (
+                              <span className="text-lg font-bold text-green-600">
+                                ¥{post.price.toLocaleString()}
+                              </span>
+                            ) : (
+                              <span className="text-sm text-gray-600">
+                                {tp('budget')}: ¥{post.budget_min?.toLocaleString()} - ¥{post.budget_max?.toLocaleString()}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                        <div className="flex items-center gap-2">
+                          <span className={`px-2 py-1 text-xs font-semibold rounded ${getPostTypeBadgeColor(post.type)}`}>
+                            {getPostTypeLabel(post.type)}
+                          </span>
                         </div>
-                      )}
+                      </div>
                       {post.cover_image_url && (
                         <div className="rounded-lg overflow-hidden mb-2 mt-2">
                           <Image
@@ -448,10 +692,91 @@ export default function ProfilePage({ pageDict = {} }: ProfilePageProps) {
                       )}
                     </div>
                   </div>
-                </Link>
+                  </Link>
+                </div>
               ))
-            )}
-          </div>
+              )}
+
+              {/* 削除確認モーダル */}
+              {deleteConfirmId && (
+                <div
+                  className="fixed inset-0 flex items-center justify-center z-50 py-12 sm:px-6"
+                  style={{ backgroundColor: 'rgba(0, 0, 0, 0.2)' }}
+                  onClick={() => !isDeleting && setDeleteConfirmId(null)}
+                >
+                  <div
+                    className="bg-white py-8 px-4 sm:px-10 rounded-md w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="flex items-center justify-between mb-6">
+                      <h2
+                        className="text-lg font-bold text-center flex-1"
+                        style={{
+                          color: '#323232',
+                          fontWeight: 900,
+                          fontSize: '1.125rem',
+                          letterSpacing: '0.02em'
+                        }}
+                      >
+                        投稿を削除しますか？
+                      </h2>
+                      <button
+                        onClick={() => !isDeleting && setDeleteConfirmId(null)}
+                        disabled={isDeleting}
+                        className="p-1 hover:bg-gray-100 rounded-full transition-colors disabled:opacity-50"
+                      >
+                        <X className="w-5 h-5 text-gray-500" />
+                      </button>
+                    </div>
+
+                    <div className="mb-6">
+                      <p
+                        className="text-sm"
+                        style={{ color: '#323232' }}
+                      >
+                        この操作は取り消せません。本当に削除してよろしいですか？
+                      </p>
+                    </div>
+
+                    <div className="space-y-3">
+                      <Button
+                        onClick={() => handleDeletePost(deleteConfirmId)}
+                        disabled={isDeleting}
+                        className="w-full"
+                        style={{
+                          backgroundColor: isDeleting ? '#9CA3AF' : '#DC2626',
+                          color: '#fff'
+                        }}
+                      >
+                        {isDeleting ? '削除中...' : '削除'}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => setDeleteConfirmId(null)}
+                        disabled={isDeleting}
+                        className="w-full"
+                      >
+                        キャンセル
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {/* もっと見るボタン (スケーラビリティ改善: ページネーション対応) */}
+              {(activeTab === 'all' || activeTab === 'board' || activeTab === 'transaction' || activeTab === 'secret') && hasMorePosts && filteredPosts.length > 0 && (
+                <div className="flex justify-center py-6">
+                  <Button
+                    onClick={loadMorePosts}
+                    disabled={isLoadingPosts}
+                    variant="outline"
+                    className="px-8"
+                  >
+                    {isLoadingPosts ? t('common.loading') : t('common.loadMore')}
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>

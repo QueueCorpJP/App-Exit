@@ -36,8 +36,5 @@
   "priceOnly": "Price information only",
   "hidden": "Hidden post",
   "budget": "Budget",
-  "profileJoinDate": "{month} {year}",
-  "paymentSetupComplete": "Payment setup complete",
-  "identityVerificationRequired": "Identity verification required",
-  "paymentSetupRequired": "Payment setup required"
+  "profileJoinDate": "{month} {year}"
 }

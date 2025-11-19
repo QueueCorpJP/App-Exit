@@ -20,7 +20,11 @@ function MessageThreadContainer({ threadId, onBack }: MessageThreadContainerProp
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [hasMoreMessages, setHasMoreMessages] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const prevThreadIdRef = useRef<string | undefined>(undefined);
+  const redirectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const MESSAGES_PER_PAGE = 50;
 
   // threadIdが変わった時のみデータを取得
   useEffect(() => {
@@ -53,11 +57,20 @@ function MessageThreadContainer({ threadId, onBack }: MessageThreadContainerProp
         setIsLoadingMessages(true);
         setError(null);
 
-        // スレッド詳細とメッセージ一覧を並行取得
+        // 自分自身のIDの場合はスレッド詳細を取得しない（受信トレイ表示）
+        if (currentThreadId === user.id) {
+          console.log('[MESSAGE-THREAD] Thread ID matches user ID, skipping thread fetch (inbox view)');
+          setThreadDetail(null);
+          setMessages([]);
+          setIsLoadingMessages(false);
+          return;
+        }
+
+        // スレッド詳細とメッセージ一覧を並行取得（最新50件のみ）
         console.log('[MESSAGE-THREAD] Starting Promise.all for API calls, threadId:', currentThreadId);
         const [detailResponse, messagesResponse] = await Promise.all([
           messageApi.getThread(currentThreadId),
-          messageApi.getMessages(currentThreadId),
+          messageApi.getMessages(currentThreadId, { limit: MESSAGES_PER_PAGE, offset: 0 }),
         ]);
 
         console.log('[MESSAGE-THREAD] Promise.all completed', {
@@ -135,6 +148,7 @@ function MessageThreadContainer({ threadId, onBack }: MessageThreadContainerProp
         // コンポーネントが再マウントされていても、threadIdが一致していれば表示する
         setMessages(messages);
         setError(null);
+        setHasMoreMessages(messages.length >= MESSAGES_PER_PAGE);
         console.log('[MESSAGE-THREAD] Messages set (empty array is OK):', messages.length);
 
         // 画像パスを収集
@@ -235,8 +249,12 @@ function MessageThreadContainer({ threadId, onBack }: MessageThreadContainerProp
 
           // 2秒後にメッセージ一覧にリダイレクト
           if (onBack) {
-            setTimeout(() => {
+            if (redirectTimeoutRef.current) {
+              clearTimeout(redirectTimeoutRef.current);
+            }
+            redirectTimeoutRef.current = setTimeout(() => {
               onBack();
+              redirectTimeoutRef.current = null;
             }, 2000);
           }
         } else {
@@ -263,8 +281,38 @@ function MessageThreadContainer({ threadId, onBack }: MessageThreadContainerProp
     // クリーンアップ: コンポーネントのアンマウント時に実行
     return () => {
       abortController.abort();
+      if (redirectTimeoutRef.current) {
+        clearTimeout(redirectTimeoutRef.current);
+        redirectTimeoutRef.current = null;
+      }
     };
   }, [threadId, user]);
+
+  // 古いメッセージを読み込む
+  const loadMoreMessages = useCallback(async () => {
+    if (!threadId || isLoadingMore || !hasMoreMessages) return;
+
+    setIsLoadingMore(true);
+    try {
+      const olderMessages = await messageApi.getMessages(threadId, {
+        limit: MESSAGES_PER_PAGE,
+        offset: messages.length,
+      });
+
+      if (Array.isArray(olderMessages) && olderMessages.length > 0) {
+        // 古いメッセージを先頭に追加（時系列順を保つ）
+        setMessages(prev => [...olderMessages, ...prev]);
+        setHasMoreMessages(olderMessages.length >= MESSAGES_PER_PAGE);
+      } else {
+        setHasMoreMessages(false);
+      }
+    } catch (err) {
+      console.error('[MESSAGE-THREAD] Failed to load more messages:', err);
+      setHasMoreMessages(false);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [threadId, isLoadingMore, hasMoreMessages, messages.length, MESSAGES_PER_PAGE]);
 
   const handleSendMessage = useCallback(async (messageText: string, imageFile?: File | null) => {
     if ((!messageText.trim() && !imageFile) || !threadId || isSending || !user) return;
@@ -381,6 +429,9 @@ function MessageThreadContainer({ threadId, onBack }: MessageThreadContainerProp
       isSending={isSending}
       isLoadingMessages={isLoadingMessages}
       onBack={onBack}
+      onLoadMore={loadMoreMessages}
+      hasMoreMessages={hasMoreMessages}
+      isLoadingMore={isLoadingMore}
     />
   );
 }

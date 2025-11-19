@@ -2,6 +2,7 @@ import TopPage from '@/components/pages/TopPage';
 import { Post } from '@/lib/api-client';
 import { Locale } from '@/i18n/config';
 import { WebSiteStructuredData, ProductStructuredData, ServiceStructuredData } from '@/components/seo/StructuredData';
+import { loadPageDictionary } from '@/lib/i18n-utils';
 
 async function getPosts(): Promise<Post[]> {
   try {
@@ -33,8 +34,6 @@ export default async function Home({ params }: HomeProps) {
   // Server Componentで初期データを取得
   const initialPosts = await getPosts();
 
-  // common.jsonはlayoutで既にロード済み
-  // TopPageコンポーネント内でuseTranslations()を使用
   return (
     <>
       {/* ⚡ 構造化データ（JSON-LD）はトップページのみに配置してHTMLサイズ削減 */}

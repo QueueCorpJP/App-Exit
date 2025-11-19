@@ -51,14 +51,33 @@ interface ProjectCreatePageProps {
   postType: 'board' | 'transaction' | 'secret';
   pageTitle: string;
   pageSubtitle?: string;
+  pageDict?: Record<string, any>; // ページ固有翻訳（遅延ロード）
 }
 
-export default function ProjectCreatePage({ postType, pageTitle, pageSubtitle }: ProjectCreatePageProps) {
+export default function ProjectCreatePage({ postType, pageTitle, pageSubtitle, pageDict = {} }: ProjectCreatePageProps) {
   const router = useRouter();
   const t = useTranslations();
-  const tForm = useTranslations('form');
   const tCategories = useTranslations('categories');
   const tCommon = useTranslations('common');
+
+  // ページ専用翻訳を取得（遅延ロード）
+  const tForm = (key: string, params?: Record<string, any>): string => {
+    const keys = key.split('.');
+    let value: any = pageDict.form;
+    for (const k of keys) {
+      value = value?.[k];
+    }
+    let result = value || key;
+
+    // パラメータの置換
+    if (params) {
+      Object.entries(params).forEach(([paramKey, paramValue]) => {
+        result = result.replace(`{${paramKey}}`, String(paramValue));
+      });
+    }
+
+    return result;
+  };
 
   // カラーテーマ定義 - secretページは色を反転
   const colors = postType === 'secret' ? {

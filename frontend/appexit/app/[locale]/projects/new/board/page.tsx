@@ -1,10 +1,13 @@
 import PostBoardPage from '@/components/pages/PostBoardPage';
 
+// このページは動的にレンダリングする
+export const dynamic = 'force-dynamic';
+
 interface Post {
   id: string;
   title: string;
-  body: string | null;
-  eyecatch_url: string | null;
+  body?: string;
+  eyecatch_url?: string;
   author_user_id: string;
   created_at: string;
   type: string;

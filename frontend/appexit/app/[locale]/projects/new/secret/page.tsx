@@ -5,7 +5,13 @@ import type { Locale } from '@/i18n/config';
 
 export default async function NewSecretProject({ params }: { params: Promise<{ locale: Locale }> }) {
   const { locale } = await params;
-  const projectsDict = await loadPageDictionary(locale, 'projects');
+
+  // ページ固有の翻訳を並列取得
+  const [projectsDict, formDict] = await Promise.all([
+    loadPageDictionary(locale, 'projects'),
+    loadPageDictionary(locale, 'form'),
+  ]);
+
   const tp = createPageDictHelper(projectsDict);
 
   return (
@@ -13,6 +19,7 @@ export default async function NewSecretProject({ params }: { params: Promise<{ l
         postType="secret"
         pageTitle={tp('create.secret.title')}
         pageSubtitle={tp('create.secret.subtitle')}
+        pageDict={{ form: formDict }}
       />
   );
 }

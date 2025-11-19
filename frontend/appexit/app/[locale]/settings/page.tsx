@@ -25,14 +25,6 @@ export default async function SettingsIndexPage({ params }: { params: Promise<{ 
               <h2 className="text-lg font-semibold mb-1">{tp('profile.title')}</h2>
               <p className="text-sm">{tp('profile.description')}</p>
             </Link>
-
-            <Link
-              href={`/${locale}/settings/payment`}
-              className="block border border-gray-200 rounded-lg p-6 hover:border-gray-400 transition-colors"
-            >
-              <h2 className="text-lg font-semibold mb-1">{tp('payment.title')}</h2>
-              <p className="text-sm">{tp('payment.description')}</p>
-            </Link>
           </div>
 
           <div className="mt-8 border-t border-gray-200 pt-6">

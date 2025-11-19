@@ -1,9 +1,10 @@
 'use client';
 
-import { memo, useCallback } from 'react';
+import { memo, useCallback, useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { ThreadWithLastMessage } from '@/lib/api-client';
 import { truncateDisplayName } from '@/lib/text-utils';
+import { getImageUrl } from '@/lib/storage';
 
 interface ThreadListProps {
   threads: ThreadWithLastMessage[];
@@ -25,6 +26,7 @@ interface ThreadItemProps {
 const ThreadItem = memo(({ thread, isSelected, currentUserId, onSelect }: ThreadItemProps) => {
   const locale = useLocale();
   const t = useTranslations('messages');
+  const [iconUrl, setIconUrl] = useState<string | null>(null);
 
   const formatTime = (timeString: string) => {
     const date = new Date(timeString);
@@ -59,7 +61,31 @@ const ThreadItem = memo(({ thread, isSelected, currentUserId, onSelect }: Thread
   console.log('[THREAD-ITEM] Other participant:', otherParticipant);
 
   const displayName = otherParticipant?.display_name ? truncateDisplayName(otherParticipant.display_name, 'post') : t('user');
-  const iconUrl = otherParticipant?.icon_url;
+  
+  // アイコンのURLを取得
+  useEffect(() => {
+    const fetchIconUrl = async () => {
+      if (otherParticipant?.icon_url) {
+        // 既に完全なURLの場合はそのまま使用
+        if (otherParticipant.icon_url.startsWith('http://') || otherParticipant.icon_url.startsWith('https://')) {
+          setIconUrl(otherParticipant.icon_url);
+          return;
+        }
+        
+        try {
+          const url = await getImageUrl(otherParticipant.icon_url, 'profile-icons');
+          setIconUrl(url);
+        } catch (error) {
+          console.error('[THREAD-ITEM] Failed to get icon URL:', error);
+          setIconUrl(null);
+        }
+      } else {
+        setIconUrl(null);
+      }
+    };
+    
+    fetchIconUrl();
+  }, [otherParticipant?.icon_url]);
 
   const lastMessageText = thread.last_message?.text || t('selectConversation');
   const lastMessageTime = thread.last_message?.created_at || thread.created_at;
@@ -76,6 +102,7 @@ const ThreadItem = memo(({ thread, isSelected, currentUserId, onSelect }: Thread
           <img
             src={iconUrl}
             alt={displayName}
+            loading="lazy"
             className="w-12 h-12 rounded-full object-cover flex-shrink-0"
             onError={(e) => {
               // 画像読み込みエラー時にデフォルトアイコンを表示

@@ -52,5 +52,9 @@
   "recentPosts": "Recent Posts",
   "loginRequired": "Login required",
   "postFailed": "Failed to post",
-  "send": "Send"
+  "send": "Send",
+  "writeReply": "Write a reply...",
+  "invalidContent": "Invalid content detected",
+  "loadMore": "Load More",
+  "loading": "Loading..."
 }

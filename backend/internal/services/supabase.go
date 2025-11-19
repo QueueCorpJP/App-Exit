@@ -331,6 +331,12 @@ func (s *SupabaseService) IsBucketPublic(bucketName string) (bool, error) {
 
 // GetImageURL returns the appropriate URL for a file (public URL for public buckets, signed URL for private buckets)
 func (s *SupabaseService) GetImageURL(bucketName string, filePath string, expiresIn int) (string, error) {
+	// 既に完全なURLの場合はそのまま返す（外部URLや既に署名付きURLの場合）
+	if strings.HasPrefix(filePath, "http://") || strings.HasPrefix(filePath, "https://") {
+		fmt.Printf("[GetImageURL] Path is already a full URL, returning as-is: %s\n", filePath)
+		return filePath, nil
+	}
+
 	// パスの先頭のスラッシュを削除
 	cleanPath := strings.TrimPrefix(filePath, "/")
 
@@ -443,4 +449,64 @@ func (s *SupabaseService) DeleteFile(bucketName string, filePath string) error {
 	}
 
 	return nil
+}
+
+// GetActiveViewCounts calls the PostgreSQL RPC function to get active view counts efficiently
+// This solves the N+1 problem by using GROUP BY aggregation in the database
+func (s *SupabaseService) GetActiveViewCounts(postIDs []string) (map[string]int, error) {
+	if len(postIDs) == 0 {
+		return make(map[string]int), nil
+	}
+
+	// Call the RPC function using HTTP request
+	type ActiveViewCountRow struct {
+		PostID string `json:"post_id"`
+		Count  int    `json:"count"`
+	}
+
+	// Build RPC request
+	payload := map[string]interface{}{
+		"post_ids": postIDs,
+	}
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal RPC payload: %w", err)
+	}
+
+	// Make HTTP request to RPC endpoint
+	url := fmt.Sprintf("%s/rest/v1/rpc/get_active_view_counts", s.cfg.SupabaseURL)
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(payloadBytes))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create RPC request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("apikey", s.cfg.SupabaseServiceKey)
+	req.Header.Set("Authorization", "Bearer "+s.cfg.SupabaseServiceKey)
+
+	httpClient := &http.Client{Timeout: 10 * time.Second}
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute RPC request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("RPC returned status %d: %s", resp.StatusCode, string(body))
+	}
+
+	// Parse response
+	var result []ActiveViewCountRow
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("failed to decode RPC response: %w", err)
+	}
+
+	// Convert to map
+	countMap := make(map[string]int)
+	for _, row := range result {
+		countMap[row.PostID] = row.Count
+	}
+
+	return countMap, nil
 }

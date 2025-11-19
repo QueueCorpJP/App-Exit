@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -291,25 +292,34 @@ func (s *Server) ListPosts(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Fetch active view counts for all posts
+	// Fetch active view counts for all posts using RPC function (N+1問題を解決)
+	// PostgreSQLのGROUP BY集計を使用して効率的にカウント
 	activeViewCountMap := make(map[string]int)
-	fmt.Printf("[ListPosts] Fetching active view counts for %d posts...\n", len(postIDs))
+	fmt.Printf("[ListPosts] Fetching active view counts for %d posts using RPC...\n", len(postIDs))
 	if len(postIDs) > 0 {
-		var activeViews []models.ProductActiveView
-		_, err := client.From("product_active_views").
-			Select("*", "", false).
-			In("post_id", postIDs).
-			ExecuteTo(&activeViews)
-
+		counts, err := s.supabase.GetActiveViewCounts(postIDs)
 		if err != nil {
-			fmt.Printf("[ListPosts] ❌ ERROR: Failed to query active views: %v\n", err)
-		} else {
-			fmt.Printf("[ListPosts] ✓ Retrieved %d active view records\n", len(activeViews))
-			// Count active views per post
-			for _, view := range activeViews {
-				activeViewCountMap[view.PostID]++
+			fmt.Printf("[ListPosts] ❌ ERROR: Failed to get active view counts: %v\n", err)
+			// Fallback to old method if RPC fails (for backward compatibility)
+			var activeViews []models.ProductActiveView
+			_, err := client.From("product_active_views").
+				Select("post_id", "", false).
+				In("post_id", postIDs).
+				ExecuteTo(&activeViews)
+
+			if err == nil {
+				for _, view := range activeViews {
+					activeViewCountMap[view.PostID]++
+				}
+				fmt.Printf("[ListPosts] ⚠ Used fallback method, retrieved %d active view records\n", len(activeViews))
 			}
-			fmt.Printf("[ListPosts] ✓ Active view counts: %v\n", activeViewCountMap)
+		} else {
+			activeViewCountMap = counts
+			totalViews := 0
+			for _, count := range counts {
+				totalViews += count
+			}
+			fmt.Printf("[ListPosts] ✓ Retrieved active view counts via RPC (total: %d views)\n", totalViews)
 		}
 	}
 
@@ -327,19 +337,17 @@ func (s *Server) ListPosts(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Sort by active view count if sort=recommended
+	// Sort by active view count if sort=recommended (スケーラビリティ改善: O(n log n)ソートを使用)
 	if sortBy == "recommended" {
 		fmt.Printf("[ListPosts] Sorting by active view count (recommended)\n")
-		// ソート: ActiveViewCount降順、同数の場合はCreatedAt降順
-		for i := 0; i < len(result)-1; i++ {
-			for j := i + 1; j < len(result); j++ {
-				if result[i].ActiveViewCount < result[j].ActiveViewCount ||
-					(result[i].ActiveViewCount == result[j].ActiveViewCount &&
-						result[i].CreatedAt.Before(result[j].CreatedAt)) {
-					result[i], result[j] = result[j], result[i]
-				}
+		// sort.Sliceを使用してO(n log n)で効率的にソート
+		// ActiveViewCount降順、同数の場合はCreatedAt降順
+		sort.Slice(result, func(i, j int) bool {
+			if result[i].ActiveViewCount != result[j].ActiveViewCount {
+				return result[i].ActiveViewCount > result[j].ActiveViewCount
 			}
-		}
+			return result[i].CreatedAt.After(result[j].CreatedAt)
+		})
 	}
 
 	// 空の配列でも正常に返す

@@ -68,6 +68,12 @@ export async function getImageUrl(
     return 'https://placehold.co/600x400/e2e8f0/64748b?text=No+Image';
   }
 
+  // 既に完全なURLの場合はそのまま返す（外部URLや既に署名付きURLの場合）
+  if (path.startsWith('http://') || path.startsWith('https://')) {
+    console.log('[STORAGE] Path is already a full URL, returning as-is:', path);
+    return path;
+  }
+
   // パスからバケット名を自動判定
   let actualPath = path;
   let actualBucket = bucket;
@@ -142,6 +148,13 @@ export async function getImageUrls(
   const bucketGroups = new Map<string, string[]>();
 
   paths.forEach(path => {
+    // 既に完全なURLの場合はそのまま返す（外部URLや既に署名付きURLの場合）
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+      console.log('[STORAGE] Path is already a full URL, skipping:', path);
+      urlMap.set(path, path);
+      return;
+    }
+
     let actualBucket = bucket;
     let actualPath = path;
 

@@ -41,10 +41,14 @@ type PostCommentWithDetails struct {
 	Replies       []CommentReplyWithDetails `json:"replies,omitempty"`
 }
 
-// CommentReplyWithDetails includes author profile
+// CommentReplyWithDetails includes author profile and like/dislike counts
 type CommentReplyWithDetails struct {
 	CommentReply
 	AuthorProfile *AuthorProfile `json:"author_profile,omitempty"`
+	LikeCount     int             `json:"like_count"`
+	IsLiked       bool            `json:"is_liked"`
+	DislikeCount  int             `json:"dislike_count"`
+	IsDisliked    bool            `json:"is_disliked"`
 }
 
 // CreateCommentRequest represents a request to create a new comment

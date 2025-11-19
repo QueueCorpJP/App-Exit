@@ -452,15 +452,27 @@ func (s *Server) GetThreads(w http.ResponseWriter, r *http.Request) {
 			}
 
 			var iconPaths []string
+			signedURLMap := make(map[string]string)
 			for _, row := range profileRows {
 				if row.IconURL != nil && *row.IconURL != "" {
-					iconPaths = append(iconPaths, *row.IconURL)
+					// 既に完全なURLの場合はそのまま使用
+					if strings.HasPrefix(*row.IconURL, "http://") || strings.HasPrefix(*row.IconURL, "https://") {
+						signedURLMap[*row.IconURL] = *row.IconURL
+						log.Printf("[GetThreads] Icon URL is already complete: %s", *row.IconURL)
+					} else {
+						iconPaths = append(iconPaths, *row.IconURL)
+					}
 				}
 			}
 
 			log.Printf("[GetThreads] Fetching signed URLs for %d icon paths: %v", len(iconPaths), iconPaths)
-			signedURLMap := s.supabase.GetBatchSignedURLs("profile-icons", iconPaths, 3600)
-			log.Printf("[GetThreads] GetBatchSignedURLs returned %d URLs", len(signedURLMap))
+			if len(iconPaths) > 0 {
+				batchURLs := s.supabase.GetBatchSignedURLs("profile-icons", iconPaths, 3600)
+				for k, v := range batchURLs {
+					signedURLMap[k] = v
+				}
+			}
+			log.Printf("[GetThreads] Total URLs (complete + signed): %d", len(signedURLMap))
 			profiles := s.buildProfilesFromRows(profileRows, signedURLMap)
 			log.Printf("[GetThreads] buildProfilesFromRows returned %d profiles", len(profiles))
 
@@ -667,13 +679,24 @@ func (s *Server) GetThreadByID(w http.ResponseWriter, r *http.Request) {
 								
 								if err == nil {
 									var iconPaths []string
+									signedURLMap := make(map[string]string)
 									for _, row := range profileRows {
 										if row.IconURL != nil && *row.IconURL != "" {
-											iconPaths = append(iconPaths, *row.IconURL)
+											// 既に完全なURLの場合はそのまま使用
+											if strings.HasPrefix(*row.IconURL, "http://") || strings.HasPrefix(*row.IconURL, "https://") {
+												signedURLMap[*row.IconURL] = *row.IconURL
+											} else {
+												iconPaths = append(iconPaths, *row.IconURL)
+											}
 										}
 									}
-									
-									signedURLMap := s.supabase.GetBatchSignedURLs("profile-icons", iconPaths, 3600)
+
+									if len(iconPaths) > 0 {
+										batchURLs := s.supabase.GetBatchSignedURLs("profile-icons", iconPaths, 3600)
+										for k, v := range batchURLs {
+											signedURLMap[k] = v
+										}
+									}
 
 									allProfiles := s.buildProfilesFromRows(profileRows, signedURLMap)
 									// 同じIDで複数のロールがある場合、最初の1つだけを使用
@@ -781,13 +804,24 @@ func (s *Server) GetThreadByID(w http.ResponseWriter, r *http.Request) {
 				
 				if err == nil {
 					var iconPaths []string
+					signedURLMap := make(map[string]string)
 					for _, row := range profileRows {
 						if row.IconURL != nil && *row.IconURL != "" {
-							iconPaths = append(iconPaths, *row.IconURL)
+							// 既に完全なURLの場合はそのまま使用
+							if strings.HasPrefix(*row.IconURL, "http://") || strings.HasPrefix(*row.IconURL, "https://") {
+								signedURLMap[*row.IconURL] = *row.IconURL
+							} else {
+								iconPaths = append(iconPaths, *row.IconURL)
+							}
 						}
 					}
-					
-					signedURLMap := s.supabase.GetBatchSignedURLs("profile-icons", iconPaths, 3600)
+
+					if len(iconPaths) > 0 {
+						batchURLs := s.supabase.GetBatchSignedURLs("profile-icons", iconPaths, 3600)
+						for k, v := range batchURLs {
+							signedURLMap[k] = v
+						}
+					}
 
 					allProfiles := s.buildProfilesFromRows(profileRows, signedURLMap)
 					// 同じIDで複数のロールがある場合、最初の1つだけを使用
@@ -877,15 +911,27 @@ func (s *Server) GetThreadByID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var iconPaths []string
+	signedURLMap := make(map[string]string)
 	for _, row := range profileRows {
 		if row.IconURL != nil && *row.IconURL != "" {
-			iconPaths = append(iconPaths, *row.IconURL)
+			// 既に完全なURLの場合はそのまま使用
+			if strings.HasPrefix(*row.IconURL, "http://") || strings.HasPrefix(*row.IconURL, "https://") {
+				signedURLMap[*row.IconURL] = *row.IconURL
+				log.Printf("[GetThreadByID] Icon URL is already complete: %s", *row.IconURL)
+			} else {
+				iconPaths = append(iconPaths, *row.IconURL)
+			}
 		}
 	}
 
 	log.Printf("[GetThreadByID] Fetching signed URLs for %d icon paths", len(iconPaths))
-	signedURLMap := s.supabase.GetBatchSignedURLs("profile-icons", iconPaths, 3600)
-	log.Printf("[GetThreadByID] GetBatchSignedURLs returned %d URLs", len(signedURLMap))
+	if len(iconPaths) > 0 {
+		batchURLs := s.supabase.GetBatchSignedURLs("profile-icons", iconPaths, 3600)
+		for k, v := range batchURLs {
+			signedURLMap[k] = v
+		}
+	}
+	log.Printf("[GetThreadByID] Total URLs (complete + signed): %d", len(signedURLMap))
 
 	allProfiles := s.buildProfilesFromRows(profileRows, signedURLMap)
 
@@ -2116,63 +2162,25 @@ func (s *Server) CreateSaleRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Stripe Payment Intentを作成（C2C決済用）
-	ctx := r.Context()
-	// プラットフォーム手数料: 10%
-	applicationFeeAmount := actualPrice / 10
-
-	// 🔒 METADATA: 充実化したメタデータで追跡・監査を可能にする
-	paymentMetadata := map[string]string{
-		"buyer_id":        buyerProfile[0].ID,
-		"buyer_username":  buyerProfile[0].Username,
-		"buyer_email":     buyerProfile[0].Email,
-		"seller_id":       userID, // 投稿作成者（売り手）
-		"seller_username": sellerProfile[0].Username,
-		"seller_email":    sellerProfile[0].Email,
-		"post_id":         req.PostID,
-		"thread_id":       req.ThreadID,
-		"price":           fmt.Sprintf("%d", actualPrice),
-		"currency":        "jpy",
-	}
-
-	// 🔒 セキュリティ: DB価格を使用（クライアント価格ではなく）
-	paymentIntent, err := s.stripeService.CreatePaymentIntent(
-		ctx,
-		actualPrice, // DBから取得した正しい価格を使用
-		"jpy",       // 日本円
-		sellerProfile[0].StripeAccountID,
-		"",                  // sale_request_idは後で設定
-		applicationFeeAmount,
-		paymentMetadata, // 🔒 充実化したメタデータを渡す
-	)
-
-	if err != nil {
-		log.Printf("[CreateSaleRequest] Failed to create Stripe Payment Intent: %v", err)
-		response.Error(w, http.StatusInternalServerError, "Failed to create payment intent")
-		return
-	}
-
-	log.Printf("[CreateSaleRequest] Created Payment Intent: %s", paymentIntent.ID)
+	// エスクロー型決済: Stripe決済は使用せず、運営による手動決済管理
 
 	// 売却リクエストを作成
 	type saleRequestInsert struct {
-		ThreadID        string `json:"thread_id"`
-		UserID          string `json:"user_id"`
-		PostID          string `json:"post_id"`
-		Price           int64  `json:"price"`
-		PhoneNumber     string `json:"phone_number,omitempty"`
-		Status          string `json:"status"`
-		PaymentIntentID string `json:"payment_intent_id"`
+		ThreadID    string `json:"thread_id"`
+		UserID      string `json:"user_id"`
+		PostID      string `json:"post_id"`
+		Price       int64  `json:"price"`
+		PhoneNumber string `json:"phone_number,omitempty"`
+		Status      string `json:"status"`
 	}
 
 	insertData := saleRequestInsert{
-		ThreadID:        req.ThreadID,
-		UserID:          userID,
-		PostID:          req.PostID,
-		Price:           actualPrice, // 🔒 DB価格を使用
-		PhoneNumber:     req.PhoneNumber,
-		Status:          string(models.SaleRequestStatusPending),
-		PaymentIntentID: paymentIntent.ID,
+		ThreadID:    req.ThreadID,
+		UserID:      userID,
+		PostID:      req.PostID,
+		Price:       actualPrice, // 🔒 DB価格を使用
+		PhoneNumber: req.PhoneNumber,
+		Status:      string(models.SaleRequestStatusPending),
 	}
 
 	var createdRequests []models.SaleRequest
@@ -2339,40 +2347,8 @@ func (s *Server) RefundSaleRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Payment Intent IDチェック
-	if saleRequest.PaymentIntentID == "" {
-		response.Error(w, http.StatusBadRequest, "No payment intent found for this sale request")
-		return
-	}
-
-	// 返金理由のデフォルト設定
-	reason := req.Reason
-	if reason == "" {
-		reason = "requested_by_customer"
-	}
-
-	// Stripe返金を実行
-	ctx := r.Context()
-	metadata := map[string]string{
-		"sale_request_id": req.SaleRequestID,
-		"user_id":         userID,
-	}
-
-	refund, err := s.stripeService.CreateRefund(
-		ctx,
-		saleRequest.PaymentIntentID,
-		req.Amount, // nil = 全額返金
-		reason,
-		metadata,
-	)
-
-	if err != nil {
-		log.Printf("[RefundSaleRequest] Failed to create Stripe refund: %v", err)
-		response.Error(w, http.StatusInternalServerError, "Failed to process refund")
-		return
-	}
-
-	log.Printf("[RefundSaleRequest] Created refund: %s for sale_request: %s", refund.ID, req.SaleRequestID)
+	// エスクロー型決済: 返金処理は運営が手動で行う
+	log.Printf("[RefundSaleRequest] Cancelling sale_request: %s", req.SaleRequestID)
 
 	// sale_requestsテーブルを更新（ステータスをcancelledに）
 	updateData := map[string]interface{}{
@@ -2391,10 +2367,8 @@ func (s *Server) RefundSaleRequest(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response.Success(w, http.StatusOK, map[string]interface{}{
-		"refund_id": refund.ID,
-		"amount":    refund.Amount,
-		"status":    refund.Status,
-		"message":   "Refund processed successfully",
+		"message": "Sale request cancelled successfully",
+		"status":  "cancelled",
 	})
 }
 
@@ -2538,21 +2512,30 @@ func (s *Server) ConfirmSaleRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 買い手（現在のユーザー）のクライアントシークレットを取得して返す
-	// フロントエンドでStripe.jsを使って決済を完了させる
-	ctx := r.Context()
-	paymentIntent, err := s.stripeService.GetPaymentIntent(ctx, saleRequest.PaymentIntentID)
+	// エスクロー型決済: ステータスをactiveに変更（運営が入金確認後に処理）
+	updateData := map[string]interface{}{
+		"status":     string(models.SaleRequestStatusActive),
+		"updated_at": time.Now(),
+	}
+
+	_, err = client.From("sale_requests").
+		Update(updateData, "", "").
+		Eq("id", req.SaleRequestID).
+		ExecuteTo(nil)
+
 	if err != nil {
-		log.Printf("[ConfirmSaleRequest] Failed to get payment intent: %v", err)
-		response.Error(w, http.StatusInternalServerError, "Failed to get payment intent")
+		log.Printf("[ConfirmSaleRequest] Failed to update sale request status: %v", err)
+		response.Error(w, http.StatusInternalServerError, "Failed to confirm sale request")
 		return
 	}
 
-	// クライアントシークレットを返す
+	log.Printf("[ConfirmSaleRequest] Sale request confirmed: %s", req.SaleRequestID)
+
+	// 購入確定レスポンス（買い手には運営口座情報をメールで送信）
 	response.Success(w, http.StatusOK, map[string]interface{}{
-		"client_secret":    paymentIntent.ClientSecret,
-		"amount":           paymentIntent.Amount,
-		"sale_request_id":  saleRequest.ID,
-		"payment_intent_id": saleRequest.PaymentIntentID,
+		"message":         "Purchase confirmed. Please check your email for payment instructions.",
+		"sale_request_id": saleRequest.ID,
+		"amount":          saleRequest.Price,
+		"status":          "active",
 	})
 }

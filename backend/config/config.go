@@ -16,9 +16,6 @@ type Config struct {
 	SupabaseServiceKey string
 	SupabaseJWTSecret  string
 	AllowedOrigins     []string
-	StripeSecretKey    string
-	StripePublicKey    string
-	StripeWebhookSecret string
 }
 
 // IsProduction returns true if the environment is production
@@ -34,18 +31,6 @@ func (c *Config) IsSecureCookie() bool {
 func LoadConfig() *Config {
 	env := getEnv("ENV", "development")
 
-	// ENV に応じて適切な Stripe キーを選択
-	var stripeSecretKey, stripePublicKey, stripeWebhookSecret string
-	if env == "production" {
-		stripeSecretKey = getEnv("STRIPE_LIVE_SECRET_KEY", "")
-		stripePublicKey = getEnv("STRIPE_LIVE_PUBLIC_KEY", "")
-		stripeWebhookSecret = getEnv("STRIPE_LIVE_WEBHOOK_SECRET", "")
-	} else {
-		stripeSecretKey = getEnv("STRIPE_TEST_SECRET_KEY", "")
-		stripePublicKey = getEnv("STRIPE_TEST_PUBLIC_KEY", "")
-		stripeWebhookSecret = getEnv("STRIPE_TEST_WEBHOOK_SECRET", "")
-	}
-
 	cfg := &Config{
 		ServerPort:         getEnv("PORT", "8080"),
 		Environment:        env,
@@ -56,9 +41,6 @@ func LoadConfig() *Config {
 		SupabaseServiceKey: getEnv("SUPABASE_SERVICE_ROLE_KEY", ""),
 		SupabaseJWTSecret:  getEnv("SUPABASE_JWT_SECRET", ""),
 		AllowedOrigins:     parseAllowedOrigins(),
-		StripeSecretKey:    stripeSecretKey,
-		StripePublicKey:    stripePublicKey,
-		StripeWebhookSecret: stripeWebhookSecret,
 	}
 
 	// 必須の環境変数をチェック
@@ -89,21 +71,6 @@ func (c *Config) Validate() error {
 
 	if c.SupabaseJWTSecret == "" {
 		return fmt.Errorf("SUPABASE_JWT_SECRET is required")
-	}
-
-	// Stripe keys are optional in development
-	if c.Environment == "production" && c.StripeSecretKey == "" {
-		return fmt.Errorf("STRIPE_SECRET_KEY is required in production")
-	}
-
-	// 🔒 SECURITY: Webhook署名検証は必須（偽Webhookを防ぐため）
-	if c.StripeWebhookSecret == "" || c.StripeWebhookSecret == "whsec_PLEASE_SET_FROM_STRIPE_DASHBOARD" {
-		log.Printf("[WARNING] STRIPE_WEBHOOK_SECRET is not set. Webhook signature verification is DISABLED.")
-		log.Printf("[WARNING] This is a CRITICAL security risk. Set STRIPE_WEBHOOK_SECRET in .env immediately.")
-		// 開発環境では警告のみ、本番では起動停止
-		if c.Environment == "production" {
-			return fmt.Errorf("STRIPE_WEBHOOK_SECRET is required in production for security")
-		}
 	}
 
 	return nil

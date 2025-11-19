@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback, memo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
-import { ArrowLeft, ArrowUp, ArrowDown, MessageCircle, Share2, MoreHorizontal, Award, Flame, Image as ImageIcon, X, ChevronDown, Calendar, Globe, Send, Twitter, Facebook, Linkedin } from 'lucide-react';
-import { postApi, commentApi, PostCommentWithDetails } from '@/lib/api-client';
+import { ArrowLeft, ArrowUp, ArrowDown, MessageCircle, Share2, MoreHorizontal, Award, Flame, Image as ImageIcon, X, ChevronDown, Calendar, Globe, Send, Twitter, Facebook, Linkedin, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { postApi, commentApi, PostCommentWithDetails, CommentReplyWithDetails } from '@/lib/api-client';
 import { uploadImage, getImageUrls } from '@/lib/storage';
 import Image from 'next/image';
 import { useTranslations } from 'next-intl';
@@ -15,8 +15,8 @@ import { sanitizeText, INPUT_LIMITS } from '@/lib/input-validator';
 interface Post {
   id: string;
   title: string;
-  body: string | null;
-  eyecatch_url: string | null;
+  body?: string;
+  eyecatch_url?: string;
   author_user_id: string;
   created_at: string;
   type: string;
@@ -68,13 +68,23 @@ export default function PostBoardPage({ initialPosts = [], sidebarData, pageDict
   const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [commentInputs, setCommentInputs] = useState<Record<string, string>>({});
-  const [replyToUser, setReplyToUser] = useState<string | null>(null);
+  const [replyInputs, setReplyInputs] = useState<Record<string, string>>({});
+  const [replyToComment, setReplyToComment] = useState<string | null>(null);
   const [likeStates, setLikeStates] = useState<Record<string, { like_count: number; is_liked: boolean }>>({});
   const [dislikeStates, setDislikeStates] = useState<Record<string, { dislike_count: number; is_disliked: boolean }>>({});
+  const [commentLikeStates, setCommentLikeStates] = useState<Record<string, { like_count: number; is_liked: boolean }>>({});
+  const [commentDislikeStates, setCommentDislikeStates] = useState<Record<string, { dislike_count: number; is_disliked: boolean }>>({});
+  const [replyLikeStates, setReplyLikeStates] = useState<Record<string, { like_count: number; is_liked: boolean }>>({});
+  const [replyDislikeStates, setReplyDislikeStates] = useState<Record<string, { dislike_count: number; is_disliked: boolean }>>({});
   const [commentCounts, setCommentCounts] = useState<Record<string, number>>({});
   const [commentSectionsOpen, setCommentSectionsOpen] = useState<Record<string, boolean>>({});
+  const [replySectionsOpen, setReplySectionsOpen] = useState<Record<string, boolean>>({});
   const [postComments, setPostComments] = useState<Record<string, PostCommentWithDetails[]>>({});
+  const [commentReplies, setCommentReplies] = useState<Record<string, CommentReplyWithDetails[]>>({});
   const [shareMenuOpen, setShareMenuOpen] = useState<Record<string, boolean>>({});
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [currentOffset, setCurrentOffset] = useState(20); // 初期表示が20件なので、次は20から開始
 
   const [formData, setFormData] = useState({
     title: '',
@@ -85,8 +95,13 @@ export default function PostBoardPage({ initialPosts = [], sidebarData, pageDict
   useEffect(() => {
     if (initialPosts.length > 0) {
       loadImageUrls(initialPosts);
+      // 初期表示が20件未満ならこれ以上ない
+      if (initialPosts.length < 20) {
+        setHasMore(false);
+      }
     } else {
       setPosts([]);
+      setHasMore(false);
     }
   }, [initialPosts]);
 
@@ -124,9 +139,9 @@ export default function PostBoardPage({ initialPosts = [], sidebarData, pageDict
     }
   };
 
-  // 投稿のメタ情報（いいね/バット、コメント数）とコメントを一括取得
+  // 投稿のメタ情報（いいね/バット、コメント数）を取得（コメントは遅延読み込み）
   useEffect(() => {
-    const fetchMetaAndComments = async () => {
+    const fetchMeta = async () => {
       if (initialPosts.length === 0) return;
       try {
         const postIds = initialPosts.map(p => p.id);
@@ -154,36 +169,11 @@ export default function PostBoardPage({ initialPosts = [], sidebarData, pageDict
         setLikeStates(updatesLike);
         setDislikeStates(updatesDislike);
         setCommentCounts(updatesCommentCount);
-
-        // 全投稿のコメントを一括取得
-        const commentsPromises = postIds.map(async (postId) => {
-          try {
-            const comments = await commentApi.getPostComments(postId);
-            if (Array.isArray(comments)) {
-              // 古い順にソート（created_atの昇順）
-              const sortedComments = comments.sort((a, b) =>
-                new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-              );
-              return { postId, comments: sortedComments };
-            }
-            return { postId, comments: [] };
-          } catch (e) {
-            console.error(`[BOARD] Failed to load comments for post ${postId}:`, e);
-            return { postId, comments: [] };
-          }
-        });
-
-        const commentsResults = await Promise.all(commentsPromises);
-        const commentsMap: Record<string, PostCommentWithDetails[]> = {};
-        commentsResults.forEach(({ postId, comments }) => {
-          commentsMap[postId] = comments;
-        });
-        setPostComments(commentsMap);
       } catch (e) {
         console.warn('[BOARD] Failed to load meta:', e);
       }
     };
-    fetchMetaAndComments();
+    fetchMeta();
     // initialPostsが変わったら再取得
   }, [initialPosts]);
 
@@ -286,9 +276,53 @@ export default function PostBoardPage({ initialPosts = [], sidebarData, pageDict
     }
   };
 
-  // コメントセクションの開閉（コメントは既に取得済みなので開閉のみ）
-  const toggleCommentSection = (postId: string) => {
-    setCommentSectionsOpen(prev => ({ ...prev, [postId]: !prev[postId] }));
+  // コメントセクションの開閉（開く際にコメントを遅延読み込み）
+  const toggleCommentSection = async (postId: string) => {
+    const isCurrentlyOpen = commentSectionsOpen[postId];
+
+    // 閉じる場合はそのまま閉じる
+    if (isCurrentlyOpen) {
+      setCommentSectionsOpen(prev => ({ ...prev, [postId]: false }));
+      return;
+    }
+
+    // 開く場合：まだコメントを読み込んでいなければ読み込む
+    if (!postComments[postId]) {
+      try {
+        const comments = await commentApi.getPostComments(postId);
+        if (Array.isArray(comments)) {
+          // 古い順にソート（created_atの昇順）
+          const sortedComments = comments.sort((a, b) =>
+            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+          );
+
+          setPostComments(prev => ({ ...prev, [postId]: sortedComments }));
+
+          // コメントのいいね/バッド状態を初期化
+          const commentLikes: Record<string, { like_count: number; is_liked: boolean }> = {};
+          const commentDislikes: Record<string, { dislike_count: number; is_disliked: boolean }> = {};
+
+          sortedComments.forEach(comment => {
+            commentLikes[comment.id] = {
+              like_count: comment.like_count || 0,
+              is_liked: comment.is_liked || false
+            };
+            commentDislikes[comment.id] = {
+              dislike_count: comment.dislike_count || 0,
+              is_disliked: comment.is_disliked || false
+            };
+          });
+
+          setCommentLikeStates(prev => ({ ...prev, ...commentLikes }));
+          setCommentDislikeStates(prev => ({ ...prev, ...commentDislikes }));
+        }
+      } catch (e) {
+        console.error(`[BOARD] Failed to load comments for post ${postId}:`, e);
+      }
+    }
+
+    // コメントセクションを開く
+    setCommentSectionsOpen(prev => ({ ...prev, [postId]: true }));
   };
 
   // コメント送信（Enterで送信）
@@ -319,9 +353,156 @@ export default function PostBoardPage({ initialPosts = [], sidebarData, pageDict
         );
         setPostComments(prev => ({ ...prev, [postId]: sortedComments }));
         setCommentCounts(prev => ({ ...prev, [postId]: sortedComments.length }));
+
+        // 新しいコメントのリアクション状態を初期化
+        const newCommentLikes: Record<string, { like_count: number; is_liked: boolean }> = {};
+        const newCommentDislikes: Record<string, { dislike_count: number; is_disliked: boolean }> = {};
+        sortedComments.forEach(comment => {
+          newCommentLikes[comment.id] = {
+            like_count: comment.like_count || 0,
+            is_liked: comment.is_liked || false
+          };
+          newCommentDislikes[comment.id] = {
+            dislike_count: comment.dislike_count || 0,
+            is_disliked: comment.is_disliked || false
+          };
+        });
+        setCommentLikeStates(prev => ({ ...prev, ...newCommentLikes }));
+        setCommentDislikeStates(prev => ({ ...prev, ...newCommentDislikes }));
       }
     } catch (e) {
       console.error('create comment failed', e);
+    }
+  };
+
+  // コメントのいいね/バッド切替
+  const handleToggleCommentLike = async (commentId: string) => {
+    try {
+      const res = await commentApi.toggleCommentLike(commentId);
+      setCommentLikeStates(prev => ({
+        ...prev,
+        [commentId]: { like_count: res.like_count ?? 0, is_liked: res.is_liked ?? false }
+      }));
+    } catch (e) {
+      console.error('toggle comment like failed', e);
+    }
+  };
+
+  const handleToggleCommentDislike = async (commentId: string) => {
+    try {
+      const res = await commentApi.toggleCommentDislike(commentId);
+      setCommentDislikeStates(prev => ({
+        ...prev,
+        [commentId]: { dislike_count: res.dislike_count ?? 0, is_disliked: res.is_disliked ?? false }
+      }));
+    } catch (e) {
+      console.error('toggle comment dislike failed', e);
+    }
+  };
+
+  // 返信セクションの開閉とデータ取得
+  const toggleReplySection = async (commentId: string) => {
+    const isCurrentlyOpen = replySectionsOpen[commentId];
+    setReplySectionsOpen(prev => ({ ...prev, [commentId]: !isCurrentlyOpen }));
+
+    // 開く場合で、まだ返信を取得していない場合は取得
+    if (!isCurrentlyOpen && !commentReplies[commentId]) {
+      try {
+        const replies = await commentApi.getReplies(commentId);
+        if (Array.isArray(replies)) {
+          setCommentReplies(prev => ({ ...prev, [commentId]: replies }));
+
+          // 返信のいいね・バッド状態を初期化
+          const replyLikes: Record<string, { like_count: number; is_liked: boolean }> = {};
+          const replyDislikes: Record<string, { dislike_count: number; is_disliked: boolean }> = {};
+          replies.forEach(reply => {
+            replyLikes[reply.id] = {
+              like_count: reply.like_count || 0,
+              is_liked: reply.is_liked || false
+            };
+            replyDislikes[reply.id] = {
+              dislike_count: reply.dislike_count || 0,
+              is_disliked: reply.is_disliked || false
+            };
+          });
+          setReplyLikeStates(prev => ({ ...prev, ...replyLikes }));
+          setReplyDislikeStates(prev => ({ ...prev, ...replyDislikes }));
+        }
+      } catch (e) {
+        console.error('Failed to load replies:', e);
+      }
+    }
+  };
+
+  // 返信送信
+  const handleSubmitReply = async (commentId: string) => {
+    const text = replyInputs[commentId]?.trim();
+    if (!text) return;
+
+    // 🔒 SECURITY: 返信内容をサニタイズ
+    const sanitized = sanitizeText(text, INPUT_LIMITS.TEXTAREA, {
+      allowHTML: false,
+      strictMode: false,
+    });
+
+    if (!sanitized.isValid) {
+      alert(tp('invalidContent') || 'Invalid content detected. Please remove any potentially harmful code.');
+      return;
+    }
+
+    try {
+      await commentApi.createReply(commentId, { content: sanitized.sanitized });
+      setReplyInputs(prev => ({ ...prev, [commentId]: '' }));
+      setReplyToComment(null);
+
+      // 返信一覧を再取得
+      const replies = await commentApi.getReplies(commentId);
+      if (Array.isArray(replies)) {
+        setCommentReplies(prev => ({ ...prev, [commentId]: replies }));
+
+        // いいね・バッド状態も更新
+        const replyLikes: Record<string, { like_count: number; is_liked: boolean }> = {};
+        const replyDislikes: Record<string, { dislike_count: number; is_disliked: boolean }> = {};
+        replies.forEach(reply => {
+          replyLikes[reply.id] = {
+            like_count: reply.like_count || 0,
+            is_liked: reply.is_liked || false
+          };
+          replyDislikes[reply.id] = {
+            dislike_count: reply.dislike_count || 0,
+            is_disliked: reply.is_disliked || false
+          };
+        });
+        setReplyLikeStates(prev => ({ ...prev, ...replyLikes }));
+        setReplyDislikeStates(prev => ({ ...prev, ...replyDislikes }));
+      }
+    } catch (e) {
+      console.error('create reply failed', e);
+    }
+  };
+
+  // 返信のいいね・バッドハンドラ
+  const handleToggleReplyLike = async (replyId: string) => {
+    try {
+      const res = await commentApi.toggleReplyLike(replyId);
+      setReplyLikeStates(prev => ({
+        ...prev,
+        [replyId]: { like_count: res.like_count ?? 0, is_liked: res.is_liked ?? false }
+      }));
+    } catch (e) {
+      console.error('toggle reply like failed', e);
+    }
+  };
+
+  const handleToggleReplyDislike = async (replyId: string) => {
+    try {
+      const res = await commentApi.toggleReplyDislike(replyId);
+      setReplyDislikeStates(prev => ({
+        ...prev,
+        [replyId]: { dislike_count: res.dislike_count ?? 0, is_disliked: res.is_disliked ?? false }
+      }));
+    } catch (e) {
+      console.error('toggle reply dislike failed', e);
     }
   };
 
@@ -361,51 +542,149 @@ export default function PostBoardPage({ initialPosts = [], sidebarData, pageDict
   const CommentItem = ({ comment }: { comment: PostCommentWithDetails }) => {
     const displayName = comment.author_profile?.display_name || `User ${comment.user_id.substring(0, 8)}`;
     const timeAgo = formatTimeAgo(new Date(comment.created_at));
+    const likeState = commentLikeStates[comment.id] || { like_count: 0, is_liked: false };
+    const dislikeState = commentDislikeStates[comment.id] || { dislike_count: 0, is_disliked: false };
+    const replies = commentReplies[comment.id] || [];
+    const replyCount = comment.reply_count || replies.length || 0;
 
     return (
-      <div className="flex gap-3 py-3">
-        <button
-          onClick={() => router.push(`/profile/${comment.user_id}`)}
-          className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex-shrink-0 flex items-center justify-center text-white text-xs font-bold cursor-pointer hover:opacity-80 transition-opacity"
-        >
-          {displayName[0].toUpperCase()}
-        </button>
-        <div className="flex-1">
-          <div className="flex items-center gap-2 mb-1">
-            <button
-              onClick={() => router.push(`/profile/${comment.user_id}`)}
-              className="font-semibold text-sm text-gray-900 hover:underline"
-            >
-              {displayName}
-            </button>
-            <span className="text-xs text-gray-500">• {timeAgo}</span>
-          </div>
-          <p className="text-sm text-gray-800 mb-2 whitespace-pre-wrap">{comment.content}</p>
-          <div className="flex items-center gap-4 text-sm text-gray-600">
-            <div className="flex items-center gap-1">
-              <button className="hover:text-orange-500 transition-colors">
-                <ArrowUp className="w-4 h-4" />
+      <div className="py-3">
+        <div className="flex gap-3">
+          <button
+            onClick={() => router.push(`/profile/${comment.user_id}`)}
+            className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex-shrink-0 flex items-center justify-center text-white text-xs font-bold cursor-pointer hover:opacity-80 transition-opacity"
+          >
+            {displayName[0].toUpperCase()}
+          </button>
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-1">
+              <button
+                onClick={() => router.push(`/profile/${comment.user_id}`)}
+                className="font-semibold text-sm text-gray-900 hover:underline"
+              >
+                {displayName}
               </button>
-              <span className="font-medium">{comment.like_count || 0}</span>
-              <button className="hover:text-blue-500 transition-colors">
-                <ArrowDown className="w-4 h-4" />
+              <span className="text-xs text-gray-500">• {timeAgo}</span>
+            </div>
+            <p className="text-sm text-gray-800 mb-2 whitespace-pre-wrap">{comment.content}</p>
+            <div className="flex items-center gap-4 text-sm text-gray-600">
+              <div className="flex items-center gap-1">
+                <button
+                  className={`hover:text-orange-500 transition-colors ${likeState.is_liked ? 'text-orange-500' : ''}`}
+                  onClick={() => handleToggleCommentLike(comment.id)}
+                >
+                  <ArrowUp className="w-4 h-4" />
+                </button>
+                <span className="font-medium">{likeState.like_count}</span>
+                <button
+                  className={`hover:text-blue-500 transition-colors ${dislikeState.is_disliked ? 'text-blue-500' : ''}`}
+                  onClick={() => handleToggleCommentDislike(comment.id)}
+                >
+                  <ArrowDown className="w-4 h-4" />
+                </button>
+              </div>
+              <button
+                className="flex items-center gap-1 hover:text-blue-600 transition-colors"
+                onClick={() => {
+                  setReplyToComment(comment.id);
+                  toggleReplySection(comment.id);
+                }}
+              >
+                <MessageCircle className="w-4 h-4" />
+                <span>{tp('reply')}</span>
+                {replyCount > 0 && <span className="text-xs">({replyCount})</span>}
               </button>
             </div>
-            <button
-              className="flex items-center gap-1 hover:text-blue-600 transition-colors"
-              onClick={() => setReplyToUser(displayName)}
-            >
-              <MessageCircle className="w-4 h-4" />
-              <span>{tp('reply')}</span>
-            </button>
+
+            {/* 返信セクション */}
+            {replySectionsOpen[comment.id] && (
+              <div className="mt-3 ml-4 border-l-2 border-gray-200 pl-4">
+                {/* 返信入力 */}
+                <div className="mb-3">
+                  <div className="relative flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={replyInputs[comment.id] ?? ''}
+                      onChange={(e) => setReplyInputs(prev => ({ ...prev, [comment.id]: e.target.value }))}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSubmitReply(comment.id);
+                        }
+                      }}
+                      maxLength={INPUT_LIMITS.TEXTAREA}
+                      placeholder={tp('writeReply') || 'Write a reply...'}
+                      className="flex-1 px-3 py-1.5 pr-10 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                    />
+                    <button
+                      onClick={() => handleSubmitReply(comment.id)}
+                      disabled={!replyInputs[comment.id]?.trim()}
+                      className="absolute right-2 p-1 text-blue-500 hover:text-blue-700 disabled:text-gray-300 disabled:cursor-not-allowed transition-colors"
+                      title={tp('send')}
+                    >
+                      <Send className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* 返信リスト */}
+                {replies.length > 0 && (
+                  <div className="space-y-3">
+                    {replies.map((reply) => {
+                      const replyLikeState = replyLikeStates[reply.id] || { like_count: 0, is_liked: false };
+                      const replyDislikeState = replyDislikeStates[reply.id] || { dislike_count: 0, is_disliked: false };
+                      return (
+                        <div key={reply.id} className="flex gap-2">
+                          <button
+                            onClick={() => router.push(`/profile/${reply.user_id}`)}
+                            className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-400 to-purple-400 flex-shrink-0 flex items-center justify-center text-white text-xs font-bold cursor-pointer hover:opacity-80 transition-opacity"
+                          >
+                            {(reply.author_profile?.display_name || 'U')[0].toUpperCase()}
+                          </button>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-0.5">
+                              <button
+                                onClick={() => router.push(`/profile/${reply.user_id}`)}
+                                className="font-semibold text-xs text-gray-900 hover:underline"
+                              >
+                                {reply.author_profile?.display_name || `User ${reply.user_id.substring(0, 8)}`}
+                              </button>
+                              <span className="text-xs text-gray-500">• {formatTimeAgo(new Date(reply.created_at))}</span>
+                            </div>
+                            <p className="text-xs text-gray-800 whitespace-pre-wrap mb-1">{reply.content}</p>
+                            {/* いいね・バッドボタン */}
+                            <div className="flex items-center gap-3">
+                              <button
+                                onClick={() => handleToggleReplyLike(reply.id)}
+                                className={`flex items-center gap-1 transition-colors ${replyLikeState.is_liked ? 'text-blue-600' : 'text-gray-500 hover:text-blue-600'}`}
+                              >
+                                <ThumbsUp className="w-3 h-3" fill={replyLikeState.is_liked ? 'currentColor' : 'none'} />
+                                <span className="text-xs font-medium">{replyLikeState.like_count}</span>
+                              </button>
+                              <button
+                                onClick={() => handleToggleReplyDislike(reply.id)}
+                                className={`flex items-center gap-1 transition-colors ${replyDislikeState.is_disliked ? 'text-red-600' : 'text-gray-500 hover:text-red-600'}`}
+                              >
+                                <ThumbsDown className="w-3 h-3" fill={replyDislikeState.is_disliked ? 'currentColor' : 'none'} />
+                                <span className="text-xs font-medium">{replyDislikeState.dislike_count}</span>
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
     );
   };
 
-  // 時間経過を表示する関数
-  const formatTimeAgo = (date: Date): string => {
+  // 時間経過を表示する関数（メモ化）
+  const formatTimeAgo = useCallback((date: Date): string => {
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffMins = Math.floor(diffMs / 60000);
@@ -416,7 +695,88 @@ export default function PostBoardPage({ initialPosts = [], sidebarData, pageDict
     if (diffMins < 60) return `${diffMins}${tp('minutesAgo')}`;
     if (diffHours < 24) return `${diffHours}${tp('hoursAgo')}`;
     return `${diffDays}${tp('daysAgo')}`;
-  };
+  }, [tp]);
+
+  // もっと見るボタンで追加の投稿を取得（メモ化）
+  const handleLoadMore = useCallback(async () => {
+    if (isLoadingMore || !hasMore) return;
+
+    setIsLoadingMore(true);
+    try {
+      const response = await postApi.getPosts({
+        type: 'board',
+        limit: 10,
+        offset: currentOffset,
+      });
+
+      // レスポンス形式を処理
+      let newPosts: Post[] = [];
+      if (response && typeof response === 'object' && 'success' in response && 'data' in response) {
+        newPosts = Array.isArray(response.data) ? response.data : [];
+      } else if (Array.isArray(response)) {
+        newPosts = response;
+      }
+
+      if (newPosts.length === 0) {
+        setHasMore(false);
+      } else {
+        // 画像URLを取得
+        const imagePaths = newPosts.map(post => post.eyecatch_url).filter((path): path is string => !!path);
+        const imageUrlMap = imagePaths.length > 0 ? await getImageUrls(imagePaths) : new Map();
+        
+        // 画像URLを追加した投稿データを作成
+        const newPostsWithImages: PostWithImageUrl[] = newPosts.map(post => ({
+          ...post,
+          imageUrl: post.eyecatch_url ? imageUrlMap.get(post.eyecatch_url) : undefined,
+        }));
+        
+        // 既存の投稿に追加
+        setPosts(prev => [...prev, ...newPostsWithImages]);
+
+        // メタ情報とコメントを取得
+        const postIds = newPosts.map(p => p.id);
+        try {
+          const metadata = await postApi.getBatchMetadata(postIds);
+          const updatesLike: Record<string, { like_count: number; is_liked: boolean }> = {};
+          const updatesDislike: Record<string, { dislike_count: number; is_disliked: boolean }> = {};
+          const updatesCommentCount: Record<string, number> = {};
+
+          metadata.forEach(meta => {
+            updatesLike[meta.post_id] = {
+              like_count: meta.like_count,
+              is_liked: meta.is_liked
+            };
+            updatesDislike[meta.post_id] = {
+              dislike_count: meta.dislike_count,
+              is_disliked: meta.is_disliked
+            };
+            updatesCommentCount[meta.post_id] = meta.comment_count;
+          });
+
+          setLikeStates(prev => ({ ...prev, ...updatesLike }));
+          setDislikeStates(prev => ({ ...prev, ...updatesDislike }));
+          setCommentCounts(prev => ({ ...prev, ...updatesCommentCount }));
+
+          // コメントは遅延読み込みにするため、ここでは取得しない
+
+          // offsetを更新
+          setCurrentOffset(prev => prev + 10);
+          
+          // 10件未満ならこれ以上ない
+          if (newPosts.length < 10) {
+            setHasMore(false);
+          }
+        } catch (e) {
+          console.warn('[BOARD] Failed to load meta for new posts:', e);
+        }
+      }
+    } catch (err) {
+      console.error('[BOARD] Failed to load more posts:', err);
+      setHasMore(false);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [isLoadingMore, hasMore, currentOffset]);
 
   // 外側のクリックで共有メニューを閉じる
   useEffect(() => {
@@ -700,39 +1060,29 @@ export default function PostBoardPage({ initialPosts = [], sidebarData, pageDict
               >
                 {/* Comment Input Section */}
                 <div className="p-6 border-b border-gray-100">
-                  <div className="flex flex-col gap-2">
-                    {replyToUser && (
-                      <div className="flex items-center gap-2 text-xs text-blue-600">
-                        <span>{tp('replyingTo').replace('{user}', replyToUser)}</span>
-                        <button onClick={() => setReplyToUser(null)} className="hover:text-red-600">
-                          <X className="w-3 h-3" />
-                        </button>
-                      </div>
-                    )}
-                    <div className="relative flex items-center gap-2">
-                      <input
-                        type="text"
-                        value={commentInputs[post.id] ?? ''}
-                        onChange={(e) => setCommentInputs(prev => ({ ...prev, [post.id]: e.target.value }))}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' && !e.shiftKey) {
-                            e.preventDefault();
-                            handleSubmitComment(post.id);
-                          }
-                        }}
-                        maxLength={INPUT_LIMITS.TEXTAREA}
-                        placeholder={replyToUser ? tp('replyingTo').replace('{user}', replyToUser) : tp('addComment')}
-                        className="flex-1 px-4 py-2.5 pr-12 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                      />
-                      <button
-                        onClick={() => handleSubmitComment(post.id)}
-                        disabled={!commentInputs[post.id]?.trim()}
-                        className="absolute right-2 p-2 text-blue-500 hover:text-blue-700 disabled:text-gray-300 disabled:cursor-not-allowed transition-colors"
-                        title={tp('send')}
-                      >
-                        <Send className="w-5 h-5" />
-                      </button>
-                    </div>
+                  <div className="relative flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={commentInputs[post.id] ?? ''}
+                      onChange={(e) => setCommentInputs(prev => ({ ...prev, [post.id]: e.target.value }))}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSubmitComment(post.id);
+                        }
+                      }}
+                      maxLength={INPUT_LIMITS.TEXTAREA}
+                      placeholder={tp('addComment')}
+                      className="flex-1 px-4 py-2.5 pr-12 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                    />
+                    <button
+                      onClick={() => handleSubmitComment(post.id)}
+                      disabled={!commentInputs[post.id]?.trim()}
+                      className="absolute right-2 p-2 text-blue-500 hover:text-blue-700 disabled:text-gray-300 disabled:cursor-not-allowed transition-colors"
+                      title={tp('send')}
+                    >
+                      <Send className="w-5 h-5" />
+                    </button>
                   </div>
                 </div>
 
@@ -755,6 +1105,26 @@ export default function PostBoardPage({ initialPosts = [], sidebarData, pageDict
               </div>
             </div>
           ))}
+
+          {/* もっと見るボタン */}
+          {hasMore && (
+            <div className="flex justify-center mt-6">
+              <button
+                onClick={handleLoadMore}
+                disabled={isLoadingMore}
+                className="px-6 py-3 bg-white border-2 border-gray-300 rounded-lg font-semibold text-gray-700 hover:bg-gray-50 hover:border-gray-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {isLoadingMore ? (
+                  <span className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-gray-300 border-t-transparent rounded-full animate-spin"></div>
+                    {tp('loading') || '読み込み中...'}
+                  </span>
+                ) : (
+                  tp('loadMore') || 'もっと見る'
+                )}
+              </button>
+            </div>
+          )}
         </div>
           </div>
 

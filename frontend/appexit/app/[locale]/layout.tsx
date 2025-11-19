@@ -4,7 +4,6 @@ import "../globals.css";
 import { AuthProvider } from "@/lib/auth-context";
 import Header from "@/components/ui/Header";
 import Footer from "@/components/ui/Footer";
-import ChatBotWrapper from "@/components/ui/ChatBotWrapper";
 import { NextIntlClientProvider } from 'next-intl';
 import { notFound } from 'next/navigation';
 import { locales } from '@/i18n/config';
@@ -122,7 +121,6 @@ export default async function LocaleLayout({
                 {children}
               </main>
               <Footer />
-              <ChatBotWrapper />
             </div>
           </AuthProvider>
         </NextIntlClientProvider>

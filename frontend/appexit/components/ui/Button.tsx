@@ -89,7 +89,17 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         }}
         onMouseEnter={(e: React.MouseEvent<HTMLButtonElement>) => {
           if (variant === 'primary' && !disabled && !isLoading) {
-            e.currentTarget.style.backgroundColor = '#3367D6'
+            // propsStyleで背景色が指定されている場合は、その色を暗くする
+            if (propsStyle?.backgroundColor) {
+              // 赤系の色の場合は暗い赤に
+              if (propsStyle.backgroundColor === '#DC2626') {
+                e.currentTarget.style.backgroundColor = '#B91C1C'
+              } else {
+                e.currentTarget.style.backgroundColor = '#3367D6'
+              }
+            } else {
+              e.currentTarget.style.backgroundColor = '#3367D6'
+            }
           }
           if (variant === 'ghost' && !disabled && !isLoading) {
             e.currentTarget.style.color = '#3367D6'
@@ -99,7 +109,12 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         }}
         onMouseLeave={(e: React.MouseEvent<HTMLButtonElement>) => {
           if (variant === 'primary' && !disabled && !isLoading) {
-            e.currentTarget.style.backgroundColor = '#4285FF'
+            // propsStyleで背景色が指定されている場合は、その色に戻す
+            if (propsStyle?.backgroundColor) {
+              e.currentTarget.style.backgroundColor = propsStyle.backgroundColor.toString()
+            } else {
+              e.currentTarget.style.backgroundColor = '#4285FF'
+            }
           }
           if (variant === 'ghost' && !disabled && !isLoading) {
             e.currentTarget.style.color = '#4285FF'

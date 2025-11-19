@@ -28,27 +28,33 @@ export default function ProfileViewPage({ userId }: ProfileViewPageProps) {
     const fetchProfileData = async () => {
       try {
         setLoading(true);
-        const profile = await profileApi.getProfileById(userId);
-        if (profile) {
-          console.log('[ProfileViewPage] Loaded profile:', profile);
-          console.log('[ProfileViewPage] stripe_account_id:', profile.stripe_account_id);
-          console.log('[ProfileViewPage] stripe_onboarding_completed:', profile.stripe_onboarding_completed);
-          setProfile(profile);
-        }
 
-        // ユーザーの投稿を取得（エラーが発生してもプロフィールは表示する）
-        try {
-          const posts = await postApi.getPosts({
+        // プロフィールと投稿を並列で取得
+        const [profile, postsResult] = await Promise.allSettled([
+          profileApi.getProfileById(userId),
+          postApi.getPosts({
             author_user_id: userId,
             limit: 50
-          });
-          setPosts(Array.isArray(posts) ? posts : []);
-        } catch (postError) {
-          console.error('投稿の取得に失敗しました:', postError);
-          // 投稿の取得に失敗しても続行
+          })
+        ]);
+
+        // プロフィール結果の処理
+        if (profile.status === 'fulfilled' && profile.value) {
+          console.log('[ProfileViewPage] Loaded profile:', profile.value);
+          setProfile(profile.value);
+        } else {
+          console.error('プロフィールデータの取得に失敗しました:', profile.status === 'rejected' ? profile.reason : 'No data');
+        }
+
+        // 投稿結果の処理
+        if (postsResult.status === 'fulfilled') {
+          setPosts(Array.isArray(postsResult.value) ? postsResult.value : []);
+        } else {
+          console.error('投稿の取得に失敗しました:', postsResult.reason);
+          setPosts([]);
         }
       } catch (error) {
-        console.error('プロフィールデータの取得に失敗しました:', error);
+        console.error('データの取得に失敗しました:', error);
       } finally {
         setLoading(false);
       }
@@ -188,31 +194,6 @@ export default function ProfileViewPage({ userId }: ProfileViewPageProps) {
               >
                 プロフィールを編集
               </Link>
-              {profile.stripe_account_id && profile.stripe_onboarding_completed ? (
-                <Link
-                  href="/settings/payment"
-                  className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center hover:bg-green-200 transition-colors"
-                  title="決済設定完了"
-                >
-                  <CreditCard className="w-5 h-5 text-green-600" />
-                </Link>
-              ) : profile.stripe_account_id ? (
-                <Link
-                  href="/settings/payment"
-                  className="px-4 py-2 border border-gray-300 rounded-full font-semibold text-gray-900 hover:bg-gray-50 transition-colors flex items-center space-x-1"
-                >
-                  <CreditCard className="w-4 h-4" />
-                  <span>本人確認を完了</span>
-                </Link>
-              ) : (
-                <Link
-                  href="/settings/payment"
-                  className="px-4 py-2 border border-gray-300 rounded-full font-semibold text-gray-900 hover:bg-gray-50 transition-colors flex items-center space-x-1"
-                >
-                  <CreditCard className="w-4 h-4" />
-                  <span>Stripe設定</span>
-                </Link>
-              )}
             </div>
           ) : (
             <button className="px-4 py-2 bg-black text-white rounded-full font-semibold hover:bg-gray-800 transition-colors mb-4">
@@ -328,28 +309,22 @@ export default function ProfileViewPage({ userId }: ProfileViewPageProps) {
                     <div className="flex-1 min-w-0">
                       <div className="mb-1">
                         {/* デスクトップ: 横並び */}
-                        <div className="hidden sm:flex items-center justify-between">
+                        <div className="hidden sm:flex items-center">
                           <div className="flex items-center space-x-2">
                             <span className="font-semibold text-gray-900" title={profile.display_name}>{truncateDisplayName(profile.display_name, 'post')}</span>
                             <span className="text-gray-500 text-sm">@{profile.id.substring(0, 8)}</span>
                             <span className="text-gray-500 text-sm">·</span>
                             <span className="text-gray-500 text-sm">{formatDate(post.created_at)}</span>
                           </div>
-                          <span className={`px-2 py-1 text-xs font-semibold rounded ${getPostTypeBadgeColor(post.type)}`}>
-                            {getPostTypeLabel(post.type)}
-                          </span>
                         </div>
                         
                         {/* モバイル: 縦並び */}
                         <div className="sm:hidden">
-                          <div className="flex items-center justify-between mb-1">
+                          <div className="flex items-center mb-1">
                             <div className="flex items-center space-x-2">
                               <span className="font-semibold text-gray-900" title={profile.display_name}>{truncateDisplayName(profile.display_name, 'post')}</span>
                               <span className="text-gray-500 text-sm">@{profile.id.substring(0, 8)}</span>
                             </div>
-                            <span className={`px-2 py-1 text-xs font-semibold rounded ${getPostTypeBadgeColor(post.type)}`}>
-                              {getPostTypeLabel(post.type)}
-                            </span>
                           </div>
                           <div className="text-gray-500 text-sm">
                             {formatDate(post.created_at)}
@@ -360,19 +335,26 @@ export default function ProfileViewPage({ userId }: ProfileViewPageProps) {
                       {post.body && (
                         <p className="text-gray-700 mb-2 line-clamp-2">{post.body}</p>
                       )}
-                      {(post.price || (post.budget_min && post.budget_max)) && (
-                        <div className="mb-2">
-                          {post.price ? (
-                            <span className="text-lg font-bold text-green-600">
-                              ¥{post.price.toLocaleString()}
-                            </span>
-                          ) : (
-                            <span className="text-sm text-gray-600">
-                              予算: ¥{post.budget_min?.toLocaleString()} - ¥{post.budget_max?.toLocaleString()}
-                            </span>
-                          )}
+                      <div className="flex items-center justify-between mb-2">
+                        {(post.price || (post.budget_min && post.budget_max)) && (
+                          <div>
+                            {post.price ? (
+                              <span className="text-lg font-bold text-green-600">
+                                ¥{post.price.toLocaleString()}
+                              </span>
+                            ) : (
+                              <span className="text-sm text-gray-600">
+                                予算: ¥{post.budget_min?.toLocaleString()} - ¥{post.budget_max?.toLocaleString()}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                        <div className="flex items-center gap-2">
+                          <span className={`px-2 py-1 text-xs font-semibold rounded ${getPostTypeBadgeColor(post.type)}`}>
+                            {getPostTypeLabel(post.type)}
+                          </span>
                         </div>
-                      )}
+                      </div>
                       {post.cover_image_url && post.cover_image_url.trim() !== '' && (post.cover_image_url.startsWith('http://') || post.cover_image_url.startsWith('https://')) && (
                         <div className="rounded-lg overflow-hidden mb-2 mt-2">
                           <Image

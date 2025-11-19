@@ -95,6 +95,10 @@ func ValidateStruct(s interface{}) error {
 		return validateConfirmSaleRequestRequest(v)
 	case *models.ConfirmSaleRequestRequest:
 		return validateConfirmSaleRequestRequest(*v)
+	case models.UpdateProfileRequest:
+		return validateUpdateProfileRequest(v)
+	case *models.UpdateProfileRequest:
+		return validateUpdateProfileRequest(*v)
 	default:
 		return fmt.Errorf("validation not implemented for type %T", s)
 	}
@@ -398,6 +402,22 @@ func validateConfirmSaleRequestRequest(req models.ConfirmSaleRequestRequest) err
 	// Validate sale_request_id is required
 	if err := ValidateRequired("sale_request_id", req.SaleRequestID); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func validateUpdateProfileRequest(req models.UpdateProfileRequest) error {
+	// All fields are optional, but if provided, must be valid
+
+	// Validate age range if provided
+	if req.Age != nil && (*req.Age < 13 || *req.Age > 120) {
+		return fmt.Errorf("age must be between 13 and 120")
+	}
+
+	// Validate display_name length if provided
+	if req.DisplayName != nil && len(*req.DisplayName) < 1 {
+		return fmt.Errorf("display_name must not be empty if provided")
 	}
 
 	return nil

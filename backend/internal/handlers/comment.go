@@ -73,21 +73,32 @@ func (s *Server) HandleCommentReplies(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// HandleReplyByID handles PUT and DELETE for a specific reply
+// HandleReplyByID handles PUT, DELETE, and sub-routes (likes/dislikes) for a specific reply
 func (s *Server) HandleReplyByID(w http.ResponseWriter, r *http.Request) {
-	// Extract reply ID from URL path: /api/replies/:id
+	// Extract reply ID from URL path: /api/replies/:id or /api/replies/:id/likes or /api/replies/:id/dislikes
 	parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
 	if len(parts) < 3 {
 		http.Error(w, "Invalid reply ID", http.StatusBadRequest)
 		return
 	}
-	replyID := parts[2]
 
+	// Check for sub-routes (likes/dislikes)
+	if len(parts) >= 4 {
+		if parts[3] == "likes" {
+			s.HandleReplyLikes(w, r)
+			return
+		} else if parts[3] == "dislikes" {
+			s.HandleReplyDislikes(w, r)
+			return
+		}
+	}
+
+	// Handle main reply operations
 	switch r.Method {
 	case http.MethodPut:
-		s.UpdateReply(w, r, replyID)
+		s.UpdateReply(w, r, parts[2])
 	case http.MethodDelete:
-		s.DeleteReply(w, r, replyID)
+		s.DeleteReply(w, r, parts[2])
 	default:
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 	}
@@ -142,12 +153,13 @@ func (s *Server) ListPostComments(w http.ResponseWriter, r *http.Request, postID
 
 	client := s.supabase.GetServiceClient()
 
-	// Fetch comments
+	// Fetch comments with limit for performance
 	var comments []models.PostComment
 	_, err := client.From("post_comments").
 		Select("*", "", false).
 		Eq("post_id", postID).
 		Order("created_at", nil).
+		Limit(50, ""). // スケーラビリティ改善: 一度に取得するコメント数を制限
 		ExecuteTo(&comments)
 
 	if err != nil {
@@ -156,47 +168,74 @@ func (s *Server) ListPostComments(w http.ResponseWriter, r *http.Request, postID
 		return
 	}
 
-	// Get all user IDs for profiles
-	userIDs := make(map[string]bool)
-	for _, comment := range comments {
-		userIDs[comment.UserID] = true
+	// コメントがない場合は早期リターン
+	if len(comments) == 0 {
+		response.Success(w, http.StatusOK, []models.PostCommentWithDetails{})
+		return
 	}
 
-	// Fetch profiles
-	profilesMap := make(map[string]*models.AuthorProfile)
-	if len(userIDs) > 0 {
-		ids := make([]string, 0, len(userIDs))
-		for id := range userIDs {
-			ids = append(ids, id)
-		}
+	// コメントIDとユーザーIDを集約
+	commentIDs := make([]string, len(comments))
+	userIDsMap := make(map[string]bool)
+	for i, comment := range comments {
+		commentIDs[i] = comment.ID
+		userIDsMap[comment.UserID] = true
+	}
 
-		var profiles []models.AuthorProfile
-		_, err := client.From("profiles").
-			Select("id, display_name, icon_url, role, party", "", false).
-			In("id", ids).
-			ExecuteTo(&profiles)
+	// 全データを並列取得するためのチャネル
+	type profilesResult struct {
+		data map[string]*models.AuthorProfile
+		err  error
+	}
+	type countsResult struct {
+		likes     map[string]int
+		dislikes  map[string]int
+		replies   map[string]int
+		userLikes map[string]bool
+		userDislikes map[string]bool
+		err       error
+	}
 
-		if err != nil {
-			fmt.Printf("[ListPostComments] WARNING: Failed to query profiles: %v\n", err)
-		} else {
+	profilesChan := make(chan profilesResult, 1)
+	countsChan := make(chan countsResult, 1)
+
+	// プロフィールを並列取得
+	go func() {
+		profilesMap := make(map[string]*models.AuthorProfile)
+		if len(userIDsMap) > 0 {
+			ids := make([]string, 0, len(userIDsMap))
+			for id := range userIDsMap {
+				ids = append(ids, id)
+			}
+
+			var profiles []models.AuthorProfile
+			_, err := client.From("profiles").
+				Select("id, display_name, icon_url, role, party", "", false).
+				In("id", ids).
+				ExecuteTo(&profiles)
+
+			if err != nil {
+				fmt.Printf("[ListPostComments] WARNING: Failed to query profiles: %v\n", err)
+				profilesChan <- profilesResult{data: profilesMap, err: err}
+				return
+			}
+
 			for i := range profiles {
 				profilesMap[profiles[i].ID] = &profiles[i]
 			}
 		}
-	}
+		profilesChan <- profilesResult{data: profilesMap, err: nil}
+	}()
 
-	// Get like counts and user's likes
-	commentIDs := make([]string, len(comments))
-	for i, comment := range comments {
-		commentIDs[i] = comment.ID
-	}
+	// カウントデータを並列取得
+	go func() {
+		likeCounts := make(map[string]int)
+		dislikeCounts := make(map[string]int)
+		replyCounts := make(map[string]int)
+		userLikes := make(map[string]bool)
+		userDislikes := make(map[string]bool)
 
-	likeCounts := make(map[string]int)
-	userLikes := make(map[string]bool)
-	dislikeCounts := make(map[string]int)
-	userDislikes := make(map[string]bool)
-	if len(commentIDs) > 0 {
-		// Count likes for each comment
+		// いいね数を取得
 		type LikeRow struct {
 			CommentID string `json:"comment_id"`
 		}
@@ -212,7 +251,7 @@ func (s *Server) ListPostComments(w http.ResponseWriter, r *http.Request, postID
 			}
 		}
 
-		// Count dislikes
+		// 嫌い数を取得
 		type DislikeRow struct {
 			CommentID string `json:"comment_id"`
 		}
@@ -227,7 +266,23 @@ func (s *Server) ListPostComments(w http.ResponseWriter, r *http.Request, postID
 			}
 		}
 
-		// Check if current user liked each comment
+		// 返信数を取得
+		type ReplyRow struct {
+			CommentID string `json:"comment_id"`
+		}
+		var replies []ReplyRow
+		_, err = client.From("comment_replies").
+			Select("comment_id", "", false).
+			In("comment_id", commentIDs).
+			ExecuteTo(&replies)
+
+		if err == nil {
+			for _, reply := range replies {
+				replyCounts[reply.CommentID]++
+			}
+		}
+
+		// ユーザーのいいね/嫌いを取得
 		if userID != "" {
 			type UserLikeRow struct {
 				CommentID string `json:"comment_id"`
@@ -245,7 +300,6 @@ func (s *Server) ListPostComments(w http.ResponseWriter, r *http.Request, postID
 				}
 			}
 
-			// Check if current user disliked each comment
 			type UserDislikeRow struct {
 				CommentID string `json:"comment_id"`
 			}
@@ -262,44 +316,32 @@ func (s *Server) ListPostComments(w http.ResponseWriter, r *http.Request, postID
 				}
 			}
 		}
-	}
 
-	// Get reply counts
-	replyCounts := make(map[string]int)
-	if len(commentIDs) > 0 {
-		type ReplyRow struct {
-			CommentID string `json:"comment_id"`
+		countsChan <- countsResult{
+			likes:        likeCounts,
+			dislikes:     dislikeCounts,
+			replies:      replyCounts,
+			userLikes:    userLikes,
+			userDislikes: userDislikes,
+			err:          nil,
 		}
-		var replies []ReplyRow
-		_, err := client.From("comment_replies").
-			Select("comment_id", "", false).
-			In("comment_id", commentIDs).
-			ExecuteTo(&replies)
+	}()
 
-		if err == nil {
-			for _, reply := range replies {
-				replyCounts[reply.CommentID]++
-			}
-		}
-	}
+	// 並列取得した結果を待機
+	profilesRes := <-profilesChan
+	countsRes := <-countsChan
 
-	// Build response
+	// レスポンスを構築
 	result := make([]models.PostCommentWithDetails, 0, len(comments))
 	for _, comment := range comments {
-		likeCount := likeCounts[comment.ID]
-		isLiked := userLikes[comment.ID]
-		dislikeCount := dislikeCounts[comment.ID]
-		isDisliked := userDislikes[comment.ID]
-		replyCount := replyCounts[comment.ID]
-
 		result = append(result, models.PostCommentWithDetails{
 			PostComment:   comment,
-			AuthorProfile: profilesMap[comment.UserID],
-			LikeCount:     likeCount,
-			IsLiked:       isLiked,
-			DislikeCount:  dislikeCount,
-			IsDisliked:    isDisliked,
-			ReplyCount:    replyCount,
+			AuthorProfile: profilesRes.data[comment.UserID],
+			LikeCount:     countsRes.likes[comment.ID],
+			IsLiked:       countsRes.userLikes[comment.ID],
+			DislikeCount:  countsRes.dislikes[comment.ID],
+			IsDisliked:    countsRes.userDislikes[comment.ID],
+			ReplyCount:    countsRes.replies[comment.ID],
 			Replies:       []models.CommentReplyWithDetails{},
 		})
 	}
@@ -615,6 +657,7 @@ func (s *Server) DeleteComment(w http.ResponseWriter, r *http.Request, commentID
 
 // ListCommentReplies retrieves all replies for a comment
 func (s *Server) ListCommentReplies(w http.ResponseWriter, r *http.Request, commentID string) {
+	userID, _ := r.Context().Value("user_id").(string)
 	client := s.supabase.GetServiceClient()
 
 	var replies []models.CommentReply
@@ -630,17 +673,24 @@ func (s *Server) ListCommentReplies(w http.ResponseWriter, r *http.Request, comm
 		return
 	}
 
-	// Get all user IDs for profiles
-	userIDs := make(map[string]bool)
-	for _, reply := range replies {
-		userIDs[reply.UserID] = true
+	if len(replies) == 0 {
+		response.Success(w, http.StatusOK, []models.CommentReplyWithDetails{})
+		return
 	}
 
-	// Fetch profiles
+	// 返信IDとユーザーIDを集約
+	replyIDs := make([]string, len(replies))
+	userIDsMap := make(map[string]bool)
+	for i, reply := range replies {
+		replyIDs[i] = reply.ID
+		userIDsMap[reply.UserID] = true
+	}
+
+	// プロフィールを取得
 	profilesMap := make(map[string]*models.AuthorProfile)
-	if len(userIDs) > 0 {
-		ids := make([]string, 0, len(userIDs))
-		for id := range userIDs {
+	if len(userIDsMap) > 0 {
+		ids := make([]string, 0, len(userIDsMap))
+		for id := range userIDsMap {
 			ids = append(ids, id)
 		}
 
@@ -659,12 +709,89 @@ func (s *Server) ListCommentReplies(w http.ResponseWriter, r *http.Request, comm
 		}
 	}
 
-	// Build response
+	// いいね・バッドカウントを取得
+	likeCounts := make(map[string]int)
+	dislikeCounts := make(map[string]int)
+	userLikes := make(map[string]bool)
+	userDislikes := make(map[string]bool)
+
+	// いいね数を取得
+	type LikeRow struct {
+		ReplyID string `json:"reply_id"`
+	}
+	var likes []LikeRow
+	_, err = client.From("comment_reply_likes").
+		Select("reply_id", "", false).
+		In("reply_id", replyIDs).
+		ExecuteTo(&likes)
+
+	if err == nil {
+		for _, like := range likes {
+			likeCounts[like.ReplyID]++
+		}
+	}
+
+	// 嫌い数を取得
+	type DislikeRow struct {
+		ReplyID string `json:"reply_id"`
+	}
+	var dislikes []DislikeRow
+	_, err = client.From("comment_reply_dislikes").
+		Select("reply_id", "", false).
+		In("reply_id", replyIDs).
+		ExecuteTo(&dislikes)
+
+	if err == nil {
+		for _, d := range dislikes {
+			dislikeCounts[d.ReplyID]++
+		}
+	}
+
+	// ユーザーのいいね/嫌いを取得
+	if userID != "" {
+		type UserLikeRow struct {
+			ReplyID string `json:"reply_id"`
+		}
+		var userLikesData []UserLikeRow
+		_, err := client.From("comment_reply_likes").
+			Select("reply_id", "", false).
+			In("reply_id", replyIDs).
+			Eq("user_id", userID).
+			ExecuteTo(&userLikesData)
+
+		if err == nil {
+			for _, like := range userLikesData {
+				userLikes[like.ReplyID] = true
+			}
+		}
+
+		type UserDislikeRow struct {
+			ReplyID string `json:"reply_id"`
+		}
+		var userDislikesData []UserDislikeRow
+		_, err = client.From("comment_reply_dislikes").
+			Select("reply_id", "", false).
+			In("reply_id", replyIDs).
+			Eq("user_id", userID).
+			ExecuteTo(&userDislikesData)
+
+		if err == nil {
+			for _, d := range userDislikesData {
+				userDislikes[d.ReplyID] = true
+			}
+		}
+	}
+
+	// レスポンスを構築
 	result := make([]models.CommentReplyWithDetails, 0, len(replies))
 	for _, reply := range replies {
 		result = append(result, models.CommentReplyWithDetails{
-			CommentReply:   reply,
-			AuthorProfile:  profilesMap[reply.UserID],
+			CommentReply:  reply,
+			AuthorProfile: profilesMap[reply.UserID],
+			LikeCount:     likeCounts[reply.ID],
+			IsLiked:       userLikes[reply.ID],
+			DislikeCount:  dislikeCounts[reply.ID],
+			IsDisliked:    userDislikes[reply.ID],
 		})
 	}
 
@@ -1130,5 +1257,265 @@ func (s *Server) ToggleCommentDislike(w http.ResponseWriter, r *http.Request, co
 	}
 
 	s.GetCommentDislikes(w, r, commentID)
+}
+
+// HandleReplyLikes handles GET (list) and POST (toggle) for reply likes
+func (s *Server) HandleReplyLikes(w http.ResponseWriter, r *http.Request) {
+	// Extract reply ID from URL path: /api/replies/:id/likes
+	parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
+	if len(parts) < 4 || parts[3] != "likes" {
+		http.Error(w, "Invalid path", http.StatusBadRequest)
+		return
+	}
+	replyID := parts[2]
+
+	switch r.Method {
+	case http.MethodGet:
+		s.GetReplyLikes(w, r, replyID)
+	case http.MethodPost:
+		s.ToggleReplyLike(w, r, replyID)
+	default:
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+// HandleReplyDislikes handles GET (list) and POST (toggle) for reply dislikes
+func (s *Server) HandleReplyDislikes(w http.ResponseWriter, r *http.Request) {
+	// Extract reply ID from URL path: /api/replies/:id/dislikes
+	parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
+	if len(parts) < 4 || parts[3] != "dislikes" {
+		http.Error(w, "Invalid path", http.StatusBadRequest)
+		return
+	}
+	replyID := parts[2]
+
+	switch r.Method {
+	case http.MethodGet:
+		s.GetReplyDislikes(w, r, replyID)
+	case http.MethodPost:
+		s.ToggleReplyDislike(w, r, replyID)
+	default:
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+// GetReplyLikes retrieves like count and user's like status for a reply
+func (s *Server) GetReplyLikes(w http.ResponseWriter, r *http.Request, replyID string) {
+	userID, _ := r.Context().Value("user_id").(string)
+	client := s.supabase.GetServiceClient()
+
+	// Count total likes
+	type LikeRow struct {
+		ReplyID string `json:"reply_id"`
+	}
+	var likes []LikeRow
+	_, err := client.From("comment_reply_likes").
+		Select("reply_id", "", false).
+		Eq("reply_id", replyID).
+		ExecuteTo(&likes)
+
+	if err != nil {
+		http.Error(w, "Failed to fetch likes", http.StatusInternalServerError)
+		return
+	}
+
+	likeCount := len(likes)
+	isLiked := false
+
+	// Check if current user liked this reply
+	if userID != "" {
+		var userLikes []LikeRow
+		_, err := client.From("comment_reply_likes").
+			Select("reply_id", "", false).
+			Eq("reply_id", replyID).
+			Eq("user_id", userID).
+			Limit(1, "").
+			ExecuteTo(&userLikes)
+
+		if err == nil && len(userLikes) > 0 {
+			isLiked = true
+		}
+	}
+
+	result := map[string]interface{}{
+		"reply_id":   replyID,
+		"like_count": likeCount,
+		"is_liked":   isLiked,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(result)
+}
+
+// ToggleReplyLike toggles a like on a reply
+func (s *Server) ToggleReplyLike(w http.ResponseWriter, r *http.Request, replyID string) {
+	userID, ok := r.Context().Value("user_id").(string)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	impersonateJWT, ok := r.Context().Value("impersonate_jwt").(string)
+	if !ok || impersonateJWT == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	client := s.supabase.GetAuthenticatedClient(impersonateJWT)
+
+	// Check if like already exists
+	type LikeRow struct {
+		ReplyID string `json:"reply_id"`
+		UserID  string `json:"user_id"`
+	}
+	var existingLikes []LikeRow
+	_, err := client.From("comment_reply_likes").
+		Select("reply_id, user_id", "", false).
+		Eq("reply_id", replyID).
+		Eq("user_id", userID).
+		Limit(1, "").
+		ExecuteTo(&existingLikes)
+
+	if err == nil && len(existingLikes) > 0 {
+		// Unlike: delete the like
+		_, _, err = client.From("comment_reply_likes").
+			Delete("", "").
+			Eq("reply_id", replyID).
+			Eq("user_id", userID).
+			Execute()
+
+		if err != nil {
+			http.Error(w, "Failed to unlike reply", http.StatusInternalServerError)
+			return
+		}
+	} else {
+		// Like: create the like
+		likeData := map[string]interface{}{
+			"reply_id": replyID,
+			"user_id":  userID,
+		}
+
+		_, _, err = client.From("comment_reply_likes").
+			Insert(likeData, false, "", "", "").
+			Execute()
+
+		if err != nil {
+			http.Error(w, "Failed to like reply", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	s.GetReplyLikes(w, r, replyID)
+}
+
+// GetReplyDislikes retrieves dislike count and user's dislike status for a reply
+func (s *Server) GetReplyDislikes(w http.ResponseWriter, r *http.Request, replyID string) {
+	userID, _ := r.Context().Value("user_id").(string)
+	client := s.supabase.GetServiceClient()
+
+	// Count total dislikes
+	type Row struct {
+		ReplyID string `json:"reply_id"`
+	}
+	var rows []Row
+	_, err := client.From("comment_reply_dislikes").
+		Select("reply_id", "", false).
+		Eq("reply_id", replyID).
+		ExecuteTo(&rows)
+
+	if err != nil {
+		http.Error(w, "Failed to fetch dislikes", http.StatusInternalServerError)
+		return
+	}
+
+	count := len(rows)
+	isDisliked := false
+
+	// Check if current user disliked this reply
+	if userID != "" {
+		var userRows []Row
+		_, err := client.From("comment_reply_dislikes").
+			Select("reply_id", "", false).
+			Eq("reply_id", replyID).
+			Eq("user_id", userID).
+			Limit(1, "").
+			ExecuteTo(&userRows)
+
+		if err == nil && len(userRows) > 0 {
+			isDisliked = true
+		}
+	}
+
+	result := map[string]interface{}{
+		"reply_id":       replyID,
+		"dislike_count":  count,
+		"is_disliked":    isDisliked,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(result)
+}
+
+// ToggleReplyDislike toggles a dislike on a reply
+func (s *Server) ToggleReplyDislike(w http.ResponseWriter, r *http.Request, replyID string) {
+	userID, ok := r.Context().Value("user_id").(string)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	impersonateJWT, ok := r.Context().Value("impersonate_jwt").(string)
+	if !ok || impersonateJWT == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	client := s.supabase.GetAuthenticatedClient(impersonateJWT)
+
+	// Check if dislike already exists
+	type Row struct {
+		ReplyID string `json:"reply_id"`
+		UserID  string `json:"user_id"`
+	}
+	var existing []Row
+	_, err := client.From("comment_reply_dislikes").
+		Select("reply_id, user_id", "", false).
+		Eq("reply_id", replyID).
+		Eq("user_id", userID).
+		Limit(1, "").
+		ExecuteTo(&existing)
+
+	if err == nil && len(existing) > 0 {
+		// Remove dislike
+		_, _, err = client.From("comment_reply_dislikes").
+			Delete("", "").
+			Eq("reply_id", replyID).
+			Eq("user_id", userID).
+			Execute()
+
+		if err != nil {
+			http.Error(w, "Failed to remove dislike", http.StatusInternalServerError)
+			return
+		}
+	} else {
+		// Add dislike
+		data := map[string]interface{}{
+			"reply_id": replyID,
+			"user_id":  userID,
+		}
+
+		_, _, err = client.From("comment_reply_dislikes").
+			Insert(data, false, "", "", "").
+			Execute()
+
+		if err != nil {
+			http.Error(w, "Failed to add dislike", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	s.GetReplyDislikes(w, r, replyID)
 }
 

@@ -5,16 +5,11 @@
     "title": "Profile Settings",
     "description": "Edit your profile information."
   },
-  "payment": {
-    "title": "Payment Settings",
-    "description": "Manage your payment methods."
-  },
   "account": "Account",
   "notifications": "Notifications",
   "privacy": "Privacy",
   "billing": "Billing",
   "profileSettings": "Profile Settings",
-  "paymentSettings": "Payment Settings",
   "languageSettings": "Language Settings",
   "japanese": "日本語",
   "english": "English",

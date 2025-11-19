@@ -90,6 +90,25 @@
     "secret": "Secret",
     "transaction": "Transaction"
   },
+  "filters": {
+    "search": "Search",
+    "open": "Open filters",
+    "close": "Close filters",
+    "type": "Post Type",
+    "status": "Status",
+    "category": "Category",
+    "price": "Price Range",
+    "min": "Min",
+    "max": "Max",
+    "from": "¥",
+    "monthlyRevenue": "Monthly Revenue",
+    "profitMargin": "Profit Margin",
+    "clear": "Clear",
+    "apply": "Apply",
+    "searchButton": "Search",
+    "resultsCount": "{count} results",
+    "sort": "Sort"
+  },
   "detail": {
     "expand": "Expand",
     "additionalImage": "Additional Image {index}",

@@ -11,16 +11,14 @@ import (
 )
 
 type Server struct {
-	config        *config.Config
-	supabase      *services.SupabaseService
-	stripeService *services.StripeService
+	config   *config.Config
+	supabase *services.SupabaseService
 }
 
 func NewServer(cfg *config.Config) *Server {
 	return &Server{
-		config:        cfg,
-		supabase:      services.NewSupabaseService(cfg),
-		stripeService: services.NewStripeService(cfg),
+		config:   cfg,
+		supabase: services.NewSupabaseService(cfg),
 	}
 }
 
@@ -201,22 +199,6 @@ func SetupRoutes(cfg *config.Config) http.Handler {
 	fmt.Println("[ROUTES] Registered: /api/storage/upload (with auth)")
 	fmt.Println("[ROUTES] Registered: /api/storage/signed-url")
 	fmt.Println("[ROUTES] Registered: /api/storage/signed-urls")
-
-	// Stripe routes (protected)
-	stripeHandler := NewStripeHandler(cfg, server.supabase, server.stripeService)
-	mux.HandleFunc("/api/stripe/account-status", auth(stripeHandler.HandleGetAccountStatus))
-	mux.HandleFunc("/api/stripe/create-account", auth(stripeHandler.HandleCreateAccount))
-	mux.HandleFunc("/api/stripe/create-onboarding-link", auth(stripeHandler.HandleCreateOnboardingLink))
-	mux.HandleFunc("/api/stripe/onboarding-link", auth(stripeHandler.HandleGetOnboardingLink))
-	mux.HandleFunc("/api/stripe/payout-info", auth(stripeHandler.HandleGetPayoutInfo))
-	// Stripe Webhook (public - Stripeからのリクエスト)
-	mux.HandleFunc("/api/stripe/webhook", stripeHandler.HandleStripeWebhook)
-	fmt.Println("[ROUTES] Registered: /api/stripe/account-status (with auth)")
-	fmt.Println("[ROUTES] Registered: /api/stripe/create-account (with auth)")
-	fmt.Println("[ROUTES] Registered: /api/stripe/create-onboarding-link (with auth)")
-	fmt.Println("[ROUTES] Registered: /api/stripe/onboarding-link (with auth)")
-	fmt.Println("[ROUTES] Registered: /api/stripe/payout-info (with auth)")
-	fmt.Println("[ROUTES] Registered: /api/stripe/webhook (public)")
 
 	// Apply global middleware (order matters: Recovery -> CORS -> Logger)
 	handler := middleware.Recovery(mux)

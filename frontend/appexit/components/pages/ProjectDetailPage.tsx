@@ -36,6 +36,7 @@ interface ProjectDetailPageProps {
     status?: string;
   };
   postDetails?: PostWithDetails | null;
+  pageDict?: Record<string, any>; // ページ固有翻訳（遅延ロード）
 }
 
 type TabType = 'overview' | 'activity' | 'comments';
@@ -43,7 +44,8 @@ type TabType = 'overview' | 'activity' | 'comments';
 export default function ProjectDetailPage({
   projectId,
   initialData,
-  postDetails
+  postDetails,
+  pageDict = {}
 }: ProjectDetailPageProps) {
   const t = useTranslations('projects');
   const tGlobal = useTranslations();
@@ -94,9 +96,9 @@ export default function ProjectDetailPage({
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#F9F8F7' }}>
         <div className="text-center">
-          <h1 className="text-2xl font-bold mb-4" style={{ color: '#323232' }}>{t('projects.noResults')}</h1>
+          <h1 className="text-2xl font-bold mb-4" style={{ color: '#323232' }}>{t('noResults')}</h1>
           <Link href={`/${locale}`} className="hover:underline" style={{ color: '#E65D65' }}>
-            {t('errors.backToHome')}
+            {tGlobal('errors.backToHome')}
           </Link>
         </div>
       </div>
@@ -676,10 +678,11 @@ export default function ProjectDetailPage({
               <div className="space-y-3 mb-6">
                 <Button
                   variant="outline"
-                  className="w-full rounded-sm bg-transparent border-2 hover:opacity-80 gap-2"
+                  className="w-full rounded-sm bg-transparent border-2 hover:opacity-80 justify-between !px-4 !py-3"
                   style={{ borderColor: '#E65D65', color: '#E65D65' }}
+                  onClick={handleMessageClick}
                 >
-                  {t('projectDetail.purchaseButton')}
+                  {t('projectDetail.sendMessage')}
                   <svg
                     className="w-5 h-5"
                     fill="none"
@@ -694,28 +697,6 @@ export default function ProjectDetailPage({
                       d="M9 5l7 7-7 7"
                     />
                   </svg>
-                </Button>
-
-                <Button
-                  variant="secondary"
-                  className="w-full rounded-sm gap-2"
-                  onClick={handleMessageClick}
-                >
-                  <svg
-                    className="w-5 h-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-                    />
-                  </svg>
-                  {t('projectDetail.sendMessage')}
                 </Button>
               </div>
 

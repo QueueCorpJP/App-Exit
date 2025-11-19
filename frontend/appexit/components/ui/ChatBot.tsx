@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { MessageCircle, X, Send, Minimize2 } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 
@@ -17,6 +17,16 @@ export default function ChatBot() {
       timestamp: new Date()
     }
   ]);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // クリーンアップ: コンポーネントアンマウント時にタイマーをクリア
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleSendMessage = () => {
     if (message.trim() === '') return;
@@ -33,8 +43,13 @@ export default function ChatBot() {
     setMessages(newMessages);
     setMessage('');
 
+    // 既存のタイマーをクリア
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+
     // ボットの自動応答（実際の機能は未実装）
-    setTimeout(() => {
+    timeoutRef.current = setTimeout(() => {
       setMessages([
         ...newMessages,
         {
@@ -43,6 +58,7 @@ export default function ChatBot() {
           timestamp: new Date()
         }
       ]);
+      timeoutRef.current = null;
     }, 1000);
   };
 

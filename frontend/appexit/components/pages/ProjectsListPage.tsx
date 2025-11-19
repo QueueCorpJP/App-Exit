@@ -66,6 +66,9 @@ export default function ProjectsListPage() {
   const [projects, setProjects] = useState<ProjectWithImage[]>([]);
   const [filteredProjects, setFilteredProjects] = useState<ProjectWithImage[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hasMore, setHasMore] = useState(true);
+  const [currentPage, setCurrentPage] = useState(0);
+  const POSTS_PER_PAGE = 20;
 
   // フィルター状態
   const [showFilters, setShowFilters] = useState(false);
@@ -212,11 +215,51 @@ export default function ProjectsListPage() {
     setProjects(projectsWithImages);
   };
 
-  const fetchPosts = async () => {
+  const processPostsDataForAppend = async (data: Post[]): Promise<ProjectWithImage[]> => {
+    // 画像URLマップを取得（eyecatch_url のみ）
+    const imagePaths = data.map(post => post.eyecatch_url).filter((url): url is string => !!url);
+    let imageUrlMap: Map<string, string> = new Map();
+
+    try {
+      imageUrlMap = await getImageUrls(imagePaths);
+    } catch (err) {
+      console.error('[PROJECTS] Failed to load image URLs:', err);
+    }
+
+    return data.map(post => ({
+      id: post.id,
+      title: post.title,
+      category: post.category || 'その他',
+      image: post.eyecatch_url ? (imageUrlMap.get(post.eyecatch_url) || '/placeholder.png') : '/placeholder.png',
+      imagePath: post.eyecatch_url || null,
+      price: post.price || 0,
+      monthlyRevenue: post.monthly_revenue,
+      monthlyCost: post.monthly_cost,
+      profitMargin: post.profit_margin,
+      status: post.status,
+      watchCount: post.watch_count,
+      commentCount: post.comment_count,
+      updatedAt: post.updated_at,
+      tag: post.tag,
+      badge: post.badge,
+      authorProfile: post.author_profile || null,
+      techStack: post.tech_stack,
+      postType: post.type,
+      isActive: post.is_active,
+      activeViewCount: post.active_view_count,
+    }));
+  };
+
+  const fetchPosts = async (loadMore = false) => {
     setLoading(true);
     try {
+      const page = loadMore ? currentPage + 1 : 0;
+
       // バックエンドに検索パラメータを渡す（appliedフィルターを使用）
-      const params: any = {};
+      const params: any = {
+        limit: POSTS_PER_PAGE,
+        offset: page * POSTS_PER_PAGE,
+      };
 
       if (searchKeyword.trim()) {
         params.search_keyword = searchKeyword.trim();
@@ -251,6 +294,7 @@ export default function ProjectsListPage() {
       if (!Array.isArray(data)) {
         console.warn('Invalid data format received:', response);
         await processPostsData([]);
+        setHasMore(false);
         return;
       }
 
@@ -263,9 +307,21 @@ export default function ProjectsListPage() {
       });
       setAvailableTechStacks(Array.from(techStackSet).sort());
 
-      await processPostsData(data);
+      // ページネーション処理
+      if (loadMore) {
+        const processedData = await processPostsDataForAppend(data);
+        setProjects(prev => [...prev, ...processedData]);
+        setCurrentPage(page);
+      } else {
+        await processPostsData(data);
+        setCurrentPage(0);
+      }
+
+      // データが取得件数より少なければ、これ以上ないと判断
+      setHasMore(data.length >= POSTS_PER_PAGE);
     } catch (error) {
       console.error('Failed to fetch posts:', error);
+      setHasMore(false);
     } finally {
       setLoading(false);
     }
@@ -648,9 +704,14 @@ export default function ProjectsListPage() {
                   <div className="md:col-span-2 lg:col-span-3">
                     <label className="block text-sm font-bold mb-2 text-gray-500">
                       {t('filters.technology')}
+                      {availableTechStacks.length > 50 && (
+                        <span className="ml-2 text-xs text-gray-400">
+                          (上位50個を表示中)
+                        </span>
+                      )}
                     </label>
                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 max-h-40 overflow-y-auto p-3 rounded-md border border-gray-200">
-                      {availableTechStacks.map(tech => (
+                      {availableTechStacks.slice(0, 50).map(tech => (
                         <label key={tech} className="flex items-center gap-2 cursor-pointer hover:opacity-80 p-2 rounded transition-opacity">
                           <input
                             type="checkbox"
@@ -739,30 +800,44 @@ export default function ProjectsListPage() {
         )}
 
         {!loading && filteredProjects.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredProjects.map((project) => (
-              <ProjectCard
-                key={project.id}
-                id={project.id}
-                title={project.title}
-                category={project.category}
-                image={project.image}
-                imagePath={project.imagePath}
-                price={project.price}
-                monthlyRevenue={project.monthlyRevenue}
-                monthlyCost={project.monthlyCost}
-                profitMargin={project.profitMargin}
-                status={project.status}
-                watchCount={project.watchCount}
-                commentCount={project.commentCount}
-                updatedAt={project.updatedAt}
-                tag={project.tag}
-                badge={project.badge}
-                authorProfile={project.authorProfile}
-                activeViewCount={project.activeViewCount}
-              />
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredProjects.map((project) => (
+                <ProjectCard
+                  key={project.id}
+                  id={project.id}
+                  title={project.title}
+                  category={project.category}
+                  image={project.image}
+                  imagePath={project.imagePath}
+                  price={project.price}
+                  monthlyRevenue={project.monthlyRevenue}
+                  monthlyCost={project.monthlyCost}
+                  profitMargin={project.profitMargin}
+                  status={project.status}
+                  watchCount={project.watchCount}
+                  commentCount={project.commentCount}
+                  updatedAt={project.updatedAt}
+                  tag={project.tag}
+                  badge={project.badge}
+                  authorProfile={project.authorProfile}
+                  activeViewCount={project.activeViewCount}
+                />
+              ))}
+            </div>
+
+            {hasMore && !loading && (
+              <div className="flex justify-center mt-8">
+                <button
+                  onClick={() => fetchPosts(true)}
+                  className="px-6 py-3 text-white font-bold rounded-lg hover:opacity-90 transition-opacity"
+                  style={{ backgroundColor: '#E65D65' }}
+                >
+                  {t('common.loadMore')}
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

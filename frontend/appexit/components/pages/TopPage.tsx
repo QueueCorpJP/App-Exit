@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import ProjectCard from '../ui/ProjectCard';
 import InfiniteCarousel from '../ui/InfiniteCarousel';
@@ -27,6 +27,13 @@ interface ProjectWithImage {
   tag?: string;
   badge?: string;
   activeViewCount?: number; // アクティブビュー数
+  authorProfile?: {
+    id: string;
+    display_name: string;
+    icon_url?: string;
+    role: string;
+    party: string;
+  } | null;
 }
 
 interface TopPageProps {
@@ -37,48 +44,71 @@ interface TopPageProps {
 
 export default function TopPage({ initialPosts = [], useMockCarousel = true, pageDict = {} }: TopPageProps) {
   const t = useTranslations(); // common辞書用
-  const tHome = useTranslations('home'); // home辞書用
+  const tHome = useTranslations('home'); // home翻訳用
   const locale = useLocale();
-
-  // ページ専用辞書を取得するヘルパー関数
-  const tp = (key: string): string => {
-    // まずuseTranslations('home')から取得を試みる
-    try {
-      return tHome(key);
-    } catch {
-      // フォールバックとしてpageDictから取得
-      const keys = key.split('.');
-      let value: any = pageDict;
-      for (const k of keys) {
-        value = value?.[k];
-      }
-      return value || key;
-    }
-  };
   const [posts, setPosts] = useState<Post[]>(initialPosts);
   const [projects, setProjects] = useState<ProjectWithImage[]>([]);
   const [latestProjects, setLatestProjects] = useState<ProjectWithImage[]>([]);
   const [subscribedProjects, setSubscribedProjects] = useState<ProjectWithImage[]>([]);
+  const [recommendedProjects, setRecommendedProjects] = useState<ProjectWithImage[]>([]);
   const [loading, setLoading] = useState(false); // Server Componentから初期データが渡されるためfalse
 
-  // モックデータをカルーセル用にフォーマット
-  const mockCarouselProjects: ProjectWithImage[] = useMockCarousel
-    ? mockCarouselData.map((item) => ({
-        id: item.id,
-        title: item.title,
-        category: item.category,
-        image: item.image,
-        imagePath: null,
-        price: item.price,
-        monthlyRevenue: undefined,
-        monthlyCost: undefined,
-        profitMargin: undefined,
-        status: t('common.recruiting'),
-        watchCount: undefined,
-        commentCount: undefined,
-        updatedAt: undefined,
-      }))
-    : [];
+  // モックデータをカルーセル用にフォーマット（useMemoでメモ化）
+  const mockCarouselProjects: ProjectWithImage[] = useMemo(() => {
+    if (!useMockCarousel) return [];
+
+    return mockCarouselData.map((item) => ({
+      id: item.id,
+      title: item.title,
+      category: item.category,
+      image: item.image,
+      imagePath: null,
+      price: item.price,
+      monthlyRevenue: undefined,
+      monthlyCost: undefined,
+      profitMargin: undefined,
+      status: t('common.recruiting'),
+      watchCount: undefined,
+      commentCount: undefined,
+      updatedAt: undefined,
+    }));
+  }, [useMockCarousel, t]);
+
+  // スケーラビリティ改善: 投稿データからプロジェクトデータへの変換を関数化して重複を削減
+  const transformPostToProject = (post: Post, imageUrl?: string): ProjectWithImage => {
+    // カテゴリの取得（app_categoriesの配列、なければbody）
+    const categories = post.app_categories && post.app_categories.length > 0
+      ? post.app_categories
+      : [post.body || t('topPageProject')];
+
+    // 利益率の計算
+    const profitMargin = post.monthly_revenue && post.monthly_cost !== undefined && post.monthly_revenue > 0
+      ? ((post.monthly_revenue - post.monthly_cost) / post.monthly_revenue) * 100
+      : undefined;
+
+    // 成約状況
+    const status = post.is_active ? t('common.recruiting') : t('common.completed');
+
+    return {
+      id: post.id,
+      title: post.title,
+      category: categories,
+      image: imageUrl || 'https://placehold.co/600x400/e2e8f0/64748b?text=No+Image',
+      imagePath: post.eyecatch_url || null,
+      price: post.price || 0,
+      monthlyRevenue: post.monthly_revenue,
+      monthlyCost: post.monthly_cost,
+      profitMargin,
+      status,
+      watchCount: undefined,
+      commentCount: undefined,
+      updatedAt: post.updated_at,
+      tag: undefined,
+      badge: undefined,
+      activeViewCount: post.active_view_count || 0,
+      authorProfile: post.author_profile || null,
+    };
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -96,39 +126,7 @@ export default function TopPage({ initialPosts = [], useMockCarousel = true, pag
         }
 
         // まず、画像なしでプロジェクトデータを作成して即座に表示
-        const projectsWithoutImages: ProjectWithImage[] = data.map(post => {
-          // カテゴリの取得（app_categoriesの配列、なければbody）
-          const categories = post.app_categories && post.app_categories.length > 0
-            ? post.app_categories
-            : [post.body || t('topPageProject')];
-
-          // 利益率の計算
-          const profitMargin = post.monthly_revenue && post.monthly_cost !== undefined && post.monthly_revenue > 0
-            ? ((post.monthly_revenue - post.monthly_cost) / post.monthly_revenue) * 100
-            : undefined;
-
-          // 成約状況
-          const status = post.is_active ? t('common.recruiting') : t('common.completed');
-
-          return {
-            id: post.id,
-            title: post.title,
-            category: categories,
-            image: 'https://placehold.co/600x400/e2e8f0/64748b?text=No+Image',
-            imagePath: post.eyecatch_url || null,
-            price: post.price || 0,
-            monthlyRevenue: post.monthly_revenue,
-            monthlyCost: post.monthly_cost,
-            profitMargin,
-            status,
-            watchCount: undefined, // 今後実装予定
-            commentCount: undefined, // 今後実装予定
-            updatedAt: post.updated_at,
-            tag: undefined,
-            badge: undefined,
-            activeViewCount: post.active_view_count || 0, // バックエンドから取得したアクティブビュー数
-          };
-        });
+        const projectsWithoutImages: ProjectWithImage[] = data.map(post => transformPostToProject(post));
 
         // 最新の投稿を取得（created_atでソート）
         const sortedByDateWithoutImages = [...projectsWithoutImages].sort((a, b) => {
@@ -187,41 +185,8 @@ export default function TopPage({ initialPosts = [], useMockCarousel = true, pag
         // 画像URLが取得できた場合は、プロジェクトデータを更新
         if (imageUrlMap.size > 0) {
           const projectsWithImages: ProjectWithImage[] = data.map(post => {
-            const imageUrl = post.eyecatch_url
-              ? (imageUrlMap.get(post.eyecatch_url) || 'https://placehold.co/600x400/e2e8f0/64748b?text=No+Image')
-              : 'https://placehold.co/600x400/e2e8f0/64748b?text=No+Image';
-
-            // カテゴリの取得（app_categoriesの配列、なければbody）
-            const categories = post.app_categories && post.app_categories.length > 0
-              ? post.app_categories
-              : [post.body || t('topPageProject')];
-
-            // 利益率の計算
-            const profitMargin = post.monthly_revenue && post.monthly_cost !== undefined && post.monthly_revenue > 0
-              ? ((post.monthly_revenue - post.monthly_cost) / post.monthly_revenue) * 100
-              : undefined;
-
-            // 成約状況
-            const status = post.is_active ? t('common.recruiting') : t('common.completed');
-
-            return {
-              id: post.id,
-              title: post.title,
-              category: categories,
-              image: imageUrl,
-              imagePath: post.eyecatch_url || null,
-              price: post.price || 0,
-              monthlyRevenue: post.monthly_revenue,
-              monthlyCost: post.monthly_cost,
-              profitMargin,
-              status,
-              watchCount: undefined, // 今後実装予定
-              commentCount: undefined, // 今後実装予定
-              updatedAt: post.updated_at,
-              tag: undefined,
-              badge: undefined,
-              activeViewCount: post.active_view_count || 0, // バックエンドから取得したアクティブビュー数
-            };
+            const imageUrl = post.eyecatch_url ? imageUrlMap.get(post.eyecatch_url) : undefined;
+            return transformPostToProject(post, imageUrl);
           });
 
           // subscribe が true の投稿をフィルタリング
@@ -237,10 +202,113 @@ export default function TopPage({ initialPosts = [], useMockCarousel = true, pag
             return dateB - dateA; // 新しい順
           });
 
+          // レコメンドロジック: 改善されたスコアリングアルゴリズム
+          const recommendedWithScore = [...projectsWithImages]
+            .map(project => {
+              const post = data.find(p => p.id === project.id);
+              if (!post) return { project, score: 0, category: '' };
+
+              // 各メトリクスの正規化用の最大値を計算
+              const maxActiveViews = Math.max(...data.map(p => p.active_view_count || 0));
+              const maxWatchCount = Math.max(...data.map(p => p.watch_count || 0));
+              const maxCommentCount = Math.max(...data.map(p => p.comment_count || 0));
+
+              // スコア計算（0-100の範囲に正規化）
+              let score = 0;
+
+              // 1. エンゲージメントスコア（40点満点）
+              // アクティブビュー数（0-15点）
+              if (maxActiveViews > 0) {
+                score += ((post.active_view_count || 0) / maxActiveViews) * 15;
+              }
+              // ウォッチ数（0-15点） - 購買意欲の高いユーザーの指標
+              if (maxWatchCount > 0) {
+                score += ((post.watch_count || 0) / maxWatchCount) * 15;
+              }
+              // コメント数（0-10点） - アクティブな議論の指標
+              if (maxCommentCount > 0) {
+                score += ((post.comment_count || 0) / maxCommentCount) * 10;
+              }
+
+              // 2. 新しさスコア（20点満点）
+              const createdAt = new Date(post.created_at);
+              const now = new Date();
+              const daysDiff = Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
+              if (daysDiff <= 3) score += 20;       // 3日以内: 20点
+              else if (daysDiff <= 7) score += 15;  // 7日以内: 15点
+              else if (daysDiff <= 14) score += 10; // 14日以内: 10点
+              else if (daysDiff <= 30) score += 5;  // 30日以内: 5点
+
+              // 3. 事業価値スコア（30点満点）
+              if (post.price && post.price > 0) {
+                // 価格設定あり: +5点
+                score += 5;
+
+                // 月次収益データがある場合
+                if (post.monthly_revenue && post.monthly_revenue > 0) {
+                  // 収益性評価: +10点
+                  score += 10;
+
+                  // 価格倍率（売上の何ヶ月分か）
+                  const multiple = post.price / post.monthly_revenue;
+                  // 適正な価格倍率（6-48ヶ月）: +10点
+                  if (multiple >= 6 && multiple <= 48) score += 10;
+
+                  // 利益率評価（月次利益データがある場合）
+                  if (post.monthly_profit !== undefined && post.monthly_revenue > 0) {
+                    const profitMargin = (post.monthly_profit / post.monthly_revenue) * 100;
+                    if (profitMargin > 50) score += 5;      // 高利益率: +5点
+                    else if (profitMargin > 20) score += 3; // 中利益率: +3点
+                  }
+                }
+              }
+
+              // 4. ステータススコア（10点満点）
+              if (post.is_active) score += 10; // アクティブな案件のみ表示
+
+              // カテゴリ情報を保存（多様性のため）
+              const category = Array.isArray(post.app_categories) && post.app_categories.length > 0
+                ? post.app_categories[0]
+                : 'other';
+
+              return { project, score, category };
+            })
+            .filter(item => item.score > 0); // スコア0のものは除外
+
+          // カテゴリの多様性を確保しつつ、上位12件を選択
+          const recommended: ProjectWithImage[] = [];
+          const categoryCount = new Map<string, number>();
+          const maxPerCategory = 4; // 1カテゴリから最大4件まで
+
+          // まずスコア順にソート
+          const sortedByScore = [...recommendedWithScore].sort((a, b) => b.score - a.score);
+
+          // カテゴリバランスを考慮しながら選択
+          for (const item of sortedByScore) {
+            if (recommended.length >= 12) break;
+
+            const currentCategoryCount = categoryCount.get(item.category) || 0;
+            if (currentCategoryCount < maxPerCategory) {
+              recommended.push(item.project);
+              categoryCount.set(item.category, currentCategoryCount + 1);
+            }
+          }
+
+          // 12件に満たない場合は、カテゴリ制限を無視して追加
+          if (recommended.length < 12) {
+            for (const item of sortedByScore) {
+              if (recommended.length >= 12) break;
+              if (!recommended.find(p => p.id === item.project.id)) {
+                recommended.push(item.project);
+              }
+            }
+          }
+
           if (isMounted) {
             setProjects(projectsWithImages);
             setLatestProjects(sortedByDate);
             setSubscribedProjects(subscribed);
+            setRecommendedProjects(recommended);
           }
         }
       } catch (error) {
@@ -298,29 +366,55 @@ export default function TopPage({ initialPosts = [], useMockCarousel = true, pag
           <p className="text-xl font-black mb-0.5 text-center" style={{ color: '#323232' }}>
             <span style={{ color: '#b91c1c' }}>R</span>ecomend
           </p>
-          <h2 className="text-2xl font-black mb-8 text-center" style={{ color: '#323232' }}>{tp('recommended')}</h2>
+          <h2 className="text-2xl font-black mb-8 text-center" style={{ color: '#323232' }}>{tHome('recommended')}</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {projects.map((project) => (
-              <ProjectCard
-                key={project.id}
-                id={project.id}
-                title={project.title}
-                category={project.category}
-                image={project.image}
-                imagePath={project.imagePath}
-                price={project.price}
-                monthlyRevenue={project.monthlyRevenue}
-                monthlyCost={project.monthlyCost}
-                profitMargin={project.profitMargin}
-                status={project.status}
-                watchCount={project.watchCount}
-                commentCount={project.commentCount}
-                updatedAt={project.updatedAt}
-                tag={project.tag}
-                badge={project.badge}
-                activeViewCount={project.activeViewCount}
-              />
-            ))}
+            {recommendedProjects.length > 0 ? (
+              recommendedProjects.map((project) => (
+                <ProjectCard
+                  key={project.id}
+                  id={project.id}
+                  title={project.title}
+                  category={project.category}
+                  image={project.image}
+                  imagePath={project.imagePath}
+                  price={project.price}
+                  monthlyRevenue={project.monthlyRevenue}
+                  monthlyCost={project.monthlyCost}
+                  profitMargin={project.profitMargin}
+                  status={project.status}
+                  watchCount={project.watchCount}
+                  commentCount={project.commentCount}
+                  updatedAt={project.updatedAt}
+                  tag={project.tag}
+                  badge={project.badge}
+                  authorProfile={project.authorProfile}
+                  activeViewCount={project.activeViewCount}
+                />
+              ))
+            ) : (
+              projects.slice(0, 12).map((project) => (
+                <ProjectCard
+                  key={project.id}
+                  id={project.id}
+                  title={project.title}
+                  category={project.category}
+                  image={project.image}
+                  imagePath={project.imagePath}
+                  price={project.price}
+                  monthlyRevenue={project.monthlyRevenue}
+                  monthlyCost={project.monthlyCost}
+                  profitMargin={project.profitMargin}
+                  status={project.status}
+                  watchCount={project.watchCount}
+                  commentCount={project.commentCount}
+                  updatedAt={project.updatedAt}
+                  tag={project.tag}
+                  badge={project.badge}
+                  activeViewCount={project.activeViewCount}
+                  authorProfile={project.authorProfile}
+                />
+              ))
+            )}
           </div>
         </div>
       </section>
@@ -331,7 +425,7 @@ export default function TopPage({ initialPosts = [], useMockCarousel = true, pag
           <p className="text-xl font-black mb-0.5 text-center" style={{ color: '#323232' }}>
             <span style={{ color: '#b91c1c' }}>N</span>ew
           </p>
-          <h2 className="text-2xl font-black mb-8 text-center" style={{ color: '#323232' }}>{tp('latestProducts')}</h2>
+          <h2 className="text-2xl font-black mb-8 text-center" style={{ color: '#323232' }}>{tHome('latestProducts')}</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {latestProjects.map((project) => (
               <ProjectCard
@@ -365,7 +459,7 @@ export default function TopPage({ initialPosts = [], useMockCarousel = true, pag
             <p className="text-xl font-black mb-0.5 text-center" style={{ color: '#323232' }}>
               <span style={{ color: '#b91c1c' }}>T</span>rending
             </p>
-            <h2 className="text-2xl font-black mb-8 text-center" style={{ color: '#323232' }}>{tp('trending')}</h2>
+            <h2 className="text-2xl font-black mb-8 text-center" style={{ color: '#323232' }}>{tHome('trending')}</h2>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               {/* Main Featured Project */}
               <Link
@@ -389,13 +483,13 @@ export default function TopPage({ initialPosts = [], useMockCarousel = true, pag
                     </div>
                     {featuredProject.monthlyRevenue && (
                       <div>
-                        <span className="opacity-80">{tp('monthlyRevenue')}</span>
+                        <span className="opacity-80">{tHome('monthlyRevenue')}</span>
                         <span className="font-semibold ml-1">{featuredProject.monthlyRevenue.toLocaleString()}{t('common.jpyCurrency')}</span>
                       </div>
                     )}
                     {featuredProject.profitMargin !== undefined && featuredProject.profitMargin > 0 && (
                       <div>
-                        <span className="opacity-80">{tp('profitMargin')}</span>
+                        <span className="opacity-80">{tHome('profitMargin')}</span>
                         <span className="font-semibold ml-1">{featuredProject.profitMargin.toFixed(0)}%</span>
                       </div>
                     )}
@@ -429,7 +523,7 @@ export default function TopPage({ initialPosts = [], useMockCarousel = true, pag
                         <div className="flex items-center gap-2 text-xs">
                           <span className="font-semibold">{project.price.toLocaleString()}{t('common.jpyCurrency')}</span>
                           {project.monthlyRevenue && (
-                            <span>{tp('monthlyRevenue')}{project.monthlyRevenue.toLocaleString()}{t('common.jpyCurrency')}</span>
+                            <span>{tHome('monthlyRevenue')}{project.monthlyRevenue.toLocaleString()}{t('common.jpyCurrency')}</span>
                           )}
                         </div>
                       </div>

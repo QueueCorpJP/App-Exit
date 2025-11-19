@@ -347,6 +347,8 @@ export interface Post {
   extra_image_urls?: string[];
   author_profile?: AuthorProfile;
   active_view_count?: number; // アクティブビュー数
+  watch_count?: number; // ウォッチ数
+  comment_count?: number; // コメント数
   // その他のフィールド
   [key: string]: any;
 }
@@ -440,15 +442,43 @@ export interface PostCommentWithDetails {
     display_name: string;
     icon_url?: string;
   };
+  replies?: CommentReplyWithDetails[];
+}
+
+export interface CommentReplyWithDetails {
+  id: string;
+  comment_id: string;
+  user_id: string;
+  content: string;
+  created_at: string;
+  updated_at: string;
+  author_profile?: {
+    id: string;
+    display_name: string;
+    icon_url?: string;
+  };
+  like_count: number;
+  is_liked: boolean;
+  dislike_count: number;
+  is_disliked: boolean;
 }
 
 export interface CreateCommentRequest {
   content: string;
 }
 
+export interface CreateReplyRequest {
+  content: string;
+}
+
 export interface ToggleLikeResponse {
   like_count: number;
   is_liked: boolean;
+}
+
+export interface ToggleDislikeResponse {
+  dislike_count: number;
+  is_disliked: boolean;
 }
 
 /**
@@ -464,7 +494,21 @@ export const commentApi = {
   getCommentDislikes: (commentId: string) =>
     apiClient.get<{ comment_id: string; dislike_count: number; is_disliked: boolean }>(`/api/comments/${commentId}/dislikes`),
   toggleCommentDislike: (commentId: string) =>
-    apiClient.post<{ dislike_count: number; is_disliked: boolean }>(`/api/comments/${commentId}/dislikes`, {}),
+    apiClient.post<ToggleDislikeResponse>(`/api/comments/${commentId}/dislikes`, {}),
+  // Reply API
+  getReplies: (commentId: string) =>
+    apiClient.get<CommentReplyWithDetails[]>(`/api/comments/${commentId}/replies`),
+  createReply: (commentId: string, data: CreateReplyRequest) =>
+    apiClient.post<CommentReplyWithDetails>(`/api/comments/${commentId}/replies`, data),
+  updateReply: (replyId: string, data: CreateReplyRequest) =>
+    apiClient.put<CommentReplyWithDetails>(`/api/replies/${replyId}`, data),
+  deleteReply: (replyId: string) =>
+    apiClient.delete<void>(`/api/replies/${replyId}`),
+  // Reply likes/dislikes
+  toggleReplyLike: (replyId: string) =>
+    apiClient.post<{ reply_id: string; like_count: number; is_liked: boolean }>(`/api/replies/${replyId}/likes`, {}),
+  toggleReplyDislike: (replyId: string) =>
+    apiClient.post<{ reply_id: string; dislike_count: number; is_disliked: boolean }>(`/api/replies/${replyId}/dislikes`, {}),
 };
 
 /**
@@ -535,8 +579,14 @@ export const messageApi = {
     apiClient.get<ThreadDetail>(`/api/threads/${threadId}`),
   createThread: (data: CreateThreadRequest) =>
     apiClient.post<ThreadDetail>('/api/threads', data),
-  getMessages: (threadId: string) =>
-    apiClient.get<MessageWithSender[]>('/api/messages', { params: { thread_id: threadId } }),
+  getMessages: (threadId: string, options?: { limit?: number; offset?: number }) =>
+    apiClient.get<MessageWithSender[]>('/api/messages', {
+      params: {
+        thread_id: threadId,
+        ...(options?.limit && { limit: options.limit }),
+        ...(options?.offset !== undefined && { offset: options.offset }),
+      }
+    }),
   sendMessage: (data: SendMessageRequest) =>
     apiClient.post<MessageWithSender>('/api/messages', data),
   uploadMessageImage: async (file: File) => {
@@ -560,94 +610,6 @@ export const messageApi = {
 
     const result = await response.json();
     // バックエンドのレスポンス形式 {success: true, data: {...}} をそのまま返す
-    return result;
-  },
-  uploadContractDocument: async (file: File, threadId: string, contractType: string) => {
-    const formData = new FormData();
-    formData.append('contract', file);
-    formData.append('thread_id', threadId);
-    formData.append('contract_type', contractType);
-
-    // FormData送信時はContent-Typeを自動設定させるため、手動で設定しない
-    // HttpOnly Cookieで認証されるため、Authorizationヘッダーは不要
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
-
-    const response = await fetch(`${API_URL}/api/messages/upload-contract`, {
-      method: 'POST',
-      credentials: 'include', // HttpOnly Cookieを自動送信
-      body: formData,
-    });
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: 'Upload failed' }));
-      throw new Error(error.error || 'Failed to upload contract');
-    }
-
-    const result = await response.json();
-    // バックエンドのレスポンス形式 {success: true, data: {...}} をそのまま返す
-    return result;
-  },
-  getThreadContractDocuments: (threadId: string) =>
-    apiClient.get<Array<{
-      id: string;
-      thread_id: string;
-      uploaded_by: string;
-      contract_type: string;
-      file_path: string;
-      file_name: string;
-      file_size?: number;
-      content_type: string;
-      signed_url: string;
-      created_at: string;
-      updated_at: string;
-      signatures?: Array<{
-        user_id: string;
-        signed_at: string;
-        signature_data?: string;
-      }>;
-    }>>(`/api/threads/${threadId}/contracts`),
-
-  // 契約書を更新（編集後のPDFを保存）
-  updateContract: async (contractId: string, pdfBlob: Blob, fileName: string) => {
-    const formData = new FormData();
-    formData.append('contract', pdfBlob, fileName);
-
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
-
-    const response = await fetch(`${API_URL}/api/contracts/${contractId}/update`, {
-      method: 'PUT',
-      credentials: 'include',
-      body: formData,
-    });
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: 'Update failed' }));
-      throw new Error(error.error || 'Failed to update contract');
-    }
-
-    const result = await response.json();
-    return result;
-  },
-
-  // 契約書に署名を追加
-  addContractSignature: async (contractId: string, signatureData: string) => {
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
-
-    const response = await fetch(`${API_URL}/api/contracts/${contractId}/sign`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ signature_data: signatureData }),
-    });
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: 'Signature failed' }));
-      throw new Error(error.error || 'Failed to add signature');
-    }
-
-    const result = await response.json();
     return result;
   },
 
@@ -702,6 +664,11 @@ export interface ActiveViewStatusResponse {
   };
 }
 
+// api-clientがdataだけを返すため、実際の戻り値の型
+export interface ActiveViewStatusData {
+  is_active: boolean;
+}
+
 /**
  * Active View API
  */
@@ -712,9 +679,9 @@ export const activeViewApi = {
   // アクティブビューを削除
   deleteActiveView: (postId: string) =>
     apiClient.delete<ActiveViewResponse>(`/api/posts/${postId}/active-views`),
-  // アクティブビューの状態を取得
+  // アクティブビューの状態を取得（api-clientがdataだけを返すため、ActiveViewStatusData型を使用）
   getActiveViewStatus: (postId: string) =>
-    apiClient.get<ActiveViewStatusResponse>(`/api/posts/${postId}/active-views/status`),
+    apiClient.get<ActiveViewStatusData>(`/api/posts/${postId}/active-views/status`),
 };
 
 /**

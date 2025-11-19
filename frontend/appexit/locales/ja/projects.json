@@ -90,6 +90,25 @@
     "secret": "シークレット",
     "transaction": "取引"
   },
+  "filters": {
+    "search": "検索",
+    "open": "絞り込みを開く",
+    "close": "絞り込みを閉じる",
+    "type": "投稿タイプ",
+    "status": "ステータス",
+    "category": "カテゴリ",
+    "price": "価格帯",
+    "min": "最小",
+    "max": "最大",
+    "from": "円",
+    "monthlyRevenue": "月商",
+    "profitMargin": "利益率",
+    "clear": "クリア",
+    "apply": "適用",
+    "searchButton": "検索する",
+    "resultsCount": "{count}件の結果",
+    "sort": "並び替え"
+  },
   "detail": {
     "expand": "拡大表示",
     "additionalImage": "追加画像 {index}",

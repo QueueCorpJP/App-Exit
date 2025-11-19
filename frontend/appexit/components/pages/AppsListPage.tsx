@@ -10,20 +10,38 @@ export default function AppsListPage() {
   const [error, setError] = useState<string>('')
   const [filter, setFilter] = useState<string>('all')
   const [sortBy, setSortBy] = useState<'latest' | 'price_low' | 'price_high' | 'popular'>('latest')
+  const [hasMore, setHasMore] = useState(true)
+  const [currentPage, setCurrentPage] = useState(0)
+  const POSTS_PER_PAGE = 20
 
   useEffect(() => {
     loadPosts()
   }, [])
 
-  const loadPosts = async () => {
+  const loadPosts = async (loadMore = false) => {
     try {
       setIsLoading(true)
       setError('')
-      const response = await postApi.getPosts({ type: 'transaction' })
-      setPosts(response)
+      const page = loadMore ? currentPage + 1 : 0
+      const response = await postApi.getPosts({
+        type: 'transaction',
+        limit: POSTS_PER_PAGE,
+        offset: page * POSTS_PER_PAGE,
+      })
+
+      if (loadMore) {
+        setPosts(prev => [...prev, ...response])
+        setCurrentPage(page)
+      } else {
+        setPosts(response)
+        setCurrentPage(0)
+      }
+
+      setHasMore(response.length >= POSTS_PER_PAGE)
     } catch (err) {
       console.error('Failed to load posts:', err)
       setError('プロダクトの読み込みに失敗しました')
+      setHasMore(false)
     } finally {
       setIsLoading(false)
     }
@@ -204,6 +222,18 @@ export default function AppsListPage() {
             <p className="text-gray-600">
               別のカテゴリーで検索してみてください
             </p>
+          </div>
+        )}
+
+        {/* Load More Button */}
+        {hasMore && !isLoading && sortedPosts.length > 0 && (
+          <div className="flex justify-center mt-8">
+            <button
+              onClick={() => loadPosts(true)}
+              className="px-6 py-3 bg-blue-600 text-white font-bold hover:bg-blue-700 transition-colors"
+            >
+              もっと読み込む
+            </button>
           </div>
         )}
       </div>
