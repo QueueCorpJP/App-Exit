@@ -159,17 +159,17 @@ function StepIndicator({ current, t, locale }: { current: number; t: any; locale
       <div className="flex justify-center mb-6">
         <img src="/icon.png" alt="AppExit" className="h-12 w-auto" />
       </div>
-      <div className="flex justify-between items-center mb-6">
-        <div className="w-32"></div>
+      <div className="flex justify-between items-center mb-6 px-2 sm:px-0">
+        <div className="w-16 sm:w-32"></div>
         <h2 className="register-title-custom mb-0">{t('header.register')}</h2>
-        <div className="w-32 text-right">
+        <div className="w-16 sm:w-32 text-right">
           <span className="text-sm font-medium" style={{ color: '#323232' }}>
             {t('registerStepIndicator', { current, total: TOTAL_STEPS })}
           </span>
         </div>
       </div>
       <div className="relative">
-        <div className="flex justify-between items-center">
+        <div className="flex justify-between items-center px-2 sm:px-0">
           {Array.from({ length: TOTAL_STEPS }, (_, i) => i + 1).map((step) => (
             <div key={step} className="flex flex-col items-center relative" style={{ flex: 1 }}>
               {step < TOTAL_STEPS && (
