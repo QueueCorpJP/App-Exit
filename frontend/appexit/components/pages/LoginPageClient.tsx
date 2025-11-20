@@ -32,6 +32,63 @@ export default function LoginPageClient({ error: serverError }: LoginPageClientP
     }
   }, [searchParams]);
 
+  // OAuthコールバック処理
+  useEffect(() => {
+    const handleOAuthCallback = async () => {
+      const hash = window.location.hash;
+
+      if (hash && hash.includes('access_token')) {
+        setIsLoading(true);
+        try {
+          // URLフラグメントからトークン情報を抽出
+          const params = new URLSearchParams(hash.substring(1));
+          const accessToken = params.get('access_token');
+          const refreshToken = params.get('refresh_token');
+
+          if (accessToken) {
+            const apiUrl = typeof window !== 'undefined'
+              ? (window.location.hostname === 'localhost' ? 'http://localhost:8080' : `${window.location.protocol}//${window.location.hostname}:8080`)
+              : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080');
+
+            // バックエンドにトークンを送信してCookie認証を確立
+            const sessionResponse = await fetch(`${apiUrl}/api/auth/oauth/callback`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                access_token: accessToken,
+                refresh_token: refreshToken,
+              }),
+              credentials: 'include',
+              cache: 'no-store',
+            });
+
+            if (!sessionResponse.ok) {
+              throw new Error('OAuth認証に失敗しました');
+            }
+
+            // 認証コンテキストを更新
+            await refreshSession();
+
+            // URLフラグメントをクリア
+            window.history.replaceState(null, '', window.location.pathname + window.location.search);
+
+            // リダイレクト先へ遷移
+            router.push(redirectUrl);
+            router.refresh();
+          }
+        } catch (err) {
+          console.error('OAuth callback error:', err);
+          setError(err instanceof Error ? err.message : 'OAuth認証に失敗しました');
+          setIsLoading(false);
+        }
+      }
+    };
+
+    handleOAuthCallback();
+  }, [router, redirectUrl, refreshSession]);
+
   async function handleOAuthLogin(method: LoginMethod) {
     setError(undefined);
     setIsLoading(true);

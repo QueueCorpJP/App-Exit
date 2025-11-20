@@ -15,6 +15,7 @@ function ThreadListContainer({ onThreadSelect, currentThreadId }: ThreadListCont
   const [threads, setThreads] = useState<ThreadWithLastMessage[]>([]);
   const [isLoadingThreads, setIsLoadingThreads] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   // スレッド一覧を取得する関数
   const fetchThreads = useCallback(async (abortController?: AbortController) => {
@@ -81,8 +82,13 @@ function ThreadListContainer({ onThreadSelect, currentThreadId }: ThreadListCont
     };
 
     // スレッド一覧を再取得するイベントハンドラ
-    const handleRefreshThreads = () => {
-      fetchThreads();
+    const handleRefreshThreads = async () => {
+      console.log('refreshThreads event received - re-rendering thread list');
+      // スレッド一覧を再取得してから強制再レンダリング
+      await fetchThreads();
+      // fetchThreads完了後に強制的に再レンダリングを実行
+      setRefreshKey(prev => prev + 1);
+      console.log('Thread list refreshed and re-rendered');
     };
 
     window.addEventListener('updateThreadLastMessage' as any, handleUpdateThreads);
@@ -102,6 +108,7 @@ function ThreadListContainer({ onThreadSelect, currentThreadId }: ThreadListCont
 
   return (
     <ThreadList
+      key={refreshKey}
       threads={threads}
       selectedThreadId={currentThreadId}
       currentUserId={user.id}

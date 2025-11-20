@@ -75,6 +75,13 @@ function MessageThreadContainer({ threadId, onBack }: MessageThreadContainerProp
         if (detailResponse && typeof detailResponse === 'object' && 'id' in detailResponse) {
           const responseThreadId = (detailResponse as ThreadDetail).id;
 
+          // デバッグログ: スレッド詳細のデータ構造を確認
+          console.log('[MessageThreadContainer] Thread detail received:', {
+            id: responseThreadId,
+            participants: (detailResponse as ThreadDetail).participants,
+            participantCount: (detailResponse as ThreadDetail).participants?.length || 0,
+          });
+
           // 取得したスレッドIDが現在のthreadIdと一致するかチェック
           if (responseThreadId !== currentThreadId) {
             // バックエンドが別のスレッドIDを返した場合（既存スレッドが見つかった場合）

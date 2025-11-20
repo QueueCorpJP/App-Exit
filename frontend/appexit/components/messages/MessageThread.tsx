@@ -9,6 +9,7 @@ import { Image as ImageIcon, X, Info, Check } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { truncateDisplayName } from '@/lib/text-utils';
 import { useAuth } from '@/lib/auth-context';
+import { getImageUrl } from '@/lib/storage';
 
 interface MessageThreadProps {
   threadDetail: ThreadDetail | null;
@@ -40,6 +41,7 @@ function MessageThread({
   const [newMessage, setNewMessage] = useState('');
   const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [otherParticipantIconUrl, setOtherParticipantIconUrl] = useState<string | null>(null);
   
   // 売却モーダルの状態
   const [showSaleModal, setShowSaleModal] = useState(false);
@@ -136,8 +138,20 @@ function MessageThread({
   };
 
   const getOtherParticipant = () => {
-    if (!threadDetail || !threadDetail.participants) return null;
-    return threadDetail.participants.find(p => p.id !== currentUserId);
+    if (!threadDetail || !threadDetail.participants) {
+      console.log('[MessageThread] No thread detail or participants:', {
+        hasThreadDetail: !!threadDetail,
+        participants: threadDetail?.participants,
+      });
+      return null;
+    }
+    const otherUser = threadDetail.participants.find(p => p.id !== currentUserId);
+    console.log('[MessageThread] Other participant:', {
+      allParticipants: threadDetail.participants,
+      currentUserId,
+      otherUser,
+    });
+    return otherUser;
   };
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -185,6 +199,30 @@ function MessageThread({
   };
 
   const otherParticipant = threadDetail ? getOtherParticipant() : null;
+  
+  // 相手のアイコンURLを取得
+  useEffect(() => {
+    const fetchOtherParticipantIconUrl = async () => {
+      if (otherParticipant?.icon_url) {
+        // 既に完全なURLの場合はそのまま使用
+        if (otherParticipant.icon_url.startsWith('http://') || otherParticipant.icon_url.startsWith('https://')) {
+          setOtherParticipantIconUrl(otherParticipant.icon_url);
+          return;
+        }
+        
+        try {
+          const url = await getImageUrl(otherParticipant.icon_url, 'profile-icons');
+          setOtherParticipantIconUrl(url);
+        } catch (error) {
+          setOtherParticipantIconUrl(null);
+        }
+      } else {
+        setOtherParticipantIconUrl(null);
+      }
+    };
+    
+    fetchOtherParticipantIconUrl();
+  }, [otherParticipant?.icon_url]);
   
   // 売却リクエストの状態を判定
   const currentUserSaleRequest = saleRequests.find(req => req.user_id === currentUserId && req.status === 'pending');
@@ -263,9 +301,9 @@ function MessageThread({
               className="relative hover:opacity-80 transition-opacity cursor-pointer flex-shrink-0"
             >
               <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center overflow-hidden">
-                {otherParticipant?.icon_url ? (
+                {otherParticipantIconUrl ? (
                   <img
-                    src={otherParticipant.icon_url}
+                    src={otherParticipantIconUrl}
                     alt={otherParticipant?.display_name || ''}
                     className="w-full h-full rounded-full object-cover"
                     onError={(e) => {
@@ -277,7 +315,7 @@ function MessageThread({
                     }}
                   />
                 ) : null}
-                <span className="icon-fallback" style={{ display: otherParticipant?.icon_url ? 'none' : 'flex' }}>👤</span>
+                <span className="icon-fallback" style={{ display: otherParticipantIconUrl ? 'none' : 'flex' }}>👤</span>
               </div>
             </button>
             <button

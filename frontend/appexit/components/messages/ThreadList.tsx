@@ -143,6 +143,11 @@ function ThreadList({
   const locale = useLocale();
   const t = useTranslations('messages');
 
+  // スレッド一覧が更新されたことをログに出力
+  useEffect(() => {
+    console.log('ThreadList rendered with', threads.length, 'threads');
+  }, [threads]);
+
   return (
     <div className="w-full md:w-80 border-r border-gray-200 flex flex-col h-full bg-white">
       {/* ヘッダー */}

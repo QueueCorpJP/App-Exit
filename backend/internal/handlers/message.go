@@ -204,7 +204,7 @@ func (s *Server) HandleMessages(w http.ResponseWriter, r *http.Request) {
 
 // CreateThread creates a new conversation thread
 func (s *Server) CreateThread(w http.ResponseWriter, r *http.Request) {
-	userID, ok := utils.RequireUserID(r, w)
+	userID, impersonateJWT, ok := utils.RequireAuth(r, w)
 	if !ok {
 		return
 	}
@@ -222,12 +222,7 @@ func (s *Server) CreateThread(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	client, err := s.supabase.GetImpersonateClient(userID)
-	if err != nil {
-		log.Printf("[CreateThread] Failed to get impersonate client: %v", err)
-		response.Error(w, http.StatusInternalServerError, "Failed to create thread")
-		return
-	}
+	client := s.supabase.GetAuthenticatedClient(impersonateJWT)
 
 	insertData := threadInsert{
 		CreatedBy:     userID,
@@ -235,7 +230,7 @@ func (s *Server) CreateThread(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var threadResponse []threadResponse
-	_, err = client.From("threads").
+	_, err := client.From("threads").
 		Insert(insertData, false, "", "", "").
 		ExecuteTo(&threadResponse)
 
@@ -293,7 +288,7 @@ func (s *Server) CreateThread(w http.ResponseWriter, r *http.Request) {
 
 	// Insert participants if any
 	if len(participantInserts) > 0 {
-		_, _, err = serviceClient.From("thread_participants").
+		_, _, err := serviceClient.From("thread_participants").
 			Insert(participantInserts, false, "", "", "").
 			Execute()
 
@@ -309,7 +304,7 @@ func (s *Server) CreateThread(w http.ResponseWriter, r *http.Request) {
 
 // GetThreads retrieves all threads for the authenticated user
 func (s *Server) GetThreads(w http.ResponseWriter, r *http.Request) {
-	userID, ok := utils.RequireUserID(r, w)
+	userID, impersonateJWT, ok := utils.RequireAuth(r, w)
 	if !ok {
 		return
 	}
@@ -330,15 +325,10 @@ func (s *Server) GetThreads(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	client, err := s.supabase.GetImpersonateClient(userID)
-	if err != nil {
-		log.Printf("[GetThreads] Failed to get impersonate client: %v", err)
-		response.Error(w, http.StatusInternalServerError, "Failed to fetch threads")
-		return
-	}
+	client := s.supabase.GetAuthenticatedClient(impersonateJWT)
 
 	var threadParticipantRows []participantRow
-	_, err = client.From("thread_participants").
+	_, err := client.From("thread_participants").
 		Select("thread_id, user_id", "", false).
 		Eq("user_id", userID).
 		ExecuteTo(&threadParticipantRows)
@@ -547,7 +537,7 @@ func (s *Server) GetThreads(w http.ResponseWriter, r *http.Request) {
 
 // GetThreadByID retrieves a specific thread with its details
 func (s *Server) GetThreadByID(w http.ResponseWriter, r *http.Request) {
-	userID, ok := utils.RequireUserID(r, w)
+	userID, impersonateJWT, ok := utils.RequireAuth(r, w)
 	if !ok {
 		return
 	}
@@ -558,15 +548,10 @@ func (s *Server) GetThreadByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client, err := s.supabase.GetImpersonateClient(userID)
-	if err != nil {
-		log.Printf("[GetThreadByID] Failed to get impersonate client: %v", err)
-		response.Error(w, http.StatusInternalServerError, "Failed to fetch thread")
-		return
-	}
+	client := s.supabase.GetAuthenticatedClient(impersonateJWT)
 
 	var participantCheck []participantCheck
-	_, err = client.From("thread_participants").
+	_, err := client.From("thread_participants").
 		Select("user_id", "", false).
 		Eq("thread_id", threadID).
 		Eq("user_id", userID).
@@ -670,7 +655,7 @@ func (s *Server) GetThreadByID(w http.ResponseWriter, r *http.Request) {
 								for i, row := range participantRows {
 									participantIDs[i] = row.UserID
 								}
-								
+
 								var profileRows []profileRow
 								_, err = client.From("profiles").
 									Select("id, role, party, display_name, icon_url, nda_flag, terms_accepted_at, privacy_accepted_at, stripe_customer_id, created_at, updated_at", "", false).
@@ -795,7 +780,7 @@ func (s *Server) GetThreadByID(w http.ResponseWriter, r *http.Request) {
 				for i, row := range participantRows {
 					participantIDsForResponse[i] = row.UserID
 				}
-				
+
 				var profileRows []profileRow
 				_, err = client.From("profiles").
 					Select("id, role, party, display_name, icon_url, nda_flag, terms_accepted_at, privacy_accepted_at, stripe_customer_id, created_at, updated_at", "", false).
@@ -958,7 +943,7 @@ func (s *Server) GetThreadByID(w http.ResponseWriter, r *http.Request) {
 
 // GetMessages retrieves messages for a specific thread
 func (s *Server) GetMessages(w http.ResponseWriter, r *http.Request) {
-	userID, ok := utils.RequireUserID(r, w)
+	_, impersonateJWT, ok := utils.RequireAuth(r, w)
 	if !ok {
 		return
 	}
@@ -985,15 +970,10 @@ func (s *Server) GetMessages(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	client, err := s.supabase.GetImpersonateClient(userID)
-	if err != nil {
-		log.Printf("[GetMessages] Failed to get impersonate client: %v", err)
-		response.Error(w, http.StatusInternalServerError, "Failed to fetch messages")
-		return
-	}
+	client := s.supabase.GetAuthenticatedClient(impersonateJWT)
 
 	var messageRows []messageRow
-	_, err = client.From("messages").
+	_, err := client.From("messages").
 		Select("id, thread_id, sender_user_id, type, text, created_at", "", false).
 		Eq("thread_id", threadID).
 		Order("created_at", nil). // 新しいメッセージから取得
@@ -1104,7 +1084,7 @@ func (s *Server) GetMessages(w http.ResponseWriter, r *http.Request) {
 
 // SendMessage sends a new message in a thread
 func (s *Server) SendMessage(w http.ResponseWriter, r *http.Request) {
-	userID, ok := utils.RequireUserID(r, w)
+	userID, impersonateJWT, ok := utils.RequireAuth(r, w)
 	if !ok {
 		return
 	}
@@ -1114,18 +1094,13 @@ func (s *Server) SendMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client, err := s.supabase.GetImpersonateClient(userID)
-	if err != nil {
-		log.Printf("[SendMessage] Failed to get impersonate client: %v", err)
-		response.Error(w, http.StatusInternalServerError, "Failed to send message")
-		return
-	}
+	client := s.supabase.GetAuthenticatedClient(impersonateJWT)
 
 	type threadRowSimple struct {
 		CreatedBy string `json:"created_by"`
 	}
 	var threadRows []threadRowSimple
-	_, err = client.From("threads").
+	_, err := client.From("threads").
 		Select("created_by", "", false).
 		Eq("id", req.ThreadID).
 		ExecuteTo(&threadRows)
