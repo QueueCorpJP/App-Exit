@@ -10,7 +10,6 @@ export default function DebugAuthPage() {
 
   useEffect(() => {
     const checkAuth = async () => {
-      // バックエンドセッションをチェック
       const apiUrl = typeof window !== 'undefined'
         ? (process.env.NEXT_PUBLIC_API_URL || `${window.location.protocol}//${window.location.hostname}:8080`)
         : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080');
@@ -27,10 +26,8 @@ export default function DebugAuthPage() {
           setBackendSession(result.data);
         }
       } catch (error) {
-        console.error('Session check error:', error);
       }
 
-      // Cookieを表示
       setCookies(document.cookie);
     };
 
@@ -60,7 +57,6 @@ export default function DebugAuthPage() {
       <div className="max-w-4xl mx-auto">
         <h1 className="text-3xl font-bold mb-8">認証デバッグページ</h1>
 
-        {/* Auth Context */}
         <div className="bg-white p-6 rounded-lg shadow mb-6">
           <h2 className="text-xl font-bold mb-4">Auth Context (Cookie-based)</h2>
           <div className="space-y-2">
@@ -70,7 +66,6 @@ export default function DebugAuthPage() {
           </div>
         </div>
 
-        {/* Backend Session */}
         <div className="bg-white p-6 rounded-lg shadow mb-6">
           <h2 className="text-xl font-bold mb-4">Backend Session</h2>
           <div className="space-y-2">
@@ -86,7 +81,6 @@ export default function DebugAuthPage() {
           </div>
         </div>
 
-        {/* Cookies */}
         <div className="bg-white p-6 rounded-lg shadow mb-6">
           <h2 className="text-xl font-bold mb-4">Cookies</h2>
           <div className="space-y-2">
@@ -95,7 +89,6 @@ export default function DebugAuthPage() {
           </div>
         </div>
 
-        {/* Actions */}
         <div className="bg-white p-6 rounded-lg shadow">
           <h2 className="text-xl font-bold mb-4">アクション</h2>
           <div className="flex gap-4">
@@ -120,7 +113,6 @@ export default function DebugAuthPage() {
           </div>
         </div>
 
-        {/* Console Logs */}
         <div className="bg-white p-6 rounded-lg shadow mt-6">
           <h2 className="text-xl font-bold mb-4">使い方</h2>
           <ol className="list-decimal list-inside space-y-2">

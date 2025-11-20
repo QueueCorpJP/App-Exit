@@ -42,7 +42,8 @@
     "report": "Report",
     "customerHarassment": "Customer Harassment Policy",
     "seminar": "Seminar Information",
-    "supportService": "Support Service"
+    "supportService": "Support Service",
+    "nda": "Non-Disclosure Agreement (NDA)"
   },
   "common": {
     "loading": "Loading...",

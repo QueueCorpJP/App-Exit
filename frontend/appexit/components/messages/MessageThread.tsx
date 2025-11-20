@@ -105,11 +105,10 @@ function MessageThread({
     const intervalId = setInterval(() => {
       if (threadDetail?.id) {
         messageApi.getSaleRequests(threadDetail.id)
-          .then(requests => {
+          .then((requests: any) => {
             setSaleRequests(Array.isArray(requests) ? requests : []);
           })
           .catch(() => {
-            // Failed to fetch sale requests - continue without sale requests
           });
       }
     }, 60000);

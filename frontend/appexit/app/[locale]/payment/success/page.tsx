@@ -19,7 +19,6 @@ function SuccessContent() {
   const [verificationError, setVerificationError] = useState<string | null>(null);
   const t = useTranslations('payment');
 
-  // 🔒 SECURITY: 決済を検証してから成功ページを表示
   useEffect(() => {
     const verifyPayment = async () => {
       if (!saleRequestId || !paymentIntent) {
@@ -58,10 +57,8 @@ function SuccessContent() {
           return;
         }
 
-        // 検証成功 - 成功ページを表示
         setIsVerifying(false);
       } catch (error) {
-        // Payment verification error - continue without verification
         setVerificationError('Payment verification failed');
         setIsVerifying(false);
       }
@@ -88,7 +85,6 @@ function SuccessContent() {
     return () => clearInterval(timer);
   }, [router, locale, isVerifying, verificationError]);
 
-  // 検証中の表示
   if (isVerifying) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
@@ -105,7 +101,6 @@ function SuccessContent() {
     );
   }
 
-  // 検証エラーの表示
   if (verificationError) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
@@ -148,7 +143,6 @@ function SuccessContent() {
     );
   }
 
-  // 検証成功 - 成功ページを表示
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
       <div className="bg-white p-8 rounded-lg shadow-sm border-2 max-w-md w-full text-center" style={{ borderColor: '#323232' }}>

@@ -181,7 +181,7 @@ export default function ProfileViewPage({ userId }: ProfileViewPageProps) {
               </div>
             )}
           </div>
-          {isOwnProfile ? (
+          {isOwnProfile && (
             <div className="flex items-center space-x-2 mb-4">
               <Link
                 href="/settings/profile"
@@ -190,10 +190,6 @@ export default function ProfileViewPage({ userId }: ProfileViewPageProps) {
                 プロフィールを編集
               </Link>
             </div>
-          ) : (
-            <button className="px-4 py-2 bg-black text-white rounded-full font-semibold hover:bg-gray-800 transition-colors mb-4">
-              フォロー
-            </button>
           )}
         </div>
 

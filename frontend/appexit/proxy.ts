@@ -85,6 +85,7 @@ export function proxy(request: NextRequest) {
     '/seminar',       // セミナー
     '/support-service', // サポートサービス
     '/projects',      // プロダクト一覧（公開）
+    '/nda',           // NDA（秘密保持契約）
   ];
 
   // 認証が必要なページ（公開ページリストより優先）
@@ -104,6 +105,10 @@ export function proxy(request: NextRequest) {
     // /projectsの場合は、/projects/newで始まるパスを除外
     if (path === '/projects') {
       return pathnameWithoutLocale.startsWith('/projects') && !pathnameWithoutLocale.startsWith('/projects/new');
+    }
+    // /ndaの場合は完全一致のみ（/nda/[appId]は別のページ）
+    if (path === '/nda') {
+      return pathnameWithoutLocale === '/nda';
     }
     // その他のパスは前方一致
     return pathnameWithoutLocale.startsWith(path);

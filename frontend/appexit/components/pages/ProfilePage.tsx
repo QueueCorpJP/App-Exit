@@ -41,7 +41,8 @@ export default function ProfilePage({ pageDict = {} }: ProfilePageProps) {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
-  const POSTS_PER_PAGE = 12;
+  const INITIAL_POSTS = 3; // 初期表示の投稿数
+  const POSTS_PER_PAGE = 6; // 「もっと見る」で追加する投稿数
 
   useEffect(() => {
     let isMounted = true;
@@ -63,27 +64,28 @@ export default function ProfilePage({ pageDict = {} }: ProfilePageProps) {
           setLoading(true);
         }
 
-        const profile = await profileApi.getProfile();
-        if (isMounted && profile) {
-          setProfile(profile);
+        // ⚡ パフォーマンス改善: プロフィールと投稿を並列取得
+        // 初期表示は少数の投稿のみ取得してパフォーマンス向上
+        const [profileResult, postsResult] = await Promise.allSettled([
+          profileApi.getProfile(),
+          postApi.getPosts({
+            author_user_id: currentUser.id,
+            limit: INITIAL_POSTS,
+            offset: 0
+          })
+        ]);
+
+        // プロフィールの結果を処理
+        if (isMounted && profileResult.status === 'fulfilled' && profileResult.value) {
+          setProfile(profileResult.value);
         }
 
-        // ユーザーの投稿を取得（エラーが発生してもプロフィールは表示する）
-        // スケーラビリティ改善: ページネーション対応
-        try {
-          const posts = await postApi.getPosts({
-            author_user_id: currentUser.id,
-            limit: POSTS_PER_PAGE,
-            offset: 0
-          });
-          if (isMounted) {
-            const postsArray = Array.isArray(posts) ? posts : [];
-            setPosts(postsArray);
-            setPostsOffset(POSTS_PER_PAGE);
-            setHasMorePosts(postsArray.length >= POSTS_PER_PAGE);
-          }
-        } catch (postError) {
-          // 投稿の取得に失敗しても続行
+        // 投稿の結果を処理
+        if (isMounted && postsResult.status === 'fulfilled') {
+          const postsArray = Array.isArray(postsResult.value) ? postsResult.value : [];
+          setPosts(postsArray);
+          setPostsOffset(INITIAL_POSTS);
+          setHasMorePosts(postsArray.length >= INITIAL_POSTS);
         }
       } catch (error) {
         // Failed to fetch profile data - continue without data
@@ -125,6 +127,8 @@ export default function ProfilePage({ pageDict = {} }: ProfilePageProps) {
       setIsLoadingWatching(true);
 
       const offset = loadMore ? watchingOffset : 0;
+      // 初回は少数、追加読み込みは通常数を取得
+      const limit = loadMore ? POSTS_PER_PAGE : INITIAL_POSTS;
       const { supabase } = await import('@/lib/supabase');
 
       // ページネーション付きでアクティブビューを取得
@@ -133,7 +137,7 @@ export default function ProfilePage({ pageDict = {} }: ProfilePageProps) {
         .select('post_id, created_at')
         .eq('user_id', currentUser.id)
         .order('created_at', { ascending: false })
-        .range(offset, offset + POSTS_PER_PAGE - 1);
+        .range(offset, offset + limit - 1);
 
       if (activeViewError) {
         if (!loadMore) setWatchingPosts([]);
@@ -147,7 +151,7 @@ export default function ProfilePage({ pageDict = {} }: ProfilePageProps) {
       }
 
       // これ以上データがないかチェック
-      if (activeViews.length < POSTS_PER_PAGE) {
+      if (activeViews.length < limit) {
         setHasMoreWatching(false);
       }
 
@@ -216,10 +220,10 @@ export default function ProfilePage({ pageDict = {} }: ProfilePageProps) {
 
       if (loadMore) {
         setWatchingPosts(prev => [...prev, ...typedPosts]);
-        setWatchingOffset(offset + POSTS_PER_PAGE);
+        setWatchingOffset(offset + typedPosts.length);
       } else {
         setWatchingPosts(typedPosts);
-        setWatchingOffset(POSTS_PER_PAGE);
+        setWatchingOffset(typedPosts.length);
       }
     } catch (err) {
       if (!loadMore) setWatchingPosts([]);
@@ -243,7 +247,8 @@ export default function ProfilePage({ pageDict = {} }: ProfilePageProps) {
 
       const newPosts = Array.isArray(morePosts) ? morePosts : [];
       setPosts(prev => [...prev, ...newPosts]);
-      setPostsOffset(prev => prev + POSTS_PER_PAGE);
+      // 実際に取得したデータ数でoffsetを更新
+      setPostsOffset(prev => prev + newPosts.length);
       setHasMorePosts(newPosts.length >= POSTS_PER_PAGE);
     } catch (error) {
       // Failed to load more posts - silently fail

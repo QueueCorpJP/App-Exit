@@ -2,13 +2,9 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 
 interface RequestOptions extends RequestInit {
   params?: Record<string, string | number | boolean>;
-  _isRetry?: boolean; // 内部フラグ：リトライ中かどうか
+  _isRetry?: boolean;
 }
 
-/**
- * API クライアント
- * Go バックエンドとの通信を担当（Cookie ベース認証）
- */
 class ApiClient {
   private baseUrl: string;
   private isRefreshing: boolean = false;
@@ -18,10 +14,6 @@ class ApiClient {
     this.baseUrl = baseUrl;
   }
 
-  /**
-   * リクエストヘッダーを構築
-   * 認証はHttpOnly Cookieで自動送信されるため、Authorizationヘッダーは不要
-   */
   private getHeaders(): HeadersInit {
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
@@ -30,11 +22,7 @@ class ApiClient {
     return headers;
   }
 
-  /**
-   * バックエンドトークンをリフレッシュ（Cookieベースのセッション管理）
-   */
   private async refreshToken(): Promise<boolean> {
-    // 既にリフレッシュ中の場合は、同じPromiseを返す（複数リクエストが同時に来た場合の対策）
     if (this.isRefreshing && this.refreshPromise) {
       return this.refreshPromise;
     }
@@ -45,7 +33,6 @@ class ApiClient {
         const response = await fetch(`${this.baseUrl}/api/auth/refresh`, {
           method: 'POST',
           credentials: 'include',
-          // トークンリフレッシュは常に最新を取得
           cache: 'no-store',
         });
 
@@ -75,9 +62,6 @@ class ApiClient {
     return this.refreshPromise;
   }
 
-  /**
-   * HTTP リクエストを送信
-   */
   private async request<T>(
     endpoint: string,
     options: RequestOptions = {}
@@ -103,7 +87,6 @@ class ApiClient {
         ...fetchOptions,
         headers,
         credentials: 'include',
-        // 認証Cookie付きのリクエストは常に最新を取得（ログイン直後やリフレッシュ直後の反映遅延を防止）
         cache: 'no-store',
       });
 
@@ -127,10 +110,8 @@ class ApiClient {
         const refreshed = await this.refreshToken();
 
         if (refreshed) {
-          // リトライフラグを立てて再度リクエスト
           return this.request<T>(endpoint, { ...options, _isRetry: true });
         } else {
-          // 公開ページの場合はリダイレクトしない
           const publicPaths = [
             '/',
             '/login',
@@ -148,7 +129,7 @@ class ApiClient {
             '/customer-harassment',
             '/seminar',
             '/support-service',
-            '/projects',  // プロダクト一覧（公開）
+            '/projects',
           ];
           
           const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
@@ -156,27 +137,22 @@ class ApiClient {
             if (path === '/') {
               return currentPath === '/';
             }
-            // /projectsの場合は、/projects/newで始まるパスを除外
             if (path === '/projects') {
               return currentPath.startsWith('/projects') && !currentPath.startsWith('/projects/new');
             }
             return currentPath === path || currentPath.startsWith(path + '/');
           });
           
-          // 公開ページでない場合のみログインページへリダイレクト
           if (typeof window !== 'undefined' && !isPublicPath) {
             window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname);
           }
           
-          // 公開ページの場合はエラーをスローしない
           if (isPublicPath) {
-            // getPostsの戻り値の型に合わせて空配列を返す
             return [] as T;
           }
         }
       }
 
-      // エラーレスポンスの処理
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({
           error: `HTTP ${response.status}: ${response.statusText}`,
@@ -188,7 +164,6 @@ class ApiClient {
         throw error;
       }
 
-      // レスポンスボディが空の場合
       const contentType = response.headers.get('content-type');
       if (!contentType || !contentType.includes('application/json')) {
         return {} as T;
@@ -196,7 +171,6 @@ class ApiClient {
 
       const data = await response.json();
 
-      // バックエンドのレスポンス形式 { success: true, data: ... } から data を取り出す
       if (data && typeof data === 'object' && 'success' in data && 'data' in data) {
         return data.data as T;
       }
@@ -207,7 +181,6 @@ class ApiClient {
     }
   }
 
-  // HTTP メソッド
   async get<T>(endpoint: string, options?: RequestOptions): Promise<T> {
     return this.request<T>(endpoint, { ...options, method: 'GET' });
   }
@@ -241,12 +214,7 @@ class ApiClient {
   }
 }
 
-// シングルトンインスタンスをエクスポート
 export const apiClient = new ApiClient(API_URL);
-
-/**
- * Profile types
- */
 export interface Profile {
   id: string;
   user_id: string;
@@ -255,6 +223,7 @@ export interface Profile {
   display_name: string;
   age?: number;
   icon_url?: string;
+  nda_flag?: boolean;
   stripe_customer_id?: string;
   stripe_account_id?: string;
   stripe_onboarding_completed?: boolean;
@@ -321,16 +290,12 @@ export interface Post {
   media_mentions?: string;
   extra_image_urls?: string[];
   author_profile?: AuthorProfile;
-  active_view_count?: number; // アクティブビュー数
-  watch_count?: number; // ウォッチ数
-  comment_count?: number; // コメント数
-  // その他のフィールド
+  active_view_count?: number;
+  watch_count?: number;
+  comment_count?: number;
   [key: string]: any;
 }
 
-/**
- * Post API
- */
 export const postApi = {
   getPosts: (params?: {
     type?: string;
@@ -349,14 +314,12 @@ export const postApi = {
     tech_stacks?: string[];
     sort_by?: string;
   }) => {
-    // Convert arrays to JSON strings for backend
     const queryParams: Record<string, string | number> = {};
     if (params) {
       Object.entries(params).forEach(([key, value]) => {
         if (value !== undefined && value !== null) {
           if (Array.isArray(value)) {
             if (value.length > 0) {
-              // Send arrays as JSON strings
               queryParams[key] = JSON.stringify(value);
             }
           } else {
@@ -382,7 +345,6 @@ export const postApi = {
   getBatchMetadata: async (postIds: string[]) => {
     if (postIds.length === 0) return [];
 
-    // Build query string with post_ids[] parameter
     const queryParams = new URLSearchParams();
     postIds.forEach(id => queryParams.append('post_ids[]', id));
 
@@ -396,10 +358,6 @@ export const postApi = {
     }>>(`/api/posts/metadata?${queryParams.toString()}`);
   },
 };
-
-/**
- * Comment types
- */
 export interface PostCommentWithDetails {
   id: string;
   post_id: string;
@@ -456,9 +414,6 @@ export interface ToggleDislikeResponse {
   is_disliked: boolean;
 }
 
-/**
- * Comment API
- */
 export const commentApi = {
   getPostComments: (postId: string) =>
     apiClient.get<PostCommentWithDetails[]>(`/api/posts/${postId}/comments`),
@@ -470,7 +425,6 @@ export const commentApi = {
     apiClient.get<{ comment_id: string; dislike_count: number; is_disliked: boolean }>(`/api/comments/${commentId}/dislikes`),
   toggleCommentDislike: (commentId: string) =>
     apiClient.post<ToggleDislikeResponse>(`/api/comments/${commentId}/dislikes`, {}),
-  // Reply API
   getReplies: (commentId: string) =>
     apiClient.get<CommentReplyWithDetails[]>(`/api/comments/${commentId}/replies`),
   createReply: (commentId: string, data: CreateReplyRequest) =>
@@ -479,16 +433,11 @@ export const commentApi = {
     apiClient.put<CommentReplyWithDetails>(`/api/replies/${replyId}`, data),
   deleteReply: (replyId: string) =>
     apiClient.delete<void>(`/api/replies/${replyId}`),
-  // Reply likes/dislikes
   toggleReplyLike: (replyId: string) =>
     apiClient.post<{ reply_id: string; like_count: number; is_liked: boolean }>(`/api/replies/${replyId}/likes`, {}),
   toggleReplyDislike: (replyId: string) =>
     apiClient.post<{ reply_id: string; dislike_count: number; is_disliked: boolean }>(`/api/replies/${replyId}/dislikes`, {}),
 };
-
-/**
- * Message types
- */
 export interface ThreadDetail {
   id: string;
   participant_ids: string[];
@@ -544,9 +493,6 @@ export interface UploadImageResponse {
   path: string;
 }
 
-/**
- * Message API
- */
 export const messageApi = {
   getThreads: () =>
     apiClient.get<ThreadDetail[]>('/api/threads'),
@@ -568,13 +514,11 @@ export const messageApi = {
     const formData = new FormData();
     formData.append('image', file);
 
-    // FormData送信時はContent-Typeを自動設定させるため、手動で設定しない
-    // HttpOnly Cookieで認証されるため、Authorizationヘッダーは不要
     const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 
     const response = await fetch(`${API_URL}/api/messages/upload-image`, {
       method: 'POST',
-      credentials: 'include', // HttpOnly Cookieを自動送信
+      credentials: 'include',
       body: formData,
     });
 
@@ -584,30 +528,21 @@ export const messageApi = {
     }
 
     const result = await response.json();
-    // バックエンドのレスポンス形式 {success: true, data: {...}} をそのまま返す
     return result;
   },
 
-  // 売却リクエストを作成
   createSaleRequest: (data: { thread_id: string; post_id: string; price: number; phone_number?: string }) =>
     apiClient.post<SaleRequest>('/api/sale-requests', data),
 
-  // 売却リクエストを取得
   getSaleRequests: (threadId: string) =>
     apiClient.get<SaleRequest[]>('/api/sale-requests', { params: { thread_id: threadId } }),
 
-  // 売却リクエストを返金
   refundSaleRequest: (data: { sale_request_id: string; amount?: number; reason?: string }) =>
     apiClient.post<{ refund_id: string; amount: number; status: string; message: string }>('/api/sale-requests/refund', data),
 
-  // 売却リクエストを確定（決済処理）
   confirmSaleRequest: (data: { sale_request_id: string }) =>
     apiClient.post<{ client_secret: string; amount: number; sale_request_id: string; payment_intent_id: string }>('/api/sale-requests/confirm', data),
 };
-
-/**
- * Sale Request types
- */
 export interface SaleRequest {
   id: string;
   thread_id: string;
@@ -619,17 +554,14 @@ export interface SaleRequest {
   payment_intent_id?: string;
   created_at: string;
   updated_at: string;
-  post?: Post; // 投稿情報（SaleRequestWithPostの場合）
+  post?: Post;
 }
 
-/**
- * Active View types
- */
 export interface ActiveViewResponse {
   success: boolean;
   message?: string;
   data?: any;
-  active_view_count?: number; // 最新のカウント数
+  active_view_count?: number;
 }
 
 export interface ActiveViewStatusResponse {
@@ -639,29 +571,18 @@ export interface ActiveViewStatusResponse {
   };
 }
 
-// api-clientがdataだけを返すため、実際の戻り値の型
 export interface ActiveViewStatusData {
   is_active: boolean;
 }
 
-/**
- * Active View API
- */
 export const activeViewApi = {
-  // アクティブビューを追加
   createActiveView: (postId: string) =>
     apiClient.post<ActiveViewResponse>(`/api/posts/${postId}/active-views`, {}),
-  // アクティブビューを削除
   deleteActiveView: (postId: string) =>
     apiClient.delete<ActiveViewResponse>(`/api/posts/${postId}/active-views`),
-  // アクティブビューの状態を取得（api-clientがdataだけを返すため、ActiveViewStatusData型を使用）
   getActiveViewStatus: (postId: string) =>
     apiClient.get<ActiveViewStatusData>(`/api/posts/${postId}/active-views/status`),
 };
-
-/**
- * Stripe types
- */
 export interface StripeAccountStatus {
   hasAccount: boolean;
   accountId?: string;
@@ -703,24 +624,16 @@ export interface StripeOnboardingLinkResponse {
   message?: string;
 }
 
-/**
- * Stripe API
- * バックエンド実装後に使用されるAPI
- */
 export const stripeApi = {
-  // Stripeアカウント情報を取得
   getAccountStatus: () =>
     apiClient.get<{ success: boolean; data: StripeAccountStatus }>('/api/stripe/account-status'),
   
-  // Stripeアカウントを作成
   createAccount: (data: CreateStripeAccountRequest) =>
     apiClient.post<CreateStripeAccountResponse>('/api/stripe/create-account', data),
   
-  // Stripe本人確認フローのリンクを取得
   getOnboardingLink: () =>
     apiClient.post<StripeOnboardingLinkResponse>('/api/stripe/onboarding-link', {}),
   
-  // 精算情報を取得
   getPayoutInfo: () =>
     apiClient.get<{ success: boolean; data: PayoutInfo }>('/api/stripe/payout-info'),
 };

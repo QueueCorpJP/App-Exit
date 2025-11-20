@@ -725,7 +725,9 @@ func (s *Server) ListCommentReplies(w http.ResponseWriter, r *http.Request, comm
 		In("reply_id", replyIDs).
 		ExecuteTo(&likes)
 
-	if err == nil {
+	if err != nil {
+		fmt.Printf("[ListCommentReplies] WARNING: Failed to query reply likes (table may not exist): %v\n", err)
+	} else {
 		for _, like := range likes {
 			likeCounts[like.ReplyID]++
 		}
@@ -741,7 +743,9 @@ func (s *Server) ListCommentReplies(w http.ResponseWriter, r *http.Request, comm
 		In("reply_id", replyIDs).
 		ExecuteTo(&dislikes)
 
-	if err == nil {
+	if err != nil {
+		fmt.Printf("[ListCommentReplies] WARNING: Failed to query reply dislikes (table may not exist): %v\n", err)
+	} else {
 		for _, d := range dislikes {
 			dislikeCounts[d.ReplyID]++
 		}
@@ -759,7 +763,9 @@ func (s *Server) ListCommentReplies(w http.ResponseWriter, r *http.Request, comm
 			Eq("user_id", userID).
 			ExecuteTo(&userLikesData)
 
-		if err == nil {
+		if err != nil {
+			fmt.Printf("[ListCommentReplies] WARNING: Failed to query user reply likes (table may not exist): %v\n", err)
+		} else {
 			for _, like := range userLikesData {
 				userLikes[like.ReplyID] = true
 			}
@@ -775,7 +781,9 @@ func (s *Server) ListCommentReplies(w http.ResponseWriter, r *http.Request, comm
 			Eq("user_id", userID).
 			ExecuteTo(&userDislikesData)
 
-		if err == nil {
+		if err != nil {
+			fmt.Printf("[ListCommentReplies] WARNING: Failed to query user reply dislikes (table may not exist): %v\n", err)
+		} else {
 			for _, d := range userDislikesData {
 				userDislikes[d.ReplyID] = true
 			}

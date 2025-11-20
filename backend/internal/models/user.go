@@ -77,6 +77,7 @@ type UpdateProfileRequest struct {
 	DisplayName *string `json:"display_name,omitempty"`
 	Age         *int    `json:"age,omitempty" validate:"omitempty,min=13,max=120"`
 	IconURL     *string `json:"icon_url,omitempty"`
+	NDAFlag     *bool   `json:"nda_flag,omitempty"`
 }
 
 type LoginRequest struct {

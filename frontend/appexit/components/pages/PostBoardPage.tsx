@@ -70,8 +70,7 @@ export default function PostBoardPage({ initialPosts = [], sidebarData, pageDict
   const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [commentInputs, setCommentInputs] = useState<Record<string, string>>({});
-  const [replyInputs, setReplyInputs] = useState<Record<string, string>>({});
-  const [replyToComment, setReplyToComment] = useState<string | null>(null);
+  const [replyToComment, setReplyToComment] = useState<Record<string, { commentId: string; userName: string } | null>>({});
   const [likeStates, setLikeStates] = useState<Record<string, { like_count: number; is_liked: boolean }>>({});
   const [dislikeStates, setDislikeStates] = useState<Record<string, { dislike_count: number; is_disliked: boolean }>>({});
   const [commentLikeStates, setCommentLikeStates] = useState<Record<string, { like_count: number; is_liked: boolean }>>({});
@@ -83,6 +82,8 @@ export default function PostBoardPage({ initialPosts = [], sidebarData, pageDict
   const [replySectionsOpen, setReplySectionsOpen] = useState<Record<string, boolean>>({});
   const [postComments, setPostComments] = useState<Record<string, PostCommentWithDetails[]>>({});
   const [commentReplies, setCommentReplies] = useState<Record<string, CommentReplyWithDetails[]>>({});
+  const [nestedReplies, setNestedReplies] = useState<Record<string, CommentReplyWithDetails[]>>({});
+  const [nestedRepliesCount, setNestedRepliesCount] = useState<Record<string, number>>({});
   const [shareMenuOpen, setShareMenuOpen] = useState<Record<string, boolean>>({});
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
@@ -312,6 +313,44 @@ export default function PostBoardPage({ initialPosts = [], sidebarData, pageDict
 
           setCommentLikeStates(prev => ({ ...prev, ...commentLikes }));
           setCommentDislikeStates(prev => ({ ...prev, ...commentDislikes }));
+
+          // 返信件数があるコメントの返信を事前取得して、自動的に表示する
+          sortedComments.forEach(comment => {
+            if (comment.reply_count && comment.reply_count > 0 && !commentReplies[comment.id]) {
+              commentApi.getReplies(comment.id)
+                .then(replies => {
+                  if (Array.isArray(replies)) {
+                    setCommentReplies(prevReplies => ({ ...prevReplies, [comment.id]: replies }));
+
+                    const replyLikes: Record<string, { like_count: number; is_liked: boolean }> = {};
+                    const replyDislikes: Record<string, { dislike_count: number; is_disliked: boolean }> = {};
+
+                    replies.forEach(reply => {
+                      replyLikes[reply.id] = {
+                        like_count: reply.like_count || 0,
+                        is_liked: reply.is_liked || false
+                      };
+                      replyDislikes[reply.id] = {
+                        dislike_count: reply.dislike_count || 0,
+                        is_disliked: reply.is_disliked || false
+                      };
+
+                      // 返信に対する返信を取得（reply_countが0より大きい場合）
+                      if (reply.reply_count && reply.reply_count > 0) {
+                        fetchNestedReplies(reply.id);
+                      }
+                    });
+
+                    setReplyLikeStates(prev => ({ ...prev, ...replyLikes }));
+                    setReplyDislikeStates(prev => ({ ...prev, ...replyDislikes }));
+                    setReplySectionsOpen(prev => ({ ...prev, [comment.id]: true }));
+                  }
+                })
+                .catch(() => {
+                  // 返信の事前取得に失敗してもコメント表示自体は継続
+                });
+            }
+          });
         }
       } catch (e) {
         // Failed to load comments - continue without comments
@@ -327,6 +366,9 @@ export default function PostBoardPage({ initialPosts = [], sidebarData, pageDict
     const text = commentInputs[postId]?.trim();
     if (!text) return;
 
+    // 返信の場合とコメントの場合で分岐
+    const replyTo = replyToComment[postId];
+
     // 🔒 SECURITY: コメント内容をサニタイズ
     const sanitized = sanitizeText(text, INPUT_LIMITS.TEXTAREA, {
       allowHTML: false,
@@ -339,77 +381,16 @@ export default function PostBoardPage({ initialPosts = [], sidebarData, pageDict
     }
 
     try {
-      await commentApi.createComment(postId, { content: sanitized.sanitized });
-      setCommentInputs(prev => ({ ...prev, [postId]: '' }));
-      // コメント一覧を再取得して最新のコメントを表示
-      const comments = await commentApi.getPostComments(postId);
-      if (Array.isArray(comments)) {
-        // 古い順にソート（created_atの昇順）
-        const sortedComments = comments.sort((a, b) =>
-          new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-        );
-        setPostComments(prev => ({ ...prev, [postId]: sortedComments }));
-        setCommentCounts(prev => ({ ...prev, [postId]: sortedComments.length }));
+      if (replyTo) {
+        // 返信の場合
+        await commentApi.createReply(replyTo.commentId, { content: sanitized.sanitized });
 
-        // 新しいコメントのリアクション状態を初期化
-        const newCommentLikes: Record<string, { like_count: number; is_liked: boolean }> = {};
-        const newCommentDislikes: Record<string, { dislike_count: number; is_disliked: boolean }> = {};
-        sortedComments.forEach(comment => {
-          newCommentLikes[comment.id] = {
-            like_count: comment.like_count || 0,
-            is_liked: comment.is_liked || false
-          };
-          newCommentDislikes[comment.id] = {
-            dislike_count: comment.dislike_count || 0,
-            is_disliked: comment.is_disliked || false
-          };
-        });
-        setCommentLikeStates(prev => ({ ...prev, ...newCommentLikes }));
-        setCommentDislikeStates(prev => ({ ...prev, ...newCommentDislikes }));
-      }
-    } catch (e) {
-      // Create comment failed - silently fail
-    }
-  };
-
-  // コメントのいいね/バッド切替
-  const handleToggleCommentLike = async (commentId: string) => {
-    try {
-      const res = await commentApi.toggleCommentLike(commentId);
-      setCommentLikeStates(prev => ({
-        ...prev,
-        [commentId]: { like_count: res.like_count ?? 0, is_liked: res.is_liked ?? false }
-      }));
-    } catch (e) {
-      // Toggle comment like failed - silently fail
-    }
-  };
-
-  const handleToggleCommentDislike = async (commentId: string) => {
-    try {
-      const res = await commentApi.toggleCommentDislike(commentId);
-      setCommentDislikeStates(prev => ({
-        ...prev,
-        [commentId]: { dislike_count: res.dislike_count ?? 0, is_disliked: res.is_disliked ?? false }
-      }));
-    } catch (e) {
-      // Toggle comment dislike failed - silently fail
-    }
-  };
-
-  // 返信セクションの開閉とデータ取得
-  const toggleReplySection = async (commentId: string) => {
-    const isCurrentlyOpen = replySectionsOpen[commentId];
-    setReplySectionsOpen(prev => ({ ...prev, [commentId]: !isCurrentlyOpen }));
-
-    // 開く場合で、まだ返信を取得していない場合は取得
-    if (!isCurrentlyOpen && !commentReplies[commentId]) {
-      try {
-        const replies = await commentApi.getReplies(commentId);
+        // 返信一覧を再取得
+        const replies = await commentApi.getReplies(replyTo.commentId);
         if (Array.isArray(replies)) {
-          setCommentReplies(prev => ({ ...prev, [commentId]: replies }));
+          setCommentReplies(prev => ({ ...prev, [replyTo.commentId]: replies }));
 
-          // 返信のいいね・バッド状態を初期化
+          // いいね・バッド状態も更新
           const replyLikes: Record<string, { like_count: number; is_liked: boolean }> = {};
           const replyDislikes: Record<string, { dislike_count: number; is_disliked: boolean }> = {};
           replies.forEach(reply => {
@@ -425,58 +406,204 @@ export default function PostBoardPage({ initialPosts = [], sidebarData, pageDict
           setReplyLikeStates(prev => ({ ...prev, ...replyLikes }));
           setReplyDislikeStates(prev => ({ ...prev, ...replyDislikes }));
         }
-      } catch (e) {
-        // Failed to load replies - continue without replies
+
+        // 返信状態をクリア
+        setReplyToComment(prev => ({ ...prev, [postId]: null }));
+      } else {
+        // 通常のコメントの場合
+        await commentApi.createComment(postId, { content: sanitized.sanitized });
+
+        // コメント一覧を再取得して最新のコメントを表示
+        const comments = await commentApi.getPostComments(postId);
+        if (Array.isArray(comments)) {
+          // 古い順にソート（created_atの昇順）
+          const sortedComments = comments.sort((a, b) =>
+            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+          );
+          setPostComments(prev => ({ ...prev, [postId]: sortedComments }));
+          setCommentCounts(prev => ({ ...prev, [postId]: sortedComments.length }));
+
+          // 新しいコメントのリアクション状態を初期化
+          const newCommentLikes: Record<string, { like_count: number; is_liked: boolean }> = {};
+          const newCommentDislikes: Record<string, { dislike_count: number; is_disliked: boolean }> = {};
+          sortedComments.forEach(comment => {
+            newCommentLikes[comment.id] = {
+              like_count: comment.like_count || 0,
+              is_liked: comment.is_liked || false
+            };
+            newCommentDislikes[comment.id] = {
+              dislike_count: comment.dislike_count || 0,
+              is_disliked: comment.is_disliked || false
+            };
+          });
+          setCommentLikeStates(prev => ({ ...prev, ...newCommentLikes }));
+          setCommentDislikeStates(prev => ({ ...prev, ...newCommentDislikes }));
+        }
+      }
+
+      setCommentInputs(prev => ({ ...prev, [postId]: '' }));
+    } catch (e) {
+      // Create comment/reply failed - silently fail
+    }
+  };
+
+  // コメントのいいね/バッド切替
+  const handleToggleCommentLike = async (commentId: string) => {
+    console.log('Comment like clicked:', commentId);
+    try {
+      const res = await commentApi.toggleCommentLike(commentId);
+      setCommentLikeStates(prev => ({
+        ...prev,
+        [commentId]: { like_count: res.like_count ?? 0, is_liked: res.is_liked ?? false }
+      }));
+    } catch (e) {
+      console.error('Toggle comment like failed:', e);
+    }
+  };
+
+  const handleToggleCommentDislike = async (commentId: string) => {
+    console.log('Comment dislike clicked:', commentId);
+    try {
+      const res = await commentApi.toggleCommentDislike(commentId);
+      setCommentDislikeStates(prev => ({
+        ...prev,
+        [commentId]: { dislike_count: res.dislike_count ?? 0, is_disliked: res.is_disliked ?? false }
+      }));
+    } catch (e) {
+      console.error('Toggle comment dislike failed:', e);
+    }
+  };
+
+  // 返信ボタンのクリックハンドラー
+  const handleReplyButtonClick = (postId: string, commentId: string, userName: string) => {
+    console.log('Reply button clicked:', { postId, commentId, userName });
+    // 返信状態を設定
+    setReplyToComment(prev => ({
+      ...prev,
+      [postId]: { commentId, userName }
+    }));
+
+    // 入力欄にメンションを追加
+    setCommentInputs(prev => ({
+      ...prev,
+      [postId]: `@${userName} `
+    }));
+
+    // 返信セクションを開く（既に開いている場合は何もしない）
+    if (!replySectionsOpen[commentId]) {
+      setReplySectionsOpen(prev => ({ ...prev, [commentId]: true }));
+
+      // まだ返信を取得していない場合は取得
+      if (!commentReplies[commentId]) {
+        commentApi.getReplies(commentId)
+          .then(replies => {
+            if (Array.isArray(replies)) {
+              setCommentReplies(prevReplies => ({ ...prevReplies, [commentId]: replies }));
+
+              const replyLikes: Record<string, { like_count: number; is_liked: boolean }> = {};
+              const replyDislikes: Record<string, { dislike_count: number; is_disliked: boolean }> = {};
+              replies.forEach(reply => {
+                replyLikes[reply.id] = {
+                  like_count: reply.like_count || 0,
+                  is_liked: reply.is_liked || false
+                };
+                replyDislikes[reply.id] = {
+                  dislike_count: reply.dislike_count || 0,
+                  is_disliked: reply.is_disliked || false
+                };
+
+                // 返信に対する返信を取得（reply_countが0より大きい場合）
+                if (reply.reply_count && reply.reply_count > 0) {
+                  fetchNestedReplies(reply.id);
+                }
+              });
+              setReplyLikeStates(prevLikes => ({ ...prevLikes, ...replyLikes }));
+              setReplyDislikeStates(prevDislikes => ({ ...prevDislikes, ...replyDislikes }));
+            }
+          })
+          .catch(e => {
+            // Failed to load replies
+          });
       }
     }
   };
 
-  // 返信送信
-  const handleSubmitReply = async (commentId: string) => {
-    const text = replyInputs[commentId]?.trim();
-    if (!text) return;
-
-    // 🔒 SECURITY: 返信内容をサニタイズ
-    const sanitized = sanitizeText(text, INPUT_LIMITS.TEXTAREA, {
-      allowHTML: false,
-      strictMode: false,
-    });
-
-    if (!sanitized.isValid) {
-      alert(tp('invalidContent') || 'Invalid content detected. Please remove any potentially harmful code.');
-      return;
-    }
-
+  // 返信に対する返信を取得（最大5件）
+  const fetchNestedReplies = async (replyId: string) => {
     try {
-      await commentApi.createReply(commentId, { content: sanitized.sanitized });
-      setReplyInputs(prev => ({ ...prev, [commentId]: '' }));
-      setReplyToComment(null);
-
-      // 返信一覧を再取得
-      const replies = await commentApi.getReplies(commentId);
-      if (Array.isArray(replies)) {
-        setCommentReplies(prev => ({ ...prev, [commentId]: replies }));
-
-        // いいね・バッド状態も更新
-        const replyLikes: Record<string, { like_count: number; is_liked: boolean }> = {};
-        const replyDislikes: Record<string, { dislike_count: number; is_disliked: boolean }> = {};
-        replies.forEach(reply => {
-          replyLikes[reply.id] = {
-            like_count: reply.like_count || 0,
-            is_liked: reply.is_liked || false
-          };
-          replyDislikes[reply.id] = {
-            dislike_count: reply.dislike_count || 0,
-            is_disliked: reply.is_disliked || false
-          };
-        });
-        setReplyLikeStates(prev => ({ ...prev, ...replyLikes }));
-        setReplyDislikeStates(prev => ({ ...prev, ...replyDislikes }));
+      const nestedReps = await commentApi.getReplies(replyId);
+      if (Array.isArray(nestedReps)) {
+        // 最大5件まで表示
+        const displayedReplies = nestedReps.slice(0, 5);
+        setNestedReplies(prev => ({ ...prev, [replyId]: displayedReplies }));
+        setNestedRepliesCount(prev => ({ ...prev, [replyId]: nestedReps.length }));
       }
     } catch (e) {
-      // Create reply failed - silently fail
+      // Failed to load nested replies
     }
   };
+
+  // 返信に対する返信をさらに読み込む
+  const loadMoreNestedReplies = async (replyId: string) => {
+    console.log('Load more nested replies clicked:', replyId);
+    try {
+      const currentReplies = nestedReplies[replyId] || [];
+      const nestedReps = await commentApi.getReplies(replyId);
+      if (Array.isArray(nestedReps)) {
+        // 次の5件を取得
+        const nextBatch = nestedReps.slice(currentReplies.length, currentReplies.length + 5);
+        setNestedReplies(prev => ({ ...prev, [replyId]: [...currentReplies, ...nextBatch] }));
+      }
+    } catch (e) {
+      console.error('Failed to load more nested replies:', e);
+    }
+  };
+
+  // 返信セクションの開閉とデータ取得
+  const toggleReplySection = (commentId: string) => {
+    setReplySectionsOpen(prev => {
+      const isCurrentlyOpen = prev[commentId] || false;
+      const newState = !isCurrentlyOpen;
+
+      // 開く場合で、まだ返信を取得していない場合は取得
+      if (newState && !commentReplies[commentId]) {
+        // 非同期で返信を取得
+        commentApi.getReplies(commentId)
+          .then(replies => {
+            if (Array.isArray(replies)) {
+              setCommentReplies(prevReplies => ({ ...prevReplies, [commentId]: replies }));
+
+              // 返信のいいね・バッド状態を初期化
+              const replyLikes: Record<string, { like_count: number; is_liked: boolean }> = {};
+              const replyDislikes: Record<string, { dislike_count: number; is_disliked: boolean }> = {};
+              replies.forEach(reply => {
+                replyLikes[reply.id] = {
+                  like_count: reply.like_count || 0,
+                  is_liked: reply.is_liked || false
+                };
+                replyDislikes[reply.id] = {
+                  dislike_count: reply.dislike_count || 0,
+                  is_disliked: reply.is_disliked || false
+                };
+
+                // 返信に対する返信を取得（reply_countが0より大きい場合）
+                if (reply.reply_count && reply.reply_count > 0) {
+                  fetchNestedReplies(reply.id);
+                }
+              });
+              setReplyLikeStates(prevLikes => ({ ...prevLikes, ...replyLikes }));
+              setReplyDislikeStates(prevDislikes => ({ ...prevDislikes, ...replyDislikes }));
+            }
+          })
+          .catch(e => {
+            // Failed to load replies
+          });
+      }
+
+      return { ...prev, [commentId]: newState };
+    });
+  };
+
 
   // 返信のいいね・バッドハンドラ
   const handleToggleReplyLike = async (replyId: string) => {
@@ -487,7 +614,7 @@ export default function PostBoardPage({ initialPosts = [], sidebarData, pageDict
         [replyId]: { like_count: res.like_count ?? 0, is_liked: res.is_liked ?? false }
       }));
     } catch (e) {
-      // Toggle reply like failed - silently fail
+      // Toggle like failed - silently fail
     }
   };
 
@@ -499,7 +626,7 @@ export default function PostBoardPage({ initialPosts = [], sidebarData, pageDict
         [replyId]: { dislike_count: res.dislike_count ?? 0, is_disliked: res.is_disliked ?? false }
       }));
     } catch (e) {
-      // Toggle reply dislike failed - silently fail
+      // Toggle dislike failed - silently fail
     }
   };
 
@@ -536,150 +663,6 @@ export default function PostBoardPage({ initialPosts = [], sidebarData, pageDict
     setShareMenuOpen(prev => ({ ...prev, [post.id]: false }));
   };
 
-  const CommentItem = ({ comment }: { comment: PostCommentWithDetails }) => {
-    const displayName = comment.author_profile?.display_name || `User ${comment.user_id.substring(0, 8)}`;
-    const timeAgo = formatTimeAgo(new Date(comment.created_at));
-    const likeState = commentLikeStates[comment.id] || { like_count: 0, is_liked: false };
-    const dislikeState = commentDislikeStates[comment.id] || { dislike_count: 0, is_disliked: false };
-    const replies = commentReplies[comment.id] || [];
-    const replyCount = comment.reply_count || replies.length || 0;
-
-    return (
-      <div className="py-3">
-        <div className="flex gap-3">
-          <button
-            onClick={() => router.push(`/profile/${comment.user_id}`)}
-            className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex-shrink-0 flex items-center justify-center text-white text-xs font-bold cursor-pointer hover:opacity-80 transition-opacity"
-          >
-            {displayName[0].toUpperCase()}
-          </button>
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-1">
-              <button
-                onClick={() => router.push(`/profile/${comment.user_id}`)}
-                className="font-semibold text-sm text-gray-900 hover:underline"
-              >
-                {displayName}
-              </button>
-              <span className="text-xs text-gray-500">• {timeAgo}</span>
-            </div>
-            <p className="text-sm text-gray-800 mb-2 whitespace-pre-wrap">{comment.content}</p>
-            <div className="flex items-center gap-4 text-sm text-gray-600">
-              <div className="flex items-center gap-1">
-                <button
-                  className={`hover:text-orange-500 transition-colors ${likeState.is_liked ? 'text-orange-500' : ''}`}
-                  onClick={() => handleToggleCommentLike(comment.id)}
-                >
-                  <ArrowUp className="w-4 h-4" />
-                </button>
-                <span className="font-medium">{likeState.like_count}</span>
-                <button
-                  className={`hover:text-blue-500 transition-colors ${dislikeState.is_disliked ? 'text-blue-500' : ''}`}
-                  onClick={() => handleToggleCommentDislike(comment.id)}
-                >
-                  <ArrowDown className="w-4 h-4" />
-                </button>
-              </div>
-              <button
-                className="flex items-center gap-1 hover:text-blue-600 transition-colors"
-                onClick={() => {
-                  setReplyToComment(comment.id);
-                  toggleReplySection(comment.id);
-                }}
-              >
-                <MessageCircle className="w-4 h-4" />
-                <span>{tp('reply')}</span>
-                {replyCount > 0 && <span className="text-xs">({replyCount})</span>}
-              </button>
-            </div>
-
-            {/* 返信セクション */}
-            {replySectionsOpen[comment.id] && (
-              <div className="mt-3 ml-4 border-l-2 border-gray-200 pl-4">
-                {/* 返信入力 */}
-                <div className="mb-3">
-                  <div className="relative flex items-center gap-2">
-                    <input
-                      type="text"
-                      value={replyInputs[comment.id] ?? ''}
-                      onChange={(e) => setReplyInputs(prev => ({ ...prev, [comment.id]: e.target.value }))}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                          e.preventDefault();
-                          handleSubmitReply(comment.id);
-                        }
-                      }}
-                      maxLength={INPUT_LIMITS.TEXTAREA}
-                      placeholder={tp('writeReply') || 'Write a reply...'}
-                      className="flex-1 px-3 py-1.5 pr-10 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                    />
-                    <button
-                      onClick={() => handleSubmitReply(comment.id)}
-                      disabled={!replyInputs[comment.id]?.trim()}
-                      className="absolute right-2 p-1 text-blue-500 hover:text-blue-700 disabled:text-gray-300 disabled:cursor-not-allowed transition-colors"
-                      title={tp('send')}
-                    >
-                      <Send className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* 返信リスト */}
-                {replies.length > 0 && (
-                  <div className="space-y-3">
-                    {replies.map((reply) => {
-                      const replyLikeState = replyLikeStates[reply.id] || { like_count: 0, is_liked: false };
-                      const replyDislikeState = replyDislikeStates[reply.id] || { dislike_count: 0, is_disliked: false };
-                      return (
-                        <div key={reply.id} className="flex gap-2">
-                          <button
-                            onClick={() => router.push(`/profile/${reply.user_id}`)}
-                            className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-400 to-purple-400 flex-shrink-0 flex items-center justify-center text-white text-xs font-bold cursor-pointer hover:opacity-80 transition-opacity"
-                          >
-                            {(reply.author_profile?.display_name || 'U')[0].toUpperCase()}
-                          </button>
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-0.5">
-                              <button
-                                onClick={() => router.push(`/profile/${reply.user_id}`)}
-                                className="font-semibold text-xs text-gray-900 hover:underline"
-                              >
-                                {reply.author_profile?.display_name || `User ${reply.user_id.substring(0, 8)}`}
-                              </button>
-                              <span className="text-xs text-gray-500">• {formatTimeAgo(new Date(reply.created_at))}</span>
-                            </div>
-                            <p className="text-xs text-gray-800 whitespace-pre-wrap mb-1">{reply.content}</p>
-                            {/* いいね・バッドボタン */}
-                            <div className="flex items-center gap-3">
-                              <button
-                                onClick={() => handleToggleReplyLike(reply.id)}
-                                className={`flex items-center gap-1 transition-colors ${replyLikeState.is_liked ? 'text-blue-600' : 'text-gray-500 hover:text-blue-600'}`}
-                              >
-                                <ThumbsUp className="w-3 h-3" fill={replyLikeState.is_liked ? 'currentColor' : 'none'} />
-                                <span className="text-xs font-medium">{replyLikeState.like_count}</span>
-                              </button>
-                              <button
-                                onClick={() => handleToggleReplyDislike(reply.id)}
-                                className={`flex items-center gap-1 transition-colors ${replyDislikeState.is_disliked ? 'text-red-600' : 'text-gray-500 hover:text-red-600'}`}
-                              >
-                                <ThumbsDown className="w-3 h-3" fill={replyDislikeState.is_disliked ? 'currentColor' : 'none'} />
-                                <span className="text-xs font-medium">{replyDislikeState.dislike_count}</span>
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   // 時間経過を表示する関数（メモ化）
   const formatTimeAgo = useCallback((date: Date): string => {
     const now = new Date();
@@ -693,6 +676,161 @@ export default function PostBoardPage({ initialPosts = [], sidebarData, pageDict
     if (diffHours < 24) return `${diffHours}${tp('hoursAgo')}`;
     return `${diffDays}${tp('daysAgo')}`;
   }, [tp]);
+
+  const renderCommentItem = useCallback((comment: PostCommentWithDetails, postId: string) => {
+    const displayName = comment.author_profile?.display_name || `User ${comment.user_id.substring(0, 8)}`;
+    const timeAgo = formatTimeAgo(new Date(comment.created_at));
+    const likeState = commentLikeStates[comment.id] || { like_count: 0, is_liked: false };
+    const dislikeState = commentDislikeStates[comment.id] || { dislike_count: 0, is_disliked: false };
+    const replies = commentReplies[comment.id] || [];
+    const replyCount = comment.reply_count || replies.length || 0;
+
+    return (
+      <div className="border-b border-gray-100 last:border-b-0 pb-4 pt-3">
+        <div className="flex gap-3">
+          <div
+            onClick={() => router.push(`/profile/${comment.user_id}`)}
+            className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex-shrink-0 flex items-center justify-center text-white text-xs font-bold cursor-pointer hover:opacity-80 transition-opacity"
+          >
+            {displayName[0].toUpperCase()}
+          </div>
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-1">
+              <span
+                onClick={() => router.push(`/profile/${comment.user_id}`)}
+                className="font-semibold text-sm text-gray-900 hover:underline cursor-pointer"
+              >
+                {displayName}
+              </span>
+              <span className="text-xs text-gray-500">• {timeAgo}</span>
+            </div>
+            <p className="text-sm text-gray-800 mb-2 whitespace-pre-wrap">{comment.content}</p>
+            <div className="flex items-center gap-4 text-sm text-gray-600">
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  className={`hover:text-orange-500 transition-colors ${likeState.is_liked ? 'text-orange-500' : ''}`}
+                  onClick={() => handleToggleCommentLike(comment.id)}
+                >
+                  <ArrowUp className="w-4 h-4" />
+                </button>
+                <span className="font-medium">{likeState.like_count}</span>
+                <button
+                  type="button"
+                  className={`hover:text-blue-500 transition-colors ${dislikeState.is_disliked ? 'text-blue-500' : ''}`}
+                  onClick={() => handleToggleCommentDislike(comment.id)}
+                >
+                  <ArrowDown className="w-4 h-4" />
+                </button>
+              </div>
+              <button
+                type="button"
+                className="flex items-center gap-1 hover:text-blue-600 transition-colors"
+                onClick={() => handleReplyButtonClick(postId, comment.id, displayName)}
+              >
+                <MessageCircle className="w-4 h-4" />
+                <span>{tp('reply')}</span>
+                {replyCount > 0 && <span className="text-xs">({replyCount})</span>}
+              </button>
+            </div>
+
+            {/* 返信セクション */}
+            {(replySectionsOpen[comment.id] === true) && (
+              <div className="mt-3 ml-4 border-l-2 border-gray-200 pl-4">
+                {/* 返信リスト */}
+                {replies.length > 0 ? (
+                  <div className="space-y-3">
+                    {replies.map((reply) => {
+                      const replyLikeState = replyLikeStates[reply.id] || { like_count: reply.like_count || 0, is_liked: reply.is_liked || false };
+                      const replyDislikeState = replyDislikeStates[reply.id] || { dislike_count: reply.dislike_count || 0, is_disliked: reply.is_disliked || false };
+                      return (
+                        <div key={reply.id}>
+                          <div className="flex gap-2">
+                            <div
+                              onClick={() => router.push(`/profile/${reply.user_id}`)}
+                              className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-400 to-purple-400 flex-shrink-0 flex items-center justify-center text-white text-xs font-bold cursor-pointer hover:opacity-80 transition-opacity"
+                            >
+                              {(reply.author_profile?.display_name || 'U')[0].toUpperCase()}
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-0.5">
+                                <span
+                                  onClick={() => router.push(`/profile/${reply.user_id}`)}
+                                  className="font-semibold text-xs text-gray-900 hover:underline cursor-pointer"
+                                >
+                                  {reply.author_profile?.display_name || `User ${reply.user_id.substring(0, 8)}`}
+                                </span>
+                                <span className="text-xs text-gray-500">• {formatTimeAgo(new Date(reply.created_at))}</span>
+                              </div>
+                              <p className="text-xs text-gray-800 whitespace-pre-wrap">{reply.content}</p>
+                            </div>
+                          </div>
+
+                          {/* 返信に対する返信（ネストされた返信） */}
+                          {nestedReplies[reply.id] && nestedReplies[reply.id].length > 0 && (
+                            <div className="ml-8 mt-2 space-y-2">
+                              {nestedReplies[reply.id].map((nestedReply) => (
+                                <div key={nestedReply.id} className="flex gap-2">
+                                  <div
+                                    onClick={() => router.push(`/profile/${nestedReply.user_id}`)}
+                                    className="w-5 h-5 rounded-full bg-gradient-to-br from-green-400 to-blue-400 flex-shrink-0 flex items-center justify-center text-white text-xs font-bold cursor-pointer hover:opacity-80 transition-opacity"
+                                  >
+                                    {(nestedReply.author_profile?.display_name || 'U')[0].toUpperCase()}
+                                  </div>
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2 mb-0.5">
+                                      <span
+                                        onClick={() => router.push(`/profile/${nestedReply.user_id}`)}
+                                        className="font-semibold text-xs text-gray-900 hover:underline cursor-pointer"
+                                      >
+                                        {nestedReply.author_profile?.display_name || `User ${nestedReply.user_id.substring(0, 8)}`}
+                                      </span>
+                                      <span className="text-xs text-gray-500">• {formatTimeAgo(new Date(reply.created_at))}</span>
+                                    </div>
+                                    <p className="text-xs text-gray-700 whitespace-pre-wrap">{nestedReply.content}</p>
+                                  </div>
+                                </div>
+                              ))}
+
+                              {/* もっと見るボタン */}
+                              {nestedRepliesCount[reply.id] && nestedRepliesCount[reply.id] > nestedReplies[reply.id].length && (
+                                <button
+                                  onClick={() => loadMoreNestedReplies(reply.id)}
+                                  className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                                >
+                                  もっと見る（残り{nestedRepliesCount[reply.id] - nestedReplies[reply.id].length}件）
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-xs text-gray-500">返信がありません</div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }, [
+    commentLikeStates,
+    commentDislikeStates,
+    commentReplies,
+    replySectionsOpen,
+    nestedReplies,
+    nestedRepliesCount,
+    router,
+    tp,
+    handleToggleCommentLike,
+    handleToggleCommentDislike,
+    handleReplyButtonClick,
+    loadMoreNestedReplies,
+    formatTimeAgo,
+  ]);
 
   // もっと見るボタンで追加の投稿を取得（メモ化）
   const handleLoadMore = useCallback(async () => {
@@ -1058,16 +1196,45 @@ export default function PostBoardPage({ initialPosts = [], sidebarData, pageDict
                 </div>
               </div>
 
-              {/* Comment Input Section & Comments - Only show when open */}
-              <div
-                className="overflow-hidden transition-all duration-200 ease-in-out"
-                style={{
-                  maxHeight: commentSectionsOpen[post.id] ? '2000px' : '0',
-                  opacity: commentSectionsOpen[post.id] ? 1 : 0,
-                }}
-              >
-                {/* Comment Input Section */}
+              {/* Comments Section - Only show when open */}
+              {commentSectionsOpen[post.id] && (
+              <div className="border-t border-gray-100">
+
+                {/* Comments List */}
                 <div className="p-6 border-b border-gray-100">
+                  {postComments[post.id] && postComments[post.id].length > 0 ? (
+                    <div className="space-y-4">
+                      {postComments[post.id].map((comment) => (
+                        <div key={comment.id}>
+                          {renderCommentItem(comment, post.id)}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center text-gray-500 text-sm py-8">
+                      <MessageCircle className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+                      <p>{tp('noComments')}</p>
+                      <p className="text-xs mt-1">{tp('createFirstComment')}</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Comment Input Section - Now at the bottom */}
+                <div className="p-6">
+                  {replyToComment[post.id] && (
+                    <div className="mb-2 text-xs text-gray-500">
+                      返信先: @{replyToComment[post.id].userName}
+                      <button
+                        onClick={() => {
+                          setReplyToComment(prev => ({ ...prev, [post.id]: null }));
+                          setCommentInputs(prev => ({ ...prev, [post.id]: '' }));
+                        }}
+                        className="ml-2 text-blue-500 hover:text-blue-700"
+                      >
+                        キャンセル
+                      </button>
+                    </div>
+                  )}
                   <div className="relative flex items-center gap-2">
                     <input
                       type="text"
@@ -1080,7 +1247,7 @@ export default function PostBoardPage({ initialPosts = [], sidebarData, pageDict
                         }
                       }}
                       maxLength={INPUT_LIMITS.TEXTAREA}
-                      placeholder={tp('addComment')}
+                      placeholder={replyToComment[post.id] ? tp('writeReply') || '返信を入力...' : tp('addComment')}
                       className="flex-1 px-4 py-2.5 pr-12 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                     />
                     <button
@@ -1093,24 +1260,8 @@ export default function PostBoardPage({ initialPosts = [], sidebarData, pageDict
                     </button>
                   </div>
                 </div>
-
-                {/* Comments Section */}
-                <div className="p-6">
-                  <div className="space-y-2 divide-y divide-gray-100">
-                    {postComments[post.id] && postComments[post.id].length > 0 ? (
-                      postComments[post.id].map((comment) => (
-                        <CommentItem key={comment.id} comment={comment} />
-                      ))
-                    ) : (
-                      <div className="text-center text-gray-500 text-sm py-8">
-                        <MessageCircle className="w-12 h-12 mx-auto mb-2 text-gray-300" />
-                        <p>{tp('noComments')}</p>
-                        <p className="text-xs mt-1">{tp('createFirstComment')}</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
               </div>
+              )}
             </div>
           ))}
 

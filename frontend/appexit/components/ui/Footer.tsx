@@ -1,11 +1,12 @@
-'use client'
-
 import Link from 'next/link'
-import { useTranslations, useLocale } from 'next-intl'
+import { getTranslations } from 'next-intl/server'
 
-export default function Footer() {
-  const t = useTranslations()
-  const locale = useLocale()
+interface FooterProps {
+  locale: string
+}
+
+export default async function Footer({ locale }: FooterProps) {
+  const t = await getTranslations()
   return (
     <footer className="bg-gray-800 text-white">
       {/* メインフッターコンテンツ */}
@@ -54,6 +55,9 @@ export default function Footer() {
             </Link>
             <Link href={`/${locale}/cookie-policy`} className="text-gray-300 hover:text-white transition-colors text-sm flex items-center">
               {t('footer.cookiePolicy')}
+            </Link>
+            <Link href={`/${locale}/nda`} className="text-gray-300 hover:text-white transition-colors text-sm flex items-center">
+              {t('footer.nda')}
             </Link>
           </div>
         </div>

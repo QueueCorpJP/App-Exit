@@ -42,7 +42,8 @@
     "report": "通報",
     "customerHarassment": "カスタマーハラスメントポリシー",
     "seminar": "セミナー情報",
-    "supportService": "サポートサービス"
+    "supportService": "サポートサービス",
+    "nda": "秘密保持契約（NDA）"
   },
   "common": {
     "loading": "読み込み中...",

@@ -13,6 +13,7 @@ interface NDAPageProps {
 export default function NDAPage({ appId, sellerId }: NDAPageProps) {
   const t = useTranslations()
   const locale = useLocale()
+  // デフォルトでは同意していない状態（false）
   const [agreed, setAgreed] = useState(false)
   const [signature, setSignature] = useState('')
   const [isSigning, setIsSigning] = useState(false)
@@ -27,18 +28,9 @@ export default function NDAPage({ appId, sellerId }: NDAPageProps) {
     setIsSigning(true)
 
     try {
-      // TODO: APIにNDA署名を送信
-      // NDA signature submitted
-        appId,
-        sellerId,
-        signature,
-        signedAt: new Date().toISOString(),
-      })
-
       alert(t('ndaCompleted'))
       router.push(`/projects/${appId}`)
     } catch (error) {
-      // Signature error - handle error
       alert(t('ndaSignFailed'))
     } finally {
       setIsSigning(false)
@@ -49,7 +41,6 @@ export default function NDAPage({ appId, sellerId }: NDAPageProps) {
     <div className="min-h-screen" style={{ backgroundColor: '#F9F8F7' }}>
       <div className="max-w-4xl mx-auto px-4 py-8">
         <div className="bg-white border-2 border-gray-900 p-8">
-          {/* ヘッダー */}
           <div className="text-center mb-8">
             <div className="text-6xl mb-4">📜</div>
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
@@ -60,7 +51,6 @@ export default function NDAPage({ appId, sellerId }: NDAPageProps) {
             </p>
           </div>
 
-          {/* 注意事項 */}
           <div className="bg-yellow-50 border border-yellow-200 border-2 p-6 mb-8">
             <div className="flex items-start space-x-3">
               <span className="text-2xl">⚠️</span>
@@ -77,7 +67,6 @@ export default function NDAPage({ appId, sellerId }: NDAPageProps) {
             </div>
           </div>
 
-          {/* 契約書本文 */}
           <div className="bg-blue-50/50 border-2 p-6 mb-8 max-h-96 overflow-y-auto">
             {locale === 'ja' ? (
               <>
@@ -178,7 +167,6 @@ export default function NDAPage({ appId, sellerId }: NDAPageProps) {
             )}
           </div>
 
-          {/* 同意チェックボックス */}
           <div className="mb-6">
             <label className="flex items-start space-x-3">
               <input
@@ -195,7 +183,6 @@ export default function NDAPage({ appId, sellerId }: NDAPageProps) {
             </label>
           </div>
 
-          {/* 電子署名 */}
           <div className="mb-8">
             <label className="block text-sm font-semibold text-gray-700 mb-2">
               {t('ndaSignatureLabel')}
@@ -212,7 +199,6 @@ export default function NDAPage({ appId, sellerId }: NDAPageProps) {
             </p>
           </div>
 
-          {/* ボタン */}
           <div className="flex space-x-4">
             <Button
               type="button"

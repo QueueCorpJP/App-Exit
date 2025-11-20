@@ -419,19 +419,40 @@ func (s *Server) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	if req.IconURL != nil {
 		updateData["icon_url"] = *req.IconURL
 	}
+	if req.NDAFlag != nil {
+		updateData["nda_flag"] = *req.NDAFlag
+	}
 
 	// 更新するフィールドがない場合
 	if len(updateData) == 0 {
 		fmt.Printf("[UPDATE PROFILE] ⚠️ No fields to update\n")
 		// 現在のプロフィールを取得して返す
 		impersonateClient := s.supabase.GetAuthenticatedClient(impersonateJWT)
-		var profile models.Profile
-		_, err := impersonateClient.From("profiles").Select("*", "", false).Eq("id", userID).Single().ExecuteTo(&profile)
+		var profiles []models.Profile
+		_, err := impersonateClient.From("profiles").Select("*", "", false).Eq("id", userID).ExecuteTo(&profiles)
 		if err != nil {
 			fmt.Printf("[UPDATE PROFILE] ❌ ERROR: Failed to fetch profile: %v\n", err)
 			fmt.Printf("========== UPDATE PROFILE END (FAILED) ==========\n\n")
 			response.Error(w, http.StatusInternalServerError, "Failed to fetch profile")
 			return
+		}
+		if len(profiles) == 0 {
+			fmt.Printf("[UPDATE PROFILE] ❌ ERROR: No profile found for user %s\n", userID)
+			fmt.Printf("========== UPDATE PROFILE END (FAILED) ==========\n\n")
+			response.Error(w, http.StatusNotFound, "Profile not found")
+			return
+		}
+		// sellerのプロフィールを優先的に取得
+		var profile models.Profile
+		for _, p := range profiles {
+			if p.Role == "seller" {
+				profile = p
+				break
+			}
+		}
+		// sellerが見つからない場合は最初のプロフィールを使用
+		if profile.ID == "" && len(profiles) > 0 {
+			profile = profiles[0]
 		}
 		response.Success(w, http.StatusOK, profile)
 		return
@@ -458,13 +479,31 @@ func (s *Server) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 
 	// 更新されたプロフィールを取得
 	fmt.Printf("[UPDATE PROFILE] Fetching updated profile...\n")
-	var profile models.Profile
-	_, err = impersonateClient.From("profiles").Select("*", "", false).Eq("id", userID).Single().ExecuteTo(&profile)
+	var profiles []models.Profile
+	_, err = impersonateClient.From("profiles").Select("*", "", false).Eq("id", userID).ExecuteTo(&profiles)
 	if err != nil {
 		fmt.Printf("[UPDATE PROFILE] ❌ ERROR: Failed to fetch updated profile: %v\n", err)
 		fmt.Printf("========== UPDATE PROFILE END (FAILED) ==========\n\n")
 		response.Error(w, http.StatusInternalServerError, "Failed to fetch updated profile")
 		return
+	}
+	if len(profiles) == 0 {
+		fmt.Printf("[UPDATE PROFILE] ❌ ERROR: No profile found for user %s\n", userID)
+		fmt.Printf("========== UPDATE PROFILE END (FAILED) ==========\n\n")
+		response.Error(w, http.StatusNotFound, "Profile not found")
+		return
+	}
+	// sellerのプロフィールを優先的に取得
+	var profile models.Profile
+	for _, p := range profiles {
+		if p.Role == "seller" {
+			profile = p
+			break
+		}
+	}
+	// sellerが見つからない場合は最初のプロフィールを使用
+	if profile.ID == "" && len(profiles) > 0 {
+		profile = profiles[0]
 	}
 
 	fmt.Printf("[UPDATE PROFILE] ✅ Profile update completed successfully\n")
@@ -780,6 +819,13 @@ func (s *Server) CheckSession(w http.ResponseWriter, r *http.Request) {
 	}
 	fmt.Printf("[SESSION] JWT Secret length: %d\n", len(s.config.SupabaseJWTSecret))
 
+	// CVE-2025-30204対策: トークンの構造を事前に検証（過剰なメモリ割り当てを防ぐ）
+	if err := utils.ValidateJWTTokenStructure(tokenString); err != nil {
+		fmt.Printf("[SESSION] ❌ ERROR: Token structure validation failed: %v\n", err)
+		response.Error(w, http.StatusUnauthorized, "Invalid token format")
+		return
+	}
+
 	// トークンを検証してユーザー情報を取得
 	fmt.Printf("[SESSION] Parsing JWT token...\n")
 	token, err := jwt.ParseWithClaims(tokenString, &middleware.SupabaseJWTClaims{}, func(token *jwt.Token) (interface{}, error) {
@@ -800,6 +846,13 @@ func (s *Server) CheckSession(w http.ResponseWriter, r *http.Request) {
 			if refreshErr == nil {
 				fmt.Printf("[SESSION] ✓ Successfully refreshed expired token\n")
 				tokenString = authResp.AccessToken
+				
+				// CVE-2025-30204対策: リフレッシュされたトークンの構造を事前に検証
+				if err := utils.ValidateJWTTokenStructure(tokenString); err != nil {
+					fmt.Printf("[SESSION] ❌ ERROR: Refreshed token structure validation failed: %v\n", err)
+					response.Error(w, http.StatusUnauthorized, "Invalid token format")
+					return
+				}
 				
 				// 新しいトークンで再検証
 				token, err = jwt.ParseWithClaims(tokenString, &middleware.SupabaseJWTClaims{}, func(token *jwt.Token) (interface{}, error) {
@@ -1197,6 +1250,13 @@ func (s *Server) HandleOAuthSessionFromToken(w http.ResponseWriter, r *http.Requ
 
 	fmt.Printf("[OAUTH SESSION] ✓ Received tokens (access_token length: %d, refresh_token length: %d)\n",
 		len(req.AccessToken), len(req.RefreshToken))
+
+	// CVE-2025-30204対策: トークンの構造を事前に検証（過剰なメモリ割り当てを防ぐ）
+	if err := utils.ValidateJWTTokenStructure(req.AccessToken); err != nil {
+		fmt.Printf("[OAUTH SESSION] ❌ ERROR: Token structure validation failed: %v\n", err)
+		response.Error(w, http.StatusUnauthorized, "Invalid token format")
+		return
+	}
 
 	// トークンを検証してユーザー情報を取得
 	token, err := jwt.ParseWithClaims(req.AccessToken, &middleware.SupabaseJWTClaims{}, func(token *jwt.Token) (interface{}, error) {

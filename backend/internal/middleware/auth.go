@@ -8,6 +8,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/yourusername/appexit-backend/internal/services"
+	"github.com/yourusername/appexit-backend/internal/utils"
 	"github.com/yourusername/appexit-backend/pkg/response"
 )
 
@@ -130,7 +131,22 @@ func AuthWithSupabase(supabaseJWTSecret string, supabaseService *services.Supaba
 				fmt.Printf("[AUTH] ✓ Token found in header (length: %d)\n", len(tokenString))
 			}
 
-			fmt.Printf("[AUTH] Token segments: %d\n", len(strings.Split(tokenString, ".")))
+			// メモリ効率的にトークンセグメント数をカウント（CVE-2025-30204対策）
+			segmentCount := 1
+			for i := 0; i < len(tokenString); i++ {
+				if tokenString[i] == '.' {
+					segmentCount++
+				}
+			}
+			fmt.Printf("[AUTH] Token segments: %d\n", segmentCount)
+
+			// CVE-2025-30204対策: トークンの構造を事前に検証（過剰なメモリ割り当てを防ぐ）
+			if err := utils.ValidateJWTTokenStructure(tokenString); err != nil {
+				fmt.Printf("[AUTH] ❌ ERROR: Token structure validation failed: %v\n", err)
+				fmt.Printf("========== AUTH MIDDLEWARE END (FAILED) ==========\n\n")
+				response.Error(w, http.StatusUnauthorized, "Invalid token format")
+				return
+			}
 
 			// Verify Supabase JWT token
 			fmt.Printf("[AUTH] Parsing JWT token...\n")
@@ -221,6 +237,13 @@ func OptionalAuthWithSupabase(supabaseJWTSecret string, supabaseService *service
 				}
 
 				tokenString = authHeader[7:]
+			}
+
+			// CVE-2025-30204対策: トークンの構造を事前に検証（過剰なメモリ割り当てを防ぐ）
+			if err := utils.ValidateJWTTokenStructure(tokenString); err != nil {
+				// トークンが無効な場合もそのまま通す（エラーにしない）
+				next(w, r)
+				return
 			}
 
 			// Verify Supabase JWT token

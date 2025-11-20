@@ -53,10 +53,8 @@ export default function ContactPage() {
     setErrorMessage('')
 
     try {
-      // 現在のユーザー情報を取得
       const { data: { user } } = await supabase.auth.getUser()
 
-      // Supabaseにデータを送信
       const { data, error } = await supabase
         .from('contacts')
         .insert([{
@@ -72,15 +70,12 @@ export default function ContactPage() {
         .select()
 
       if (error) {
-        // Submission error - continue without submission
         setErrorMessage(error.message || dict.errorSubmissionFailed || 'Failed to submit')
         setStep('error')
       } else {
-        // Form submitted successfully
         setStep('complete')
       }
     } catch (err) {
-      // Unexpected error - continue without submission
       setErrorMessage(dict.errorUnexpected || 'An unexpected error occurred')
       setStep('error')
     } finally {
@@ -105,7 +100,6 @@ export default function ContactPage() {
     return categories[value] || value
   }
 
-  // エラー画面
   if (step === 'error') {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -199,7 +193,6 @@ export default function ContactPage() {
     )
   }
 
-  // 確認画面
   if (step === 'confirm') {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -290,7 +283,6 @@ export default function ContactPage() {
             </p>
           </div>
 
-          {/* お知らせ */}
           <div className="mb-12 space-y-4">
             <div className="border border-gray-200 rounded-lg p-6 bg-blue-50">
               <p className="text-sm" style={{ color: '#323232' }}>
@@ -319,9 +311,7 @@ export default function ContactPage() {
             </div>
           </div>
 
-          {/* フォーム */}
           <form onSubmit={handleConfirm} className="space-y-6 bg-white rounded-lg p-8">
-            {/* お名前 */}
             <div>
               <label htmlFor="name" className="block text-sm font-medium mb-2" style={{ color: '#323232' }}>
                 {dict.nameLabel} <span className="text-red-500">*</span>
@@ -338,7 +328,6 @@ export default function ContactPage() {
               />
             </div>
 
-            {/* メールアドレス */}
             <div>
               <label htmlFor="email" className="block text-sm font-medium mb-2" style={{ color: '#323232' }}>
                 {dict.emailLabel} <span className="text-red-500">*</span>
@@ -355,7 +344,6 @@ export default function ContactPage() {
               />
             </div>
 
-            {/* お問い合わせ種別 */}
             <div>
               <label htmlFor="category" className="block text-sm font-medium mb-2" style={{ color: '#323232' }}>
                 {dict.categoryLabel} <span className="text-red-500">*</span>
@@ -382,7 +370,6 @@ export default function ContactPage() {
               </select>
             </div>
 
-            {/* お問い合わせ件名 */}
             <div>
               <label htmlFor="subject" className="block text-sm font-medium mb-2" style={{ color: '#323232' }}>
                 {dict.subjectLabel} <span className="text-red-500">*</span>
@@ -399,7 +386,6 @@ export default function ContactPage() {
               />
             </div>
 
-            {/* お問い合わせ内容 */}
             <div>
               <label htmlFor="message" className="block text-sm font-medium mb-2" style={{ color: '#323232' }}>
                 {dict.messageLabel} <span className="text-red-500">*</span>
@@ -416,7 +402,6 @@ export default function ContactPage() {
               />
             </div>
 
-            {/* 対象のURL */}
             <div>
               <label htmlFor="targetUrl" className="block text-sm font-medium mb-2" style={{ color: '#323232' }}>
                 {dict.targetUrlLabel}
@@ -435,7 +420,6 @@ export default function ContactPage() {
               </p>
             </div>
 
-            {/* 注意事項 */}
             <div className="border border-gray-200 rounded-lg p-6 bg-gray-50 space-y-3">
               <h3 className="font-semibold mb-2" style={{ color: '#323232' }}>{dict.importantNotesTitle}</h3>
               <ul className="space-y-2 text-sm">
@@ -470,7 +454,6 @@ export default function ContactPage() {
               </ul>
             </div>
 
-            {/* 確認画面へボタン */}
             <div className="pt-4">
               <button
                 type="submit"
@@ -481,7 +464,6 @@ export default function ContactPage() {
             </div>
           </form>
 
-          {/* 直接連絡先 */}
           <section className="mt-12 border border-gray-200 rounded-lg p-6">
             <h3 className="font-semibold mb-4" style={{ color: '#323232' }}>{dict.alternativeContactTitle}</h3>
             <div className="space-y-2 text-sm">
@@ -503,7 +485,6 @@ export default function ContactPage() {
             </div>
           </section>
 
-          {/* よくある質問へのリンク */}
           <section className="mt-8">
             <Link
               href="/help"

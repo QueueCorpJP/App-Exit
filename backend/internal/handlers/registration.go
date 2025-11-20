@@ -501,6 +501,12 @@ func (s *Server) GetRegistrationProgress(w http.ResponseWriter, r *http.Request)
         return
     }
 
+    // CVE-2025-30204対策: トークンの構造を事前に検証（過剰なメモリ割り当てを防ぐ）
+    if err := utils.ValidateJWTTokenStructure(cookie.Value); err != nil {
+        response.Error(w, http.StatusUnauthorized, "Invalid token format")
+        return
+    }
+
     // JWT を検証し userID を取得
     token, err := jwt.ParseWithClaims(cookie.Value, &middleware.SupabaseJWTClaims{}, func(token *jwt.Token) (interface{}, error) {
         if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {

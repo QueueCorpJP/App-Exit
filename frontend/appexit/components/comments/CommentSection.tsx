@@ -28,11 +28,9 @@ export default function CommentSection({ postId }: CommentSectionProps) {
     try {
       setLoading(true);
       const data = await commentApi.getPostComments(postId);
-      // dataが配列であることを確認
       if (Array.isArray(data)) {
         setComments(data);
       } else if (data && typeof data === 'object' && 'data' in data && Array.isArray((data as any).data)) {
-        // バックエンドが { data: [...] } という形式で返している場合
         setComments((data as any).data);
       } else {
         setComments([]);
@@ -49,7 +47,6 @@ export default function CommentSection({ postId }: CommentSectionProps) {
       return;
     }
 
-    // 🔒 SECURITY: コメント内容をサニタイズ
     const sanitized = sanitizeText(commentContent, INPUT_LIMITS.TEXTAREA, {
       allowHTML: false,
       strictMode: false,
@@ -124,7 +121,6 @@ export default function CommentSection({ postId }: CommentSectionProps) {
 
   return (
     <div className="space-y-6">
-      {/* コメント入力エリア */}
       {user && (
         <div className="border-b border-gray-200 pb-6">
           <div className="flex items-center gap-3">
@@ -188,7 +184,6 @@ export default function CommentSection({ postId }: CommentSectionProps) {
         </div>
       )}
 
-      {/* コメント一覧 */}
       {loading ? (
         <div className="text-center py-8 text-gray-500">
           {t('loading')}
