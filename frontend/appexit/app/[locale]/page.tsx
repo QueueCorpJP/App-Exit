@@ -7,6 +7,7 @@ import { loadPageDictionary } from '@/lib/i18n-utils';
 async function getPosts(): Promise<Post[]> {
   try {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+    // ウォッチ数が多い上位6件を取得
     const response = await fetch(`${apiUrl}/api/posts?type=transaction&sort=recommended&limit=6`, {
       next: { revalidate: 600 }, // 600秒（10分）キャッシュ
     });

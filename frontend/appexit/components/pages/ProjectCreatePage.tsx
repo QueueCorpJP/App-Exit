@@ -8,6 +8,7 @@ import { apiClient } from '@/lib/api-client';
 import { uploadImage } from '@/lib/storage';
 import { Image as ImageIcon, LayoutDashboard, Smartphone, LineChart } from 'lucide-react';
 import { sanitizeText, validateURL, INPUT_LIMITS } from '@/lib/input-validator';
+import { useAuthGuard } from '@/hooks/useAuthGuard';
 
 interface FormData {
   type: 'board' | 'transaction' | 'secret';
@@ -56,6 +57,7 @@ interface ProjectCreatePageProps {
 
 export default function ProjectCreatePage({ postType, pageTitle, pageSubtitle, pageDict = {} }: ProjectCreatePageProps) {
   const router = useRouter();
+  const { loading: authGuardLoading } = useAuthGuard();
   const t = useTranslations();
   const tCategories = useTranslations('categories');
   const tCommon = useTranslations('common');
@@ -435,6 +437,18 @@ export default function ProjectCreatePage({ postType, pageTitle, pageSubtitle, p
   const inputBorderColor = postType === 'secret' ? '#6a6a6a' : '#d1d5db';
   const inputTextColor = postType === 'secret' ? '#ffffff' : '#111827';
   const stepBorderColor = postType === 'secret' ? '#8a8a8a' : '#4B5563';
+
+  // 認証チェック中は何も表示しない（リダイレクト判定中）
+  if (authGuardLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: colors.background }}>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
+          <p className="mt-4 text-gray-600">読み込み中...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen relative" style={{ backgroundColor: colors.background }}>

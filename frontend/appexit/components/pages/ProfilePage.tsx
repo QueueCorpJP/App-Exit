@@ -14,6 +14,7 @@ import { usePageDict } from '@/lib/page-dict';
 import ProjectCard from '@/components/ui/ProjectCard';
 import Button from '@/components/ui/Button';
 import { getImageUrls } from '@/lib/storage';
+import { useAuthGuard } from '@/hooks/useAuthGuard';
 
 interface ProfilePageProps {
   pageDict?: Record<string, any>;
@@ -22,6 +23,7 @@ interface ProfilePageProps {
 export default function ProfilePage({ pageDict = {} }: ProfilePageProps) {
   const t = useTranslations();
   const { user: currentUser, loading: authLoading } = useAuth();
+  const { loading: authGuardLoading } = useAuthGuard();
   const router = useRouter();
   const locale = useLocale();
   const tp = usePageDict(pageDict);
@@ -336,7 +338,8 @@ export default function ProfilePage({ pageDict = {} }: ProfilePageProps) {
     return posts.filter(post => post.type === activeTab);
   }, [activeTab, watchingPosts, posts]);
 
-  if (loading) {
+  // 認証チェック中は何も表示しない（リダイレクト判定中）
+  if (authGuardLoading || loading) {
     return (
       <div className="min-h-screen" style={{ backgroundColor: '#F9F8F7' }}>
         <div className="max-w-4xl mx-auto">

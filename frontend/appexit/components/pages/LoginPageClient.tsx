@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations, useLocale } from 'next-intl';
 import { useAuth } from '@/lib/auth-context';
 import Button from '@/components/ui/Button';
@@ -15,11 +15,22 @@ interface LoginPageClientProps {
 export default function LoginPageClient({ error: serverError }: LoginPageClientProps) {
   const t = useTranslations();
   const locale = useLocale();
+  const searchParams = useSearchParams();
   const [error, setError] = useState(serverError);
   const [isLoading, setIsLoading] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const router = useRouter();
   const { refreshSession } = useAuth();
+
+  // リダイレクト先のURLを取得
+  const [redirectUrl, setRedirectUrl] = useState<string>('/');
+
+  useEffect(() => {
+    const redirect = searchParams.get('redirect');
+    if (redirect) {
+      setRedirectUrl(decodeURIComponent(redirect));
+    }
+  }, [searchParams]);
 
   async function handleOAuthLogin(method: LoginMethod) {
     setError(undefined);
@@ -80,7 +91,9 @@ export default function LoginPageClient({ error: serverError }: LoginPageClientP
       await refreshSession();
 
       // 遷移後にサーバーコンポーネントも最新化
-      router.push('/');
+      // リダイレクト先がある場合はそこへ、なければホームへ
+      console.log('[LOGIN] Redirecting to:', redirectUrl);
+      router.push(redirectUrl);
       router.refresh();
     } catch (err) {
       console.error('Login error:', err);

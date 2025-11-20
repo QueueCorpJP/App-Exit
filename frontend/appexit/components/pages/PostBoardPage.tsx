@@ -11,6 +11,7 @@ import { useTranslations } from 'next-intl';
 import { useLocale } from 'next-intl';
 import { usePageDict } from '@/lib/page-dict';
 import { sanitizeText, INPUT_LIMITS } from '@/lib/input-validator';
+import { useAuthGuard } from '@/hooks/useAuthGuard';
 
 interface Post {
   id: string;
@@ -60,6 +61,7 @@ interface PostBoardPageProps {
 export default function PostBoardPage({ initialPosts = [], sidebarData, pageDict = {} }: PostBoardPageProps) {
   const router = useRouter();
   const { user, profile } = useAuth();
+  const { loading: authGuardLoading } = useAuthGuard();
   const locale = useLocale();
   const tp = usePageDict(pageDict);
   const [loading, setLoading] = useState(false);
@@ -793,6 +795,18 @@ export default function PostBoardPage({ initialPosts = [], sidebarData, pageDict
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
+
+  // 認証チェック中は何も表示しない（リダイレクト判定中）
+  if (authGuardLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#F9F8F7' }}>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
+          <p className="mt-4 text-gray-600">読み込み中...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#F9F8F7' }}>

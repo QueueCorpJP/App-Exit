@@ -88,12 +88,13 @@
       ]
     },
     "escrow": {
-      "title": "(3) Escrow Service",
+      "title": "(3) Physical Verification through Escrow Settlement",
       "items": [
-        "Provision of secure payment settlement mechanism",
-        "Company holds payment until transaction completion",
-        "Arbitration function in case of disputes",
-        "Clarification of refund process"
+        "Escrow settlement conducted outside the platform",
+        "Dedicated staff contact both parties via email for physical verification",
+        "Code quality verification: Review of actual source code",
+        "Fund verification: Confirmation of buyer's payment capability",
+        "Handover only proceeds after all verifications are complete"
       ]
     }
   },

@@ -5,19 +5,50 @@ import { locales, defaultLocale } from './i18n/config';
 /**
  * Next.js Middleware with i18n support
  *
- * 1. next-intl による locale routing
- * 2. Cookie ベースの認証チェック
+ * 1. IP制限による言語判定
+ * 2. next-intl による locale routing
+ * 3. Cookie ベースの認証チェック
  */
 
-// next-intl middleware
+// IPアドレスから国を判定してロケールを決定
+function getLocaleFromRequest(request: NextRequest): string {
+  // Cloudflare/Vercelの国コードヘッダーを確認
+  const countryCode =
+    request.headers.get('cf-ipcountry') || // Cloudflare
+    request.headers.get('x-vercel-ip-country'); // Vercel
+
+  // 日本以外は英語をデフォルトにする
+  if (countryCode && countryCode !== 'JP') {
+    return 'en';
+  }
+
+  // 日本またはヘッダーがない場合は日本語
+  return 'ja';
+}
+
+// next-intl middleware with custom locale detection
 const intlMiddleware = createMiddleware({
   locales,
   defaultLocale,
-  localePrefix: 'always'
+  localePrefix: 'always',
+  localeDetection: false // カスタムロケール検出を使用するため無効化
 });
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // ロケールが含まれていない場合、IPベースで判定
+  const pathnameHasLocale = locales.some(
+    (locale) => pathname.startsWith(`/${locale}/`) || pathname === `/${locale}`
+  );
+
+  if (!pathnameHasLocale && pathname === '/') {
+    // ルートパスの場合、IPベースでロケールを決定してリダイレクト
+    const detectedLocale = getLocaleFromRequest(request);
+    const url = request.nextUrl.clone();
+    url.pathname = `/${detectedLocale}`;
+    return NextResponse.redirect(url);
+  }
 
   // 静的ファイルを除外（manifest.jsonなど）
   if (pathname.startsWith('/manifest.json') || pathname.match(/\.(json|ico|png|jpg|jpeg|svg|gif|webp|woff|woff2|ttf|eot)$/)) {

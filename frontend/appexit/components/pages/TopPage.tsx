@@ -148,41 +148,37 @@ export default function TopPage({ initialPosts = [], useMockCarousel = true, pag
         console.log('[TOP-PAGE] Image paths:', imagePaths);
         console.log('[TOP-PAGE] Number of valid image paths:', imagePaths.length);
 
-        // 画像がない場合はスキップ
-        if (imagePaths.length === 0) {
-          console.log('[TOP-PAGE] No images to fetch');
-          return;
-        }
-
         // 署名付きURLを一括取得（非同期で、エラーが発生しても続行）
         // タイムアウトを5秒に短縮
         let imageUrlMap = new Map<string, string>();
-        try {
-          const imageUrlPromise = getImageUrls(imagePaths);
-          const timeoutPromise = new Promise<Map<string, string>>((resolve) => {
-            setTimeout(() => {
-              console.warn('[TOP-PAGE] getImageUrls timeout after 5s, using empty map');
-              resolve(new Map());
-            }, 5000); // 5秒タイムアウト
-          });
+        if (imagePaths.length > 0) {
+          try {
+            const imageUrlPromise = getImageUrls(imagePaths);
+            const timeoutPromise = new Promise<Map<string, string>>((resolve) => {
+              setTimeout(() => {
+                console.warn('[TOP-PAGE] getImageUrls timeout after 5s, using empty map');
+                resolve(new Map());
+              }, 5000); // 5秒タイムアウト
+            });
 
-          imageUrlMap = await Promise.race([
-            imageUrlPromise.catch((err) => {
-              console.error('[TOP-PAGE] getImageUrls promise rejected:', err);
-              return new Map<string, string>();
-            }),
-            timeoutPromise,
-          ]);
-        } catch (imageError) {
-          console.error('[TOP-PAGE] Error getting image URLs:', imageError);
-          imageUrlMap = new Map();
+            imageUrlMap = await Promise.race([
+              imageUrlPromise.catch((err) => {
+                console.error('[TOP-PAGE] getImageUrls promise rejected:', err);
+                return new Map<string, string>();
+              }),
+              timeoutPromise,
+            ]);
+          } catch (imageError) {
+            console.error('[TOP-PAGE] Error getting image URLs:', imageError);
+            imageUrlMap = new Map();
+          }
         }
 
         if (!isMounted) return;
 
         console.log('[TOP-PAGE] Image URL map size:', imageUrlMap.size);
 
-        // 画像URLが取得できた場合は、プロジェクトデータを更新
+        // 画像URLを適用してプロジェクトデータを更新（画像がない場合でもスコアリングロジックを実行）
         if (imageUrlMap.size > 0) {
           const projectsWithImages: ProjectWithImage[] = data.map(post => {
             const imageUrl = post.eyecatch_url ? imageUrlMap.get(post.eyecatch_url) : undefined;
@@ -307,6 +303,120 @@ export default function TopPage({ initialPosts = [], useMockCarousel = true, pag
           if (isMounted) {
             setProjects(projectsWithImages);
             setLatestProjects(sortedByDate);
+            setSubscribedProjects(subscribed);
+            setRecommendedProjects(recommended);
+          }
+        } else {
+          // 画像がない場合でもスコアリングロジックを実行
+          // subscribe が true の投稿をフィルタリング
+          const subscribed = projectsWithoutImages.filter((project) => {
+            const post = data.find(p => p.id === project.id);
+            return post && post.subscribe === true;
+          });
+
+          // レコメンドロジック: 改善されたスコアリングアルゴリズム
+          const recommendedWithScore = [...projectsWithoutImages]
+            .map(project => {
+              const post = data.find(p => p.id === project.id);
+              if (!post) return { project, score: 0, category: '' };
+
+              // 各メトリクスの正規化用の最大値を計算
+              const maxActiveViews = Math.max(...data.map(p => p.active_view_count || 0));
+              const maxWatchCount = Math.max(...data.map(p => p.watch_count || 0));
+              const maxCommentCount = Math.max(...data.map(p => p.comment_count || 0));
+
+              // スコア計算（0-100の範囲に正規化）
+              let score = 0;
+
+              // 1. エンゲージメントスコア（40点満点）
+              // アクティブビュー数（0-15点）
+              if (maxActiveViews > 0) {
+                score += ((post.active_view_count || 0) / maxActiveViews) * 15;
+              }
+              // ウォッチ数（0-15点） - 購買意欲の高いユーザーの指標
+              if (maxWatchCount > 0) {
+                score += ((post.watch_count || 0) / maxWatchCount) * 15;
+              }
+              // コメント数（0-10点） - アクティブな議論の指標
+              if (maxCommentCount > 0) {
+                score += ((post.comment_count || 0) / maxCommentCount) * 10;
+              }
+
+              // 2. 新しさスコア（20点満点）
+              const createdAt = new Date(post.created_at);
+              const now = new Date();
+              const daysDiff = Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
+              if (daysDiff <= 3) score += 20;       // 3日以内: 20点
+              else if (daysDiff <= 7) score += 15;  // 7日以内: 15点
+              else if (daysDiff <= 14) score += 10; // 14日以内: 10点
+              else if (daysDiff <= 30) score += 5;  // 30日以内: 5点
+
+              // 3. 事業価値スコア（30点満点）
+              if (post.price && post.price > 0) {
+                // 価格設定あり: +5点
+                score += 5;
+
+                // 月次収益データがある場合
+                if (post.monthly_revenue && post.monthly_revenue > 0) {
+                  // 収益性評価: +10点
+                  score += 10;
+
+                  // 価格倍率（売上の何ヶ月分か）
+                  const multiple = post.price / post.monthly_revenue;
+                  // 適正な価格倍率（6-48ヶ月）: +10点
+                  if (multiple >= 6 && multiple <= 48) score += 10;
+
+                  // 利益率評価（月次利益データがある場合）
+                  if (post.monthly_profit !== undefined && post.monthly_revenue > 0) {
+                    const profitMargin = (post.monthly_profit / post.monthly_revenue) * 100;
+                    if (profitMargin > 50) score += 5;      // 高利益率: +5点
+                    else if (profitMargin > 20) score += 3; // 中利益率: +3点
+                  }
+                }
+              }
+
+              // 4. ステータススコア（10点満点）
+              if (post.is_active) score += 10; // アクティブな案件のみ表示
+
+              // カテゴリ情報を保存（多様性のため）
+              const category = Array.isArray(post.app_categories) && post.app_categories.length > 0
+                ? post.app_categories[0]
+                : 'other';
+
+              return { project, score, category };
+            })
+            .filter(item => item.score > 0); // スコア0のものは除外
+
+          // カテゴリの多様性を確保しつつ、上位12件を選択
+          const recommended: ProjectWithImage[] = [];
+          const categoryCount = new Map<string, number>();
+          const maxPerCategory = 4; // 1カテゴリから最大4件まで
+
+          // まずスコア順にソート
+          const sortedByScore = [...recommendedWithScore].sort((a, b) => b.score - a.score);
+
+          // カテゴリバランスを考慮しながら選択
+          for (const item of sortedByScore) {
+            if (recommended.length >= 12) break;
+
+            const currentCategoryCount = categoryCount.get(item.category) || 0;
+            if (currentCategoryCount < maxPerCategory) {
+              recommended.push(item.project);
+              categoryCount.set(item.category, currentCategoryCount + 1);
+            }
+          }
+
+          // 12件に満たない場合は、カテゴリ制限を無視して追加
+          if (recommended.length < 12) {
+            for (const item of sortedByScore) {
+              if (recommended.length >= 12) break;
+              if (!recommended.find(p => p.id === item.project.id)) {
+                recommended.push(item.project);
+              }
+            }
+          }
+
+          if (isMounted) {
             setSubscribedProjects(subscribed);
             setRecommendedProjects(recommended);
           }

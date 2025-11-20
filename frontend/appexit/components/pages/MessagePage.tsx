@@ -8,6 +8,7 @@ import { messageApi } from '@/lib/api-client';
 import Link from 'next/link';
 import ThreadListContainer from '@/components/messages/ThreadListContainer';
 import MessageThreadContainer from '@/components/messages/MessageThreadContainer';
+import { useAuthGuard } from '@/hooks/useAuthGuard';
 
 interface MessagePageProps {
   threadId?: string;
@@ -25,6 +26,7 @@ export default function MessagePage({ threadId: initialThreadId, pageDict }: Mes
   const locale = useLocale();
   const t = useTranslations();
   const { user, loading: authLoading } = useAuth();
+  const { loading: authGuardLoading } = useAuthGuard();
   const [error, setError] = useState<string | null>(null);
   const [selectedThreadId, setSelectedThreadId] = useState<string | undefined>(initialThreadId);
   const [isResolvingThreadId, setIsResolvingThreadId] = useState(false);
@@ -521,7 +523,8 @@ export default function MessagePage({ threadId: initialThreadId, pageDict }: Mes
   const showMessageThread = useMemo(() => isMobileView ? !!selectedThreadId : true, [isMobileView, selectedThreadId]);
 
 
-  if (authLoading) {
+  // 認証チェック中は何も表示しない（リダイレクト判定中）
+  if (authGuardLoading || authLoading) {
     return (
       <div className="h-screen flex items-center justify-center bg-white">
         <div className="text-center">

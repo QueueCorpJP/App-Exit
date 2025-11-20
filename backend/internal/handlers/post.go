@@ -249,8 +249,21 @@ func (s *Server) ListPosts(w http.ResponseWriter, r *http.Request) {
 		query = query.Filter("tech_stack", "ov", string(techStacksJSON))
 	}
 
-	// Apply pagination
-	query = query.Range(params.Offset, params.Offset+params.Limit-1, "")
+	// For recommended sort, fetch more data to allow proper sorting by watch count
+	// ウォッチ数でソートするため、より多くのデータを取得してからソート
+	fetchLimit := params.Limit
+	if sortBy == "recommended" {
+		// ウォッチ数でソートするため、十分なデータを取得（最大100件）
+		fetchLimit = 100
+		if fetchLimit < params.Limit {
+			fetchLimit = params.Limit
+		}
+		// ページネーションを一時的に無効化（ソート後に適用）
+		query = query.Range(0, fetchLimit-1, "")
+	} else {
+		// Apply pagination
+		query = query.Range(params.Offset, params.Offset+params.Limit-1, "")
+	}
 
 	// Execute query
 	var postsData []models.Post
@@ -295,6 +308,7 @@ func (s *Server) ListPosts(w http.ResponseWriter, r *http.Request) {
 	// Fetch active view counts for all posts using RPC function (N+1問題を解決)
 	// PostgreSQLのGROUP BY集計を使用して効率的にカウント
 	activeViewCountMap := make(map[string]int)
+	watchCountMap := make(map[string]int)
 	fmt.Printf("[ListPosts] Fetching active view counts for %d posts using RPC...\n", len(postIDs))
 	if len(postIDs) > 0 {
 		counts, err := s.supabase.GetActiveViewCounts(postIDs)
@@ -321,6 +335,24 @@ func (s *Server) ListPosts(w http.ResponseWriter, r *http.Request) {
 			}
 			fmt.Printf("[ListPosts] ✓ Retrieved active view counts via RPC (total: %d views)\n", totalViews)
 		}
+
+		// Fetch watch counts for recommended sort
+		if sortBy == "recommended" {
+			var watchViews []models.ProductActiveView
+			_, err := client.From("product_active_views").
+				Select("post_id", "", false).
+				In("post_id", postIDs).
+				ExecuteTo(&watchViews)
+
+			if err == nil {
+				for _, view := range watchViews {
+					watchCountMap[view.PostID]++
+				}
+				fmt.Printf("[ListPosts] ✓ Retrieved watch counts (total: %d watches)\n", len(watchViews))
+			} else {
+				fmt.Printf("[ListPosts] ⚠ Failed to get watch counts: %v\n", err)
+			}
+		}
 	}
 
 	// Transform to PostWithDetails
@@ -337,17 +369,23 @@ func (s *Server) ListPosts(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Sort by active view count if sort=recommended (スケーラビリティ改善: O(n log n)ソートを使用)
+	// Sort by watch count if sort=recommended
 	if sortBy == "recommended" {
-		fmt.Printf("[ListPosts] Sorting by active view count (recommended)\n")
-		// sort.Sliceを使用してO(n log n)で効率的にソート
-		// ActiveViewCount降順、同数の場合はCreatedAt降順
+		fmt.Printf("[ListPosts] Sorting by watch count (recommended)\n")
+		// ウォッチ数でソート（降順）
 		sort.Slice(result, func(i, j int) bool {
-			if result[i].ActiveViewCount != result[j].ActiveViewCount {
-				return result[i].ActiveViewCount > result[j].ActiveViewCount
+			watchCountI := watchCountMap[result[i].ID]
+			watchCountJ := watchCountMap[result[j].ID]
+			if watchCountI != watchCountJ {
+				return watchCountI > watchCountJ
 			}
+			// ウォッチ数が同じ場合は作成日時で比較（新しい順）
 			return result[i].CreatedAt.After(result[j].CreatedAt)
 		})
+		// ソート後に要求されたlimitを適用
+		if len(result) > params.Limit {
+			result = result[:params.Limit]
+		}
 	}
 
 	// 空の配列でも正常に返す

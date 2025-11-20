@@ -1,16 +1,16 @@
 {
-  "introduction": "APPEXIT is Japan's largest trading platform connecting apps and web services developed by individuals and small teams to their next operators. We realize safe and secure M&A through fair pricing, dedicated support, and comprehensive security measures.",
+  "introduction": "APPEXIT is Japan's largest matching platform connecting apps and web services developed by individuals and small teams to their next operators. We do not conduct direct transactions within the platform. Instead, we ensure safe and secure M&A through escrow settlement with physical verification.",
   "mission": "Mission",
   "missionDescription": "Giving valuable products the next chance and sustainable operators. We create a market where the results of craftsmanship are fairly evaluated.",
   "value": "Value Proposition",
   "valueItem1": "Fair price assessment and matching",
-  "valueItem2": "Dedicated support throughout the process",
-  "valueItem3": "Safe payment, confidentiality, and review mechanisms",
+  "valueItem2": "Physical safety verification through escrow settlement",
+  "valueItem3": "Complete support by dedicated staff until handover",
   "safetyTitle": "Safety and Security Initiatives",
-  "safetyDescription": "APPEXIT continuously enhances safety based on information security policies, anti-social forces exclusion policies, privacy policies, cookie policies, and more.",
+  "safetyDescription": "APPEXIT adopts escrow settlement outside the platform and physically verifies code quality and fund availability to prevent fraud and misconduct. Dedicated staff directly contact both parties and provide complete support until handover.",
   "whatIsTitle": "What is APPEXIT",
-  "whatIsDescription": "APPEXIT is a marketplace where sellers and buyers can safely trade apps and web services. We support proper handovers and smooth operational starts based on operational track records, user data, profitability, and other information.",
+  "whatIsDescription": "APPEXIT is a matching platform for sellers and buyers. After matching, dedicated staff contact both parties via email and physically verify code quality and fund availability through escrow settlement. The handover proceeds only after safety is confirmed.",
   "whatIsFeature1": "Both public and private sale consideration available",
   "whatIsFeature2": "Safe information disclosure based on NDA and identity verification",
-  "whatIsFeature3": "Dedicated support for payment, transfer, and handover procedures"
+  "whatIsFeature3": "Physical safety verification through escrow settlement before handover"
 }

@@ -9,6 +9,7 @@ import { uploadAvatarImage } from '@/lib/storage'
 import { Camera } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
 import { sanitizeText, INPUT_LIMITS } from '@/lib/input-validator'
+import { useAuthGuard } from '@/hooks/useAuthGuard'
 
 interface ProfileSettingsPageProps {
   pageDict?: any;
@@ -20,6 +21,7 @@ export default function ProfileSettingsPage({ pageDict, locale: propLocale }: Pr
   const locale = propLocale || useLocale()
   const router = useRouter()
   const { user } = useAuth()
+  const { loading: authLoading } = useAuthGuard()
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string>('')
@@ -166,7 +168,8 @@ export default function ProfileSettingsPage({ pageDict, locale: propLocale }: Pr
     }
   }
 
-  if (isLoading) {
+  // 認証チェック中は何も表示しない（リダイレクト判定中）
+  if (authLoading || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#F9F8F7' }}>
         <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
