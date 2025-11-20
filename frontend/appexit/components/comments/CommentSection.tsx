@@ -35,11 +35,9 @@ export default function CommentSection({ postId }: CommentSectionProps) {
         // バックエンドが { data: [...] } という形式で返している場合
         setComments((data as any).data);
       } else {
-        console.error('Invalid comments data format:', data);
         setComments([]);
       }
     } catch (error) {
-      console.error('Failed to fetch comments:', error);
       setComments([]);
     } finally {
       setLoading(false);
@@ -70,7 +68,6 @@ export default function CommentSection({ postId }: CommentSectionProps) {
       setComments([...comments, newComment]);
       setCommentContent('');
     } catch (error) {
-      console.error('Failed to create comment:', error);
       alert(t('failedToPost'));
     } finally {
       setSubmitting(false);
@@ -104,7 +101,6 @@ export default function CommentSection({ postId }: CommentSectionProps) {
         )
       );
     } catch (error) {
-      console.error('Failed to toggle like:', error);
     }
   }, [user, comments, t]);
 

@@ -32,10 +32,7 @@ function MessageThreadContainer({ threadId, onBack }: MessageThreadContainerProp
     const currentThreadId = threadId; // クロージャでthreadIdを保持
 
     const fetchThreadData = async () => {
-      console.log('[MESSAGE-THREAD] fetchThreadData called', { threadId: currentThreadId, userId: user?.id, prevThreadId: prevThreadIdRef.current });
-      
       if (!currentThreadId || !user) {
-        console.log('[MESSAGE-THREAD] Early return: no threadId or user');
         setThreadDetail(null);
         setMessages([]);
         setIsLoadingMessages(false);
@@ -44,7 +41,6 @@ function MessageThreadContainer({ threadId, onBack }: MessageThreadContainerProp
 
       // 同じthreadIdの場合はスキップ
       if (prevThreadIdRef.current === currentThreadId) {
-        console.log('[MESSAGE-THREAD] Early return: same threadId, skipping fetch');
         // 読み込み状態が残っている場合はリセット
         setIsLoadingMessages(false);
         return;
@@ -53,13 +49,11 @@ function MessageThreadContainer({ threadId, onBack }: MessageThreadContainerProp
       prevThreadIdRef.current = currentThreadId;
 
       try {
-        console.log('[MESSAGE-THREAD] Starting fetch, setting isLoadingMessages to true');
         setIsLoadingMessages(true);
         setError(null);
 
         // 自分自身のIDの場合はスレッド詳細を取得しない（受信トレイ表示）
         if (currentThreadId === user.id) {
-          console.log('[MESSAGE-THREAD] Thread ID matches user ID, skipping thread fetch (inbox view)');
           setThreadDetail(null);
           setMessages([]);
           setIsLoadingMessages(false);
@@ -67,39 +61,22 @@ function MessageThreadContainer({ threadId, onBack }: MessageThreadContainerProp
         }
 
         // スレッド詳細とメッセージ一覧を並行取得（最新50件のみ）
-        console.log('[MESSAGE-THREAD] Starting Promise.all for API calls, threadId:', currentThreadId);
         const [detailResponse, messagesResponse] = await Promise.all([
           messageApi.getThread(currentThreadId),
           messageApi.getMessages(currentThreadId, { limit: MESSAGES_PER_PAGE, offset: 0 }),
         ]);
 
-        console.log('[MESSAGE-THREAD] Promise.all completed', {
-          detailResponse: detailResponse ? 'exists' : 'null',
-          messagesResponse: messagesResponse ? 'exists' : 'null',
-          messagesResponseType: typeof messagesResponse,
-          isArray: Array.isArray(messagesResponse),
-          aborted: abortController.signal.aborted,
-          currentThreadId,
-          prevThreadId: prevThreadIdRef.current
-        });
-
         // threadIdが変更された場合は処理を中断（新しいリクエストが開始された）
         if (prevThreadIdRef.current !== currentThreadId) {
-          console.log('[MESSAGE-THREAD] ThreadId changed during fetch, aborting old request');
           return;
         }
 
         // スレッド詳細の処理
         if (detailResponse && typeof detailResponse === 'object' && 'id' in detailResponse) {
           const responseThreadId = (detailResponse as ThreadDetail).id;
-          console.log('[MESSAGE-THREAD] Setting threadDetail:', responseThreadId);
 
           // 取得したスレッドIDが現在のthreadIdと一致するかチェック
           if (responseThreadId !== currentThreadId) {
-            console.warn('[MESSAGE-THREAD] Thread ID mismatch, will fetch correct thread', {
-              expected: currentThreadId,
-              received: responseThreadId
-            });
             // バックエンドが別のスレッドIDを返した場合（既存スレッドが見つかった場合）
             // URLとprevThreadIdRefを更新
             window.history.replaceState(null, '', `/messages/${responseThreadId}`);
@@ -116,30 +93,18 @@ function MessageThreadContainer({ threadId, onBack }: MessageThreadContainerProp
           }
 
           setThreadDetail(detailResponse as ThreadDetail);
-        } else {
-          console.log('[MESSAGE-THREAD] No valid threadDetail found');
         }
 
         // メッセージ一覧の処理 - 空配列も許容
         let messages: MessageWithSender[] = [];
         if (messagesResponse && Array.isArray(messagesResponse)) {
           messages = messagesResponse;
-          console.log('[MESSAGE-THREAD] Messages is array, length:', messages.length);
         } else if (messagesResponse && typeof messagesResponse === 'object' && 'data' in messagesResponse && Array.isArray((messagesResponse as any).data)) {
           messages = (messagesResponse as any).data;
-          console.log('[MESSAGE-THREAD] Messages in data property, length:', messages.length);
-        } else {
-          console.log('[MESSAGE-THREAD] Messages response format not recognized:', messagesResponse);
-        }
-
-        console.log('[MESSAGE-THREAD] Messages received:', messages, 'length:', messages.length);
-        if (messages.length > 0) {
-          console.log('[MESSAGE-THREAD] First message:', messages[0]);
         }
 
         // threadIdが変更された場合は処理を中断
         if (prevThreadIdRef.current !== currentThreadId) {
-          console.log('[MESSAGE-THREAD] ThreadId changed before setting messages, aborting');
           return;
         }
 
@@ -149,7 +114,6 @@ function MessageThreadContainer({ threadId, onBack }: MessageThreadContainerProp
         setMessages(messages);
         setError(null);
         setHasMoreMessages(messages.length >= MESSAGES_PER_PAGE);
-        console.log('[MESSAGE-THREAD] Messages set (empty array is OK):', messages.length);
 
         // 画像パスを収集
         const imagePaths = messages
@@ -158,26 +122,22 @@ function MessageThreadContainer({ threadId, onBack }: MessageThreadContainerProp
 
         // 画像URLの取得は非同期で実行（読み込み状態をブロックしない）
         if (imagePaths.length > 0) {
-          console.log('[MESSAGE-THREAD] Fetching image URLs for paths:', imagePaths);
           // タイムアウトを10秒に設定
           const imageUrlPromise = getImageUrls(imagePaths);
           const timeoutPromise = new Promise<Map<string, string>>((resolve) => {
             setTimeout(() => {
-              console.warn('[MESSAGE-THREAD] getImageUrls timeout after 10s, using empty map');
               resolve(new Map());
             }, 10000);
           });
 
           Promise.race([
-            imageUrlPromise.catch((err) => {
-              console.error('[MESSAGE-THREAD] getImageUrls promise rejected:', err);
+            imageUrlPromise.catch(() => {
               return new Map<string, string>();
             }),
             timeoutPromise,
           ]).then((imageUrlMap) => {
             // threadIdが変更された場合は処理を中断
             if (prevThreadIdRef.current !== currentThreadId) {
-              console.log('[MESSAGE-THREAD] ThreadId changed before updating image URLs, aborting');
               return;
             }
 
@@ -192,21 +152,12 @@ function MessageThreadContainer({ threadId, onBack }: MessageThreadContainerProp
               return msg;
             });
             setMessages(messagesWithSignedUrls);
-          }).catch((err) => {
-            console.error('[MESSAGE-THREAD] Error updating image URLs:', err);
+          }).catch(() => {
           });
         }
       } catch (err) {
-        console.error('[MESSAGE-THREAD] Failed to fetch thread data:', err);
-        console.error('[MESSAGE-THREAD] Error details:', {
-          message: (err as any)?.message,
-          status: (err as any)?.status,
-          stack: (err as any)?.stack
-        });
-
         // threadIdが変更された場合はエラーを無視
         if (prevThreadIdRef.current !== currentThreadId) {
-          console.log('[MESSAGE-THREAD] Error but threadId changed, ignoring');
           return;
         }
 
@@ -218,7 +169,6 @@ function MessageThreadContainer({ threadId, onBack }: MessageThreadContainerProp
 
           if (otherUserId && otherUserId !== user.id) {
             // 相手のユーザーIDが指定されている場合、新しいthreadを作成
-            console.log('[MESSAGE-THREAD] Thread not found, creating new thread with user:', otherUserId);
             try {
               const createResponse = await messageApi.createThread({
                 participant_ids: [otherUserId],
@@ -238,7 +188,6 @@ function MessageThreadContainer({ threadId, onBack }: MessageThreadContainerProp
                 return;
               }
             } catch (createErr) {
-              console.error('[MESSAGE-THREAD] Failed to create thread:', createErr);
             }
           }
 
@@ -264,14 +213,8 @@ function MessageThreadContainer({ threadId, onBack }: MessageThreadContainerProp
       } finally {
         // エラーが発生した場合でも、確実に読み込み状態を解除
         // threadIdが変更されていない場合のみ状態を更新
-        console.log('[MESSAGE-THREAD] Fetch complete, setting isLoadingMessages to false', {
-          currentThreadId,
-          prevThreadId: prevThreadIdRef.current
-        });
         if (prevThreadIdRef.current === currentThreadId) {
           setIsLoadingMessages(false);
-        } else {
-          console.log('[MESSAGE-THREAD] Skipping isLoadingMessages update, threadId changed');
         }
       }
     };
@@ -307,7 +250,6 @@ function MessageThreadContainer({ threadId, onBack }: MessageThreadContainerProp
         setHasMoreMessages(false);
       }
     } catch (err) {
-      console.error('[MESSAGE-THREAD] Failed to load more messages:', err);
       setHasMoreMessages(false);
     } finally {
       setIsLoadingMore(false);
@@ -350,7 +292,6 @@ function MessageThreadContainer({ threadId, onBack }: MessageThreadContainerProp
             imageUrl = uploadResponse.data.file_path;
           }
         } catch (uploadErr) {
-          console.error('Failed to upload image:', uploadErr);
           setError('画像のアップロードに失敗しました');
           setMessages(prev => prev.filter(msg => msg.id !== tempId));
           setIsSending(false);
@@ -380,7 +321,6 @@ function MessageThreadContainer({ threadId, onBack }: MessageThreadContainerProp
             const imageUrlMap = await getImageUrls([sentMessage.image_url]);
             signedImageUrl = imageUrlMap.get(sentMessage.image_url) || sentMessage.image_url;
           } catch (err) {
-            console.error('Failed to get signed URL for image:', err);
             // エラーが発生しても元のURLを使用
           }
         }
@@ -406,7 +346,6 @@ function MessageThreadContainer({ threadId, onBack }: MessageThreadContainerProp
         window.dispatchEvent(event);
       }
     } catch (err) {
-      console.error('Failed to send message:', err);
       setError('メッセージの送信に失敗しました');
       setMessages(prev => prev.filter(msg => msg.id !== tempId));
       throw err;
@@ -417,8 +356,6 @@ function MessageThreadContainer({ threadId, onBack }: MessageThreadContainerProp
 
 
   if (!user) return null;
-
-  console.log('[MESSAGE-THREAD-CONTAINER] Rendering MessageThread:', { isLoadingMessages, messagesLength: messages.length, threadId });
 
   return (
     <MessageThread

@@ -46,7 +46,7 @@ export default function LanguageSwitcher() {
       const result = await updateUserLanguage(newLocale as Locale);
 
       if (!result.success) {
-        console.error('Failed to update language:', result.error);
+        // Failed to update language - continue without update
         // フォールバック: Cookie のみ更新
         document.cookie = `NEXT_LOCALE=${newLocale}; path=/; max-age=${60 * 60 * 24 * 365}`;
       }
@@ -59,7 +59,7 @@ export default function LanguageSwitcher() {
       router.push(newPath);
       router.refresh();
     } catch (error) {
-      console.error('Error switching language:', error);
+      // Error switching language - continue without switch
       // フォールバック: Cookie のみ更新してリダイレクト
       document.cookie = `NEXT_LOCALE=${newLocale}; path=/; max-age=${60 * 60 * 24 * 365}`;
       const pathnameWithoutLocale = pathname.replace(/^\/(ja|en)/, '');

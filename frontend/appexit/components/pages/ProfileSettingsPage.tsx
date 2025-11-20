@@ -47,7 +47,6 @@ export default function ProfileSettingsPage({ pageDict, locale: propLocale }: Pr
       const profile = await profileApi.getProfile()
 
       if (profile) {
-        console.log('[ProfileSettings] Loaded profile:', profile)
         setProfile(profile)
         setDisplayName(profile.display_name)
         setAge(profile.age || undefined)
@@ -56,7 +55,6 @@ export default function ProfileSettingsPage({ pageDict, locale: propLocale }: Pr
         setError(t('profileNotFound'))
       }
     } catch (err) {
-      console.error('Failed to load profile:', err)
       setError(t('failedToLoadProfile'))
     } finally {
       setIsLoading(false)
@@ -93,7 +91,6 @@ export default function ProfileSettingsPage({ pageDict, locale: propLocale }: Pr
     try {
       // 画像アップロード
       const publicUrl = await uploadAvatarImage(file, profile?.id)
-      console.log('Avatar uploaded successfully:', publicUrl)
 
       // プロフィールを即座に更新
       const updatedProfile = await profileApi.updateProfile({ icon_url: publicUrl })
@@ -101,7 +98,6 @@ export default function ProfileSettingsPage({ pageDict, locale: propLocale }: Pr
         setProfile(prev => prev ? { ...prev, icon_url: publicUrl } : null)
       }
     } catch (err) {
-      console.error('Avatar upload error:', err)
       setError(err instanceof Error ? err.message : t('failedToUploadAvatar'))
       setAvatarFile(null)
       setAvatarPreview(profile?.icon_url || '')
@@ -160,7 +156,6 @@ export default function ProfileSettingsPage({ pageDict, locale: propLocale }: Pr
         alert(t('noChanges'))
       }
     } catch (error) {
-      console.error('保存エラー:', error)
       setError(t('failedToUpdateProfile'))
       alert(t('failedToSave'))
     } finally {

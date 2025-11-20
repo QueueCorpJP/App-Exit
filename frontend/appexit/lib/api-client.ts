@@ -36,15 +36,12 @@ class ApiClient {
   private async refreshToken(): Promise<boolean> {
     // 既にリフレッシュ中の場合は、同じPromiseを返す（複数リクエストが同時に来た場合の対策）
     if (this.isRefreshing && this.refreshPromise) {
-      console.log('[API-CLIENT] Already refreshing token, waiting...');
       return this.refreshPromise;
     }
 
     this.isRefreshing = true;
     this.refreshPromise = (async () => {
       try {
-        console.log('[API-CLIENT] Refreshing backend token (Cookie-based)...');
-
         const response = await fetch(`${this.baseUrl}/api/auth/refresh`, {
           method: 'POST',
           credentials: 'include',
@@ -53,11 +50,9 @@ class ApiClient {
         });
 
         if (response.ok) {
-          console.log('[API-CLIENT] ✓ Token refreshed successfully');
           return true;
         } else if (response.status === 401) {
           const errorText = await response.text();
-          console.error('[API-CLIENT] ❌ Refresh token expired (401):', errorText);
           
           if (typeof document !== 'undefined') {
             document.cookie = 'access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
@@ -67,11 +62,9 @@ class ApiClient {
           return false;
         } else {
           const errorText = await response.text();
-          console.error('[API-CLIENT] Failed to refresh token:', response.status, errorText);
           return false;
         }
       } catch (error) {
-        console.error('[API-CLIENT] Error during token refresh:', error);
         return false;
       } finally {
         this.isRefreshing = false;
@@ -105,8 +98,6 @@ class ApiClient {
       ...fetchOptions.headers,
     };
 
-    console.log(`[API-CLIENT] ${fetchOptions.method || 'GET'} ${url}`);
-
     try {
       const response = await fetch(url, {
         ...fetchOptions,
@@ -130,20 +121,15 @@ class ApiClient {
         );
         
         if (isPublicApi) {
-          console.log('[API-CLIENT] 401 on public API endpoint, returning empty data');
           return [] as T;
         }
         
-        console.log('[API-CLIENT] 401 Unauthorized, attempting token refresh...');
-
         const refreshed = await this.refreshToken();
 
         if (refreshed) {
-          console.log('[API-CLIENT] Retrying request with refreshed token...');
           // リトライフラグを立てて再度リクエスト
           return this.request<T>(endpoint, { ...options, _isRetry: true });
         } else {
-          console.error('[API-CLIENT] Token refresh failed');
           // 公開ページの場合はリダイレクトしない
           const publicPaths = [
             '/',
@@ -179,15 +165,11 @@ class ApiClient {
           
           // 公開ページでない場合のみログインページへリダイレクト
           if (typeof window !== 'undefined' && !isPublicPath) {
-            console.log('[API-CLIENT] Redirecting to login (not a public page)');
             window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname);
-          } else {
-            console.log('[API-CLIENT] Skipping redirect (public page)');
           }
           
           // 公開ページの場合はエラーをスローしない
           if (isPublicPath) {
-            console.log('[API-CLIENT] Returning empty data for public page');
             // getPostsの戻り値の型に合わせて空配列を返す
             return [] as T;
           }
@@ -199,12 +181,6 @@ class ApiClient {
         const errorData = await response.json().catch(() => ({
           error: `HTTP ${response.status}: ${response.statusText}`,
         }));
-
-        console.error('[API-CLIENT] Request failed:', {
-          url,
-          status: response.status,
-          error: errorData,
-        });
 
         const error: any = new Error(errorData.error || errorData.message || 'リクエストに失敗しました');
         error.status = response.status;
@@ -227,7 +203,6 @@ class ApiClient {
 
       return data;
     } catch (error) {
-      console.error('[API-CLIENT] Request error:', error);
       throw error;
     }
   }

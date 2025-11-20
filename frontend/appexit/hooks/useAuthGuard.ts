@@ -29,7 +29,6 @@ export function useAuthGuard(redirectPath?: string) {
       // 現在のページをリダイレクト後の戻り先として保存
       const returnUrl = encodeURIComponent(pathname);
 
-      console.log('[AUTH-GUARD] Not authenticated, redirecting to login:', loginPath);
       router.push(`${loginPath}?redirect=${returnUrl}`);
     }
   }, [user, loading, router, pathname, redirectPath]);

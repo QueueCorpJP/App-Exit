@@ -39,7 +39,6 @@ export default function AppsListPage() {
 
       setHasMore(response.length >= POSTS_PER_PAGE)
     } catch (err) {
-      console.error('Failed to load posts:', err)
       setError('プロダクトの読み込みに失敗しました')
       setHasMore(false)
     } finally {

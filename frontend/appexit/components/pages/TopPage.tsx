@@ -119,7 +119,6 @@ export default function TopPage({ initialPosts = [], useMockCarousel = true, pag
         const data = posts;
 
         if (!data || data.length === 0) {
-          console.log('No posts found');
           setProjects([]);
           setLoading(false);
           return;
@@ -144,9 +143,6 @@ export default function TopPage({ initialPosts = [], useMockCarousel = true, pag
 
         // 画像パスを収集
         const imagePaths = data.map(post => post.eyecatch_url).filter((path): path is string => !!path);
-        console.log('[TOP-PAGE] Total posts:', data.length);
-        console.log('[TOP-PAGE] Image paths:', imagePaths);
-        console.log('[TOP-PAGE] Number of valid image paths:', imagePaths.length);
 
         // 署名付きURLを一括取得（非同期で、エラーが発生しても続行）
         // タイムアウトを5秒に短縮
@@ -156,27 +152,22 @@ export default function TopPage({ initialPosts = [], useMockCarousel = true, pag
             const imageUrlPromise = getImageUrls(imagePaths);
             const timeoutPromise = new Promise<Map<string, string>>((resolve) => {
               setTimeout(() => {
-                console.warn('[TOP-PAGE] getImageUrls timeout after 5s, using empty map');
                 resolve(new Map());
               }, 5000); // 5秒タイムアウト
             });
 
             imageUrlMap = await Promise.race([
-              imageUrlPromise.catch((err) => {
-                console.error('[TOP-PAGE] getImageUrls promise rejected:', err);
+              imageUrlPromise.catch(() => {
                 return new Map<string, string>();
               }),
               timeoutPromise,
             ]);
           } catch (imageError) {
-            console.error('[TOP-PAGE] Error getting image URLs:', imageError);
             imageUrlMap = new Map();
           }
         }
 
         if (!isMounted) return;
-
-        console.log('[TOP-PAGE] Image URL map size:', imageUrlMap.size);
 
         // 画像URLを適用してプロジェクトデータを更新（画像がない場合でもスコアリングロジックを実行）
         if (imageUrlMap.size > 0) {
@@ -422,7 +413,6 @@ export default function TopPage({ initialPosts = [], useMockCarousel = true, pag
           }
         }
       } catch (error) {
-        console.error('Failed to fetch posts:', error);
         if (isMounted) {
           setProjects([]);
           setLoading(false);

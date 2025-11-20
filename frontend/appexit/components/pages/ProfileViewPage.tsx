@@ -40,21 +40,16 @@ export default function ProfileViewPage({ userId }: ProfileViewPageProps) {
 
         // プロフィール結果の処理
         if (profile.status === 'fulfilled' && profile.value) {
-          console.log('[ProfileViewPage] Loaded profile:', profile.value);
           setProfile(profile.value);
-        } else {
-          console.error('プロフィールデータの取得に失敗しました:', profile.status === 'rejected' ? profile.reason : 'No data');
         }
 
         // 投稿結果の処理
         if (postsResult.status === 'fulfilled') {
           setPosts(Array.isArray(postsResult.value) ? postsResult.value : []);
         } else {
-          console.error('投稿の取得に失敗しました:', postsResult.reason);
           setPosts([]);
         }
       } catch (error) {
-        console.error('データの取得に失敗しました:', error);
       } finally {
         setLoading(false);
       }

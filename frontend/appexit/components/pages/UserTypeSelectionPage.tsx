@@ -39,7 +39,7 @@ export default function UserTypeSelectionPage({ pageDict }: UserTypeSelectionPag
     setIsPending(true)
 
     try {
-      console.log('[PROFILE] Creating profile...')
+      // Creating profile
       const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
 
       // Cookie認証（トークンは不要、バックエンドがCookieを確認）
@@ -66,7 +66,7 @@ export default function UserTypeSelectionPage({ pageDict }: UserTypeSelectionPag
       })
 
       const result = await response.json()
-      console.log('[PROFILE] Response:', result)
+      // Profile created successfully
 
       if (!response.ok) {
         setError(result.error || t('userTypeCreateFailed'))
@@ -75,11 +75,11 @@ export default function UserTypeSelectionPage({ pageDict }: UserTypeSelectionPag
       }
 
       // ホームページにリダイレクト
-      console.log('[PROFILE] Redirecting to home...')
+      // Redirecting to home
       router.push('/')
       router.refresh()
     } catch (error) {
-      console.error('Profile creation error:', error)
+      // Profile creation error - handle error
       setError(t('userTypeCreateError'))
       setIsPending(false)
     }

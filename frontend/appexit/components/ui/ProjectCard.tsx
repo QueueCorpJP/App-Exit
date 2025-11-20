@@ -63,11 +63,6 @@ export default function ProjectCard({
   const [localActiveViewCount, setLocalActiveViewCount] = useState(activeViewCount);
   const fallbackImage = 'https://placehold.co/600x400/e2e8f0/64748b?text=No+Image';
 
-  // デバッグ: 最初の数個のカードだけログ出力
-  if (typeof id === 'string' && id.length > 0) {
-    console.log(`[PROJECT-CARD] id=${id}, imagePath="${imagePath}", image="${image?.substring(0, 80)}..."`);
-  }
-
   // アクティブビューの初期状態を取得（初回のみ）
   useEffect(() => {
     let isMounted = true;
@@ -79,10 +74,8 @@ export default function ProjectCard({
         // response は { is_active: boolean } 型
         if (isMounted && response && typeof response === 'object' && 'is_active' in response) {
           setIsWatching(response.is_active);
-          console.log(`[PROJECT-CARD] Initial active view status loaded: id=${id}, is_active=${response.is_active}`);
         }
       } catch (error) {
-        console.error('[PROJECT-CARD] Failed to fetch active view status:', error);
         // エラーが発生した場合は、ログイン状態でない可能性があるため、無視
       }
     };
@@ -153,16 +146,12 @@ export default function ProjectCard({
           setLocalActiveViewCount(response.active_view_count);
         }
         // 状態は既に楽観的更新で設定済みなので、そのまま維持
-        console.log('[PROJECT-CARD] Active view toggled successfully, new count:', response.active_view_count);
       } else {
         // APIリクエストが失敗した場合は状態を元に戻す
         setIsWatching(previousWatchingState);
         setLocalActiveViewCount(previousCount);
-        console.error('[PROJECT-CARD] API response indicates failure:', response);
       }
     } catch (error: any) {
-      console.error('[PROJECT-CARD] Failed to toggle active view:', error);
-      
       // エラーが発生した場合は状態を元に戻す
       setIsWatching(previousWatchingState);
       setLocalActiveViewCount(previousCount);

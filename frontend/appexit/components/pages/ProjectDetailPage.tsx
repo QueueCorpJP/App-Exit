@@ -143,14 +143,13 @@ export default function ProjectDetailPage({
     // 一括取得
     getImageUrls(imagePaths).then(urlMap => {
       setImageUrls(urlMap);
-    }).catch(error => {
-      console.error('[PROJECT-DETAIL] Failed to fetch image URLs:', error);
+    }).catch(() => {
+      // Failed to fetch image URLs - continue without images
     });
   }, [postDetails]);
 
   const handleMessageClick = () => {
     if (!postDetails?.author_user_id) {
-      console.error('Author user ID not found');
       return;
     }
     router.push(`/${locale}/messages/${postDetails.author_user_id}`);

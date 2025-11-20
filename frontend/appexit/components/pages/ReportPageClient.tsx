@@ -68,15 +68,15 @@ export default function ReportPageClient({ locale, dict }: ReportPageClientProps
         .select()
 
       if (error) {
-        console.error(dict.console.submissionError, error)
+        // Submission error - continue without submission
         setErrorMessage(error.message || dict.console.submissionFailed)
         setStep('error')
       } else {
-        console.log(dict.console.submitted, data)
+        // Report submitted successfully
         setStep('complete')
       }
     } catch (err) {
-      console.error(dict.console.unexpectedError, err)
+      // Unexpected error - continue without submission
       setErrorMessage(dict.console.unexpectedErrorOccurred)
       setStep('error')
     } finally {

@@ -73,7 +73,7 @@ export async function updateUserLanguage(newLocale: Locale): Promise<{ success: 
 
     return { success: true };
   } catch (error) {
-    console.error('Error updating user language:', error);
+    // Error updating user language - continue without update
     return { success: false, error: 'Unknown error' };
   }
 }

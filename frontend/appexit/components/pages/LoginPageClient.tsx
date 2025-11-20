@@ -37,19 +37,15 @@ export default function LoginPageClient({ error: serverError }: LoginPageClientP
     setIsLoading(true);
     try {
       const redirectUrl = typeof window !== 'undefined' ? `${window.location.origin}/login` : undefined;
-      console.log('[LOGIN] Starting OAuth login:', { method, redirectUrl });
 
       const result = await loginWithOAuth({ method, redirect_url: redirectUrl });
-      console.log('[LOGIN] OAuth response:', result);
 
       if (result.type === 'oauth' && result.provider_url) {
-        console.log('[LOGIN] Redirecting to provider:', result.provider_url);
         window.location.href = result.provider_url;
         return;
       }
       throw new Error(t('auth.loginError'));
     } catch (err) {
-      console.error('[LOGIN] OAuth login error:', err);
       setError(err instanceof Error ? err.message : t('auth.loginError'));
     } finally {
       setIsLoading(false);
@@ -84,19 +80,15 @@ export default function LoginPageClient({ error: serverError }: LoginPageClientP
       // バックエンドAPIでログイン（バックエンドがHTTPOnly Cookieを設定）
       await loginWithBackend({ email: emailValidation.sanitized, password });
 
-      console.log('[LOGIN] Backend login successful, cookie set');
-
       // バックエンドがauth_token Cookieを設定済み
       // 認証コンテキストへ即時反映（AuthProviderの初期化待ちによる遅延を防ぐ）
       await refreshSession();
 
       // 遷移後にサーバーコンポーネントも最新化
       // リダイレクト先がある場合はそこへ、なければホームへ
-      console.log('[LOGIN] Redirecting to:', redirectUrl);
       router.push(redirectUrl);
       router.refresh();
     } catch (err) {
-      console.error('Login error:', err);
       setError(err instanceof Error ? err.message : t('auth.loginError'));
       setIsLoading(false);
     }

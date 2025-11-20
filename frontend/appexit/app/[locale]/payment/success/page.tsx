@@ -61,7 +61,7 @@ function SuccessContent() {
         // 検証成功 - 成功ページを表示
         setIsVerifying(false);
       } catch (error) {
-        console.error('Payment verification error:', error);
+        // Payment verification error - continue without verification
         setVerificationError('Payment verification failed');
         setIsVerifying(false);
       }

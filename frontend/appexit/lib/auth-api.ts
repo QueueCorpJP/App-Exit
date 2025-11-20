@@ -39,17 +39,6 @@ function getApiUrlWithCache(): string {
 // デフォルト値（SSR時や初期化時用）
 const API_URL = typeof window !== 'undefined' ? getApiUrl() : 'http://localhost:8080';
 
-// 開発環境での警告
-if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
-  if (!process.env.NEXT_PUBLIC_API_URL) {
-    console.warn('[auth-api] NEXT_PUBLIC_API_URLが設定されていません。', {
-      currentApiUrl: API_URL,
-      note: '環境変数を設定することで、明示的にAPI URLを指定できます。',
-    });
-  } else {
-    console.log('[auth-api] API URL:', API_URL);
-  }
-}
 
 export interface LoginRequest {
   email: string;
@@ -233,11 +222,6 @@ export async function loginWithBackend(data: LoginRequest): Promise<LoginRespons
   // クライアントサイドで動的にAPI URLを取得
   const apiUrl = typeof window !== 'undefined' ? getApiUrlWithCache() : API_URL;
   const url = `${apiUrl}/api/auth/login`;
-  
-  // デバッグ用ログ（本番環境では出力されない）
-  if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
-    console.log('[auth-api] Login request to:', url);
-  }
 
   try {
     const response = await fetch(url, {
@@ -258,14 +242,6 @@ export async function loginWithBackend(data: LoginRequest): Promise<LoginRespons
     const result = await response.json();
     return result.data;
   } catch (error) {
-    // ネットワークエラーの場合、より詳細な情報を提供
-    if (error instanceof TypeError && error.message === 'Failed to fetch') {
-      console.error('[auth-api] API接続エラー:', {
-        url,
-        error: 'APIサーバーに接続できません。環境変数NEXT_PUBLIC_API_URLを確認してください。',
-        currentApiUrl: apiUrl,
-      });
-    }
     throw error;
   }
 }

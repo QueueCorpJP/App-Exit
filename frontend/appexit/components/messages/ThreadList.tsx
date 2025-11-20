@@ -50,15 +50,7 @@ const ThreadItem = memo(({ thread, isSelected, currentUserId, onSelect }: Thread
   }, [onSelect, thread]);
 
   // 相手のユーザー情報を取得（自分以外の参加者）
-  console.log('[THREAD-ITEM] Thread data:', {
-    threadId: thread.id,
-    currentUserId,
-    participants: thread.participants,
-    participantsCount: thread.participants?.length || 0
-  });
-
   const otherParticipant = thread.participants?.find(p => p.id !== currentUserId);
-  console.log('[THREAD-ITEM] Other participant:', otherParticipant);
 
   const displayName = otherParticipant?.display_name ? truncateDisplayName(otherParticipant.display_name, 'post') : t('user');
   
@@ -76,7 +68,6 @@ const ThreadItem = memo(({ thread, isSelected, currentUserId, onSelect }: Thread
           const url = await getImageUrl(otherParticipant.icon_url, 'profile-icons');
           setIconUrl(url);
         } catch (error) {
-          console.error('[THREAD-ITEM] Failed to get icon URL:', error);
           setIconUrl(null);
         }
       } else {

@@ -158,7 +158,6 @@ export default function ProjectsListPage() {
 
   const processPostsData = async (data: any[]) => {
     if (data.length === 0) {
-      console.log('No posts found');
       setProjects([]);
       setFilteredProjects([]);
       return;
@@ -223,7 +222,6 @@ export default function ProjectsListPage() {
     try {
       imageUrlMap = await getImageUrls(imagePaths);
     } catch (err) {
-      console.error('[PROJECTS] Failed to load image URLs:', err);
     }
 
     return data.map(post => ({
@@ -292,7 +290,6 @@ export default function ProjectsListPage() {
 
       // データが配列でない場合は空配列を使用
       if (!Array.isArray(data)) {
-        console.warn('Invalid data format received:', response);
         await processPostsData([]);
         setHasMore(false);
         return;
@@ -320,7 +317,6 @@ export default function ProjectsListPage() {
       // データが取得件数より少なければ、これ以上ないと判断
       setHasMore(data.length >= POSTS_PER_PAGE);
     } catch (error) {
-      console.error('Failed to fetch posts:', error);
       setHasMore(false);
     } finally {
       setLoading(false);

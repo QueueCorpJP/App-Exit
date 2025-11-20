@@ -29,7 +29,7 @@ export function getCookie(name: string): string | null {
  */
 export function getAuthToken(): string | null {
   // HttpOnly Cookieに移行済みのため、この関数は常にnullを返します
-  console.warn('[COOKIE-UTILS] getAuthToken() is deprecated. HttpOnly Cookie is used for authentication.');
+  // getAuthToken() is deprecated. HttpOnly Cookie is used for authentication.
   return null;
 }
 
@@ -42,6 +42,6 @@ export function getAuthToken(): string | null {
  */
 export function getAuthHeader(): { Authorization?: string } {
   // HttpOnly Cookieに移行済みのため、この関数は常に空のオブジェクトを返します
-  console.warn('[COOKIE-UTILS] getAuthHeader() is deprecated. HttpOnly Cookie is used for authentication.');
+  // getAuthHeader() is deprecated. HttpOnly Cookie is used for authentication.
   return {};
 }

@@ -33,7 +33,6 @@ function MessageThread({
   isLoadingMessages,
   onBack,
 }: MessageThreadProps) {
-  console.log('[MESSAGE-THREAD-COMPONENT] Render:', { isLoadingMessages, messagesLength: messages.length });
   const t = useTranslations();
   const locale = useLocale();
   const router = useRouter();
@@ -73,7 +72,6 @@ function MessageThread({
         });
         setUserPosts(Array.isArray(posts) ? posts : []);
       } catch (error) {
-        console.error('投稿の取得に失敗しました:', error);
         setSaleError(t('messages.failedToFetchPosts'));
       } finally {
         setIsLoadingPosts(false);
@@ -95,7 +93,7 @@ function MessageThread({
         const requests = await messageApi.getSaleRequests(threadDetail.id);
         setSaleRequests(Array.isArray(requests) ? requests : []);
       } catch (error) {
-        console.error('売却リクエストの取得に失敗しました:', error);
+        // Failed to fetch sale requests - continue without sale requests
       } finally {
         setIsLoadingSaleRequests(false);
       }
@@ -110,8 +108,8 @@ function MessageThread({
           .then(requests => {
             setSaleRequests(Array.isArray(requests) ? requests : []);
           })
-          .catch(error => {
-            console.error('売却リクエストの取得に失敗しました:', error);
+          .catch(() => {
+            // Failed to fetch sale requests - continue without sale requests
           });
       }
     }, 60000);
@@ -272,7 +270,6 @@ function MessageThread({
                     alt={otherParticipant?.display_name || ''}
                     className="w-full h-full rounded-full object-cover"
                     onError={(e) => {
-                      console.error('Failed to load icon:', otherParticipant?.icon_url);
                       (e.target as HTMLImageElement).style.display = 'none';
                       if (e.currentTarget.parentElement) {
                         const fallback = e.currentTarget.parentElement.querySelector('.icon-fallback') as HTMLElement;
@@ -380,7 +377,6 @@ function MessageThread({
                         alt={t('messages.sentImage')}
                         className="max-w-full max-h-64 rounded-lg object-contain"
                         onError={(e) => {
-                          console.error('Failed to load image:', message.image_url);
                           (e.target as HTMLImageElement).style.display = 'none';
                         }}
                       />
@@ -679,7 +675,6 @@ function MessageThread({
                       setPhoneNumber('');
                       setSaleError(null);
                     } catch (error: any) {
-                      console.error('売却リクエストの作成に失敗しました:', error);
                       setSaleError(error.message || t('messages.failedToCreateSaleRequest'));
                     } finally {
                       setIsSubmittingSale(false);
@@ -817,7 +812,6 @@ function MessageThread({
                       // ページをリロードして最新の状態を取得
                       window.location.reload();
                     } catch (error: any) {
-                      console.error('購入確定に失敗しました:', error);
                       setSaleError(error.message || t('messages.failedToPurchase'));
                     } finally {
                       setIsSubmittingSale(false);

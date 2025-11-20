@@ -72,15 +72,15 @@ export default function ContactPage() {
         .select()
 
       if (error) {
-        console.error(dict.consoleSubmissionError || 'Error:', error)
+        // Submission error - continue without submission
         setErrorMessage(error.message || dict.errorSubmissionFailed || 'Failed to submit')
         setStep('error')
       } else {
-        console.log(dict.consoleSubmitted || 'Submitted:', data)
+        // Form submitted successfully
         setStep('complete')
       }
     } catch (err) {
-      console.error(dict.consoleUnexpectedError || 'Error:', err)
+      // Unexpected error - continue without submission
       setErrorMessage(dict.errorUnexpected || 'An unexpected error occurred')
       setStep('error')
     } finally {

@@ -34,30 +34,11 @@ function ThreadListContainer({ onThreadSelect, currentThreadId }: ThreadListCont
         return;
       }
 
-      console.log('[THREAD-LIST] API Response:', response);
       if (response && Array.isArray(response)) {
-        console.log('[THREAD-LIST] Threads data:', response);
-        response.forEach((thread, index) => {
-          console.log(`[THREAD-LIST] Thread ${index}:`, {
-            id: thread.id,
-            participant_ids: thread.participant_ids,
-            participants: thread.participants,
-            participantsCount: thread.participants?.length || 0
-          });
-        });
         setThreads(response);
       } else if (response && typeof response === 'object' && 'success' in response && 'data' in response && (response as any).success) {
         // バックエンドが { success: true, data: [...] } 形式で返す場合
-        console.log('[THREAD-LIST] Threads data (wrapped):', (response as any).data);
         if (Array.isArray((response as any).data)) {
-          (response as any).data.forEach((thread: any, index: number) => {
-            console.log(`[THREAD-LIST] Thread ${index}:`, {
-              id: thread.id,
-              participant_ids: thread.participant_ids,
-              participants: thread.participants,
-              participantsCount: thread.participants?.length || 0
-            });
-          });
           setThreads((response as any).data);
         }
       }
@@ -67,7 +48,6 @@ function ThreadListContainer({ onThreadSelect, currentThreadId }: ThreadListCont
         return;
       }
 
-      console.error('Failed to fetch threads:', err);
       setError('スレッドの取得に失敗しました');
     } finally {
       setIsLoadingThreads(false);
@@ -102,7 +82,6 @@ function ThreadListContainer({ onThreadSelect, currentThreadId }: ThreadListCont
 
     // スレッド一覧を再取得するイベントハンドラ
     const handleRefreshThreads = () => {
-      console.log('[THREAD-LIST] Refresh threads event received');
       fetchThreads();
     };
 

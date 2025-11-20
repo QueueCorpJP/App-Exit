@@ -49,7 +49,7 @@ export default function StorageImage({
         const url = await getImageUrl(path);
         setImageUrl(url);
       } catch (err) {
-        console.error('Failed to load image:', err);
+        // Failed to load image - use fallback
         setError(true);
         setImageUrl('https://placehold.co/600x400/e2e8f0/64748b?text=Error');
       }

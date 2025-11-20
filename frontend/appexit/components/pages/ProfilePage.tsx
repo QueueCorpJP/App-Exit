@@ -65,7 +65,6 @@ export default function ProfilePage({ pageDict = {} }: ProfilePageProps) {
 
         const profile = await profileApi.getProfile();
         if (isMounted && profile) {
-          console.log('[ProfilePage] Loaded profile:', profile);
           setProfile(profile);
         }
 
@@ -84,11 +83,10 @@ export default function ProfilePage({ pageDict = {} }: ProfilePageProps) {
             setHasMorePosts(postsArray.length >= POSTS_PER_PAGE);
           }
         } catch (postError) {
-          console.error('Failed to fetch posts:', postError);
           // 投稿の取得に失敗しても続行
         }
       } catch (error) {
-        console.error('Failed to fetch profile data:', error);
+        // Failed to fetch profile data - continue without data
       } finally {
         if (isMounted) {
           setLoading(false);
@@ -120,12 +118,10 @@ export default function ProfilePage({ pageDict = {} }: ProfilePageProps) {
 
   const loadWatchingPosts = async (loadMore = false) => {
     if (!currentUser?.id) {
-      console.log('[ProfilePage] No user ID, skipping watching posts load');
       return;
     }
 
     try {
-      console.log('[ProfilePage] Loading active views for user:', currentUser.id);
       setIsLoadingWatching(true);
 
       const offset = loadMore ? watchingOffset : 0;
@@ -140,15 +136,11 @@ export default function ProfilePage({ pageDict = {} }: ProfilePageProps) {
         .range(offset, offset + POSTS_PER_PAGE - 1);
 
       if (activeViewError) {
-        console.error('[ProfilePage] Failed to load active views:', activeViewError);
         if (!loadMore) setWatchingPosts([]);
         return;
       }
 
-      console.log('[ProfilePage] Active views:', activeViews);
-
       if (!activeViews || activeViews.length === 0) {
-        console.log('[ProfilePage] No more active views found');
         setHasMoreWatching(false);
         if (!loadMore) setWatchingPosts([]);
         return;
@@ -161,7 +153,6 @@ export default function ProfilePage({ pageDict = {} }: ProfilePageProps) {
 
       // アクティブビューの投稿IDを取得
       const postIds = activeViews.map(av => av.post_id);
-      console.log('[ProfilePage] Post IDs from active views:', postIds);
 
       // 投稿の詳細を一括取得（N+1問題を回避、必要なフィールドのみ取得）
       const { data: posts, error: postsError } = await supabase
@@ -183,12 +174,9 @@ export default function ProfilePage({ pageDict = {} }: ProfilePageProps) {
         .in('id', postIds);
 
       if (postsError) {
-        console.error('[ProfilePage] Failed to load posts:', postsError);
         if (!loadMore) setWatchingPosts([]);
         return;
       }
-
-      console.log('[ProfilePage] Loaded watching posts:', posts);
 
       // アクティブビュー数を取得（既に取得したactiveViewsデータを再利用 - スケーラビリティ改善）
       // 注: 全ユーザーのビュー数が必要な場合は別途APIで集計データを取得する必要がある
@@ -234,7 +222,6 @@ export default function ProfilePage({ pageDict = {} }: ProfilePageProps) {
         setWatchingOffset(POSTS_PER_PAGE);
       }
     } catch (err) {
-      console.error('[ProfilePage] Failed to load watched posts:', err);
       if (!loadMore) setWatchingPosts([]);
     } finally {
       setIsLoadingWatching(false);
@@ -259,7 +246,7 @@ export default function ProfilePage({ pageDict = {} }: ProfilePageProps) {
       setPostsOffset(prev => prev + POSTS_PER_PAGE);
       setHasMorePosts(newPosts.length >= POSTS_PER_PAGE);
     } catch (error) {
-      console.error('[ProfilePage] Failed to load more posts:', error);
+      // Failed to load more posts - silently fail
     } finally {
       setIsLoadingPosts(false);
     }
@@ -279,7 +266,6 @@ export default function ProfilePage({ pageDict = {} }: ProfilePageProps) {
       setDeleteConfirmId(null);
       setOpenMenuId(null);
     } catch (error) {
-      console.error('[ProfilePage] Failed to delete post:', error);
       alert(t('errors.deleteFailed') || '削除に失敗しました');
     } finally {
       setIsDeleting(false);

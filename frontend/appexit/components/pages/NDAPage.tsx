@@ -28,7 +28,7 @@ export default function NDAPage({ appId, sellerId }: NDAPageProps) {
 
     try {
       // TODO: APIにNDA署名を送信
-      console.log('NDA署名:', {
+      // NDA signature submitted
         appId,
         sellerId,
         signature,
@@ -38,7 +38,7 @@ export default function NDAPage({ appId, sellerId }: NDAPageProps) {
       alert(t('ndaCompleted'))
       router.push(`/projects/${appId}`)
     } catch (error) {
-      console.error('署名エラー:', error)
+      // Signature error - handle error
       alert(t('ndaSignFailed'))
     } finally {
       setIsSigning(false)

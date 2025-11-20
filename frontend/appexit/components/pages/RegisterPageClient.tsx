@@ -277,9 +277,6 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
 
       // URLフラグメントからSupabaseのセッショントークンを取得
       const hash = window.location.hash;
-      console.log('[RegisterPage] Current URL:', window.location.href);
-      console.log('[RegisterPage] URL Hash:', hash);
-      console.log('[RegisterPage] Hash includes access_token:', hash.includes('access_token'));
 
       if (hash && hash.includes('access_token')) {
         try {
@@ -289,8 +286,6 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
           const refreshToken = params.get('refresh_token');
 
           if (accessToken) {
-            console.log('OAuth callback detected, setting up session...');
-
             // バックエンドにトークンを送信してCookie認証を確立
             const sessionResponse = await fetch(`${apiUrl}/api/auth/oauth/callback`, {
               method: 'POST',
@@ -307,7 +302,6 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
 
             if (sessionResponse.ok) {
               const result = await sessionResponse.json();
-              console.log('Session established:', result);
 
               // URLフラグメントをクリア
               window.history.replaceState(null, '', window.location.pathname + window.location.search);
@@ -323,12 +317,10 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
               return;
             } else {
               const errorData = await sessionResponse.json().catch(() => ({ error: 'セッションの確立に失敗しました' }));
-              console.error('Session setup failed:', errorData);
               setError(errorData.error || 'セッションの確立に失敗しました');
             }
           }
         } catch (error) {
-          console.error('OAuth callback error:', error);
           setError('OAuth認証の処理中にエラーが発生しました');
         }
       }
@@ -351,7 +343,7 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
           }
         }
       } catch (error) {
-        console.error('Session check error:', error);
+        // Session check error - silently fail
       }
     };
     checkSessionAndAdvance();
@@ -413,12 +405,9 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
         userId = result.data?.id;
       }
 
-      console.log('Uploading avatar, userId:', userId);
       const publicUrl = await uploadAvatarImage(file, userId);
       setBasicForm((prev) => ({ ...prev, iconUrl: publicUrl }));
-      console.log('Avatar uploaded successfully:', publicUrl);
     } catch (err) {
-      console.error('Avatar upload error:', err);
       setError(err instanceof Error ? err.message : t('registerUploadFailed'));
       setAvatarFile(null);
       setAvatarPreview('');
@@ -460,7 +449,6 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
       setSelectedMethod('email');
       setStep(2);
     } catch (err) {
-      console.error('Email signup error:', err);
       setError(err instanceof Error ? err.message : t('registerEmailFailed'));
     } finally {
       setIsLoading(false);
@@ -479,7 +467,6 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
       }
       throw new Error(t('registerOAuthFailed'));
     } catch (err) {
-      console.error('OAuth signup error:', err);
       setError(err instanceof Error ? err.message : t('registerOAuthFailed'));
     } finally {
       setIsLoading(false);
@@ -538,7 +525,6 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
       setSelectedRoles(result.roles);
       setStep(3);
     } catch (err) {
-      console.error('Step2 error:', err);
       setError(err instanceof Error ? err.message : t('registerSaveRolesFailed'));
     } finally {
       setIsLoading(false);
@@ -569,7 +555,6 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
       await registerStep3(payload, token);
       setStep(4);
     } catch (err) {
-      console.error('Step3 error:', err);
       setError(err instanceof Error ? err.message : t('registerSaveProfileFailed'));
     } finally {
       setIsLoading(false);
@@ -647,7 +632,6 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
       await registerStep4(payload, token);
       setStep(5);
     } catch (err) {
-      console.error('Step4 error:', err);
       setError(err instanceof Error ? err.message : t('registerSaveInfoFailed'));
     } finally {
       setIsLoading(false);
@@ -675,7 +659,6 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
       router.push('/');
       router.refresh();
     } catch (err) {
-      console.error('Step5 error:', err);
       setError(err instanceof Error ? err.message : t('registerSubmitAgreementFailed'));
     } finally {
       setIsLoading(false);
@@ -726,7 +709,6 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
                   {([
                     { method: 'google' as RegistrationMethod, label: t('auth.registerWithGoogle') },
                     { method: 'github' as RegistrationMethod, label: t('auth.registerWithGithub') },
-                    { method: 'x' as RegistrationMethod, label: t('auth.registerWithX') },
                   ]).map(({ method, label }) => (
                     <Button
                       key={method}

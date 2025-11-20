@@ -105,7 +105,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       }
     }
   } catch (error) {
-    console.error('Failed to generate metadata:', error);
+    // Failed to generate metadata - use fallback
   }
 
   // フォールバック（投稿が見つからない場合）
@@ -136,7 +136,7 @@ export default async function ProjectDetail({ params, searchParams }: PageProps)
       postDetails = data;
     }
   } catch (error) {
-    console.error('Failed to fetch post details:', error);
+    // Failed to fetch post details - use initialData
   }
 
   return (

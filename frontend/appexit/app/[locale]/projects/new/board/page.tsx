@@ -48,7 +48,6 @@ async function getPosts(): Promise<Post[]> {
     });
 
     if (!response.ok) {
-      console.error('[SERVER] Failed to fetch posts:', response.status);
       return [];
     }
 
@@ -65,7 +64,6 @@ async function getPosts(): Promise<Post[]> {
 
     return [];
   } catch (error) {
-    console.error('[SERVER] Error fetching posts:', error);
     return [];
   }
 }
@@ -80,7 +78,6 @@ async function getSidebarData(): Promise<SidebarData | null> {
     });
 
     if (!response.ok) {
-      console.error('[SERVER] Failed to fetch sidebar data:', response.status);
       return null;
     }
 
@@ -97,7 +94,6 @@ async function getSidebarData(): Promise<SidebarData | null> {
 
     return null;
   } catch (error) {
-    console.error('[SERVER] Error fetching sidebar data:', error);
     return null;
   }
 }

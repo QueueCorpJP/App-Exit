@@ -38,37 +38,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 // トークンリフレッシュのイベントをリッスン
 if (typeof window !== 'undefined') {
   supabase.auth.onAuthStateChange((event, session) => {
-    const now = new Date().toISOString();
-    console.log(`[SUPABASE ${now}] Auth state changed:`, event);
-
-    // セッション情報をデバッグ出力（セキュリティ: リフレッシュトークンの存在確認は出力しない）
-    if (session) {
-      const expiresAt = session.expires_at ? new Date(session.expires_at * 1000).toISOString() : 'unknown';
-      const expiresIn = session.expires_in || 'unknown';
-      console.log(`[SUPABASE ${now}] Session info:`, {
-        hasAccessToken: !!session.access_token,
-        expiresIn: `${expiresIn} seconds`,
-        expiresAt,
-        tokenLength: session.access_token?.length || 0
-      });
-    } else {
-      console.log(`[SUPABASE ${now}] ⚠️ No session available`);
-    }
-
-    if (event === 'TOKEN_REFRESHED') {
-      console.log(`[SUPABASE ${now}] ✓ Token refreshed successfully`);
-      // HttpOnly Cookieはバックエンドが設定するため、フロントエンドでは何もしない
-    }
-
-    if (event === 'SIGNED_IN') {
-      console.log(`[SUPABASE ${now}] ✓ User signed in`);
-      // HttpOnly Cookieはバックエンドが設定するため、フロントエンドでは何もしない
-    }
-
-    if (event === 'SIGNED_OUT') {
-      console.log(`[SUPABASE ${now}] User signed out`);
-      // HttpOnly Cookieの削除はバックエンドが行うため、フロントエンドでは何もしない
-    }
+    // HttpOnly Cookieはバックエンドが設定するため、フロントエンドでは何もしない
   });
 
   // Cookieベースのセッション管理のため、定期的なチェックは不要

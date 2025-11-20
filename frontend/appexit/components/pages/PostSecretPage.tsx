@@ -149,7 +149,7 @@ export default function PostSecretPage() {
       const result = await response.json();
       router.push(`/projects/${result.id}`);
     } catch (err) {
-      console.error('Post creation error:', err);
+      // Post creation error - handle error
       setError(err instanceof Error ? err.message : '投稿に失敗しました');
     } finally {
       setLoading(false);

@@ -61,7 +61,7 @@ export default function SecretAppsPage() {
 
   const handleRequestNDA = (appId: string) => {
     // TODO: NDA締結リクエスト送信
-    console.log('NDA締結リクエスト:', appId)
+    // NDA agreement request
     alert('NDA締結リクエストを送信しました')
   }
 

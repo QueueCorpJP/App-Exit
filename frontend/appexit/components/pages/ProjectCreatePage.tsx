@@ -226,16 +226,6 @@ export default function ProjectCreatePage({ postType, pageTitle, pageSubtitle, p
       }
 
       // Cookie認証（バックエンドが認証をチェック）
-      console.log('[PROJECT-CREATE] Submitting project with Cookie authentication');
-      console.log('[PROJECT-CREATE] Form data:', {
-        title: titleSanitized.sanitized,
-        appCategories: formData.appCategories,
-        appealText: appealTextSanitized.sanitized.length,
-        monthlyRevenue: formData.monthlyRevenue,
-        monthlyCost: formData.monthlyCost,
-        price: formData.price
-      });
-
       // 画像をStorageにアップロード
       setUploadingImage(true);
       let eyecatchPath: string | null = null;
@@ -245,30 +235,21 @@ export default function ProjectCreatePage({ postType, pageTitle, pageSubtitle, p
 
       try {
         if (selectedImageFile) {
-          console.log('[PROJECT-CREATE] Uploading eyecatch image to storage...');
           eyecatchPath = await uploadImage(selectedImageFile);
-          console.log('[PROJECT-CREATE] Eyecatch image uploaded successfully:', eyecatchPath);
         }
 
         if (selectedDashboardImageFile) {
-          console.log('[PROJECT-CREATE] Uploading dashboard image to storage...');
           dashboardPath = await uploadImage(selectedDashboardImageFile);
-          console.log('[PROJECT-CREATE] Dashboard image uploaded successfully:', dashboardPath);
         }
 
         if (selectedUserUiImageFile) {
-          console.log('[PROJECT-CREATE] Uploading user UI image to storage...');
           userUiPath = await uploadImage(selectedUserUiImageFile);
-          console.log('[PROJECT-CREATE] User UI image uploaded successfully:', userUiPath);
         }
 
         if (selectedPerformanceImageFile) {
-          console.log('[PROJECT-CREATE] Uploading performance image to storage...');
           performancePath = await uploadImage(selectedPerformanceImageFile);
-          console.log('[PROJECT-CREATE] Performance image uploaded successfully:', performancePath);
         }
       } catch (error) {
-        console.error('[PROJECT-CREATE] Image upload failed:', error);
         alert(tForm('imageUploadFailed'));
         return;
       } finally {
@@ -279,12 +260,10 @@ export default function ProjectCreatePage({ postType, pageTitle, pageSubtitle, p
       const extraImagePaths: string[] = [];
       for (const extraImage of extraImages) {
         try {
-          console.log('[PROJECT-CREATE] Uploading extra image to storage...');
           const path = await uploadImage(extraImage.file);
           extraImagePaths.push(path);
-          console.log('[PROJECT-CREATE] Extra image uploaded successfully:', path);
         } catch (error) {
-          console.error('[PROJECT-CREATE] Extra image upload failed:', error);
+          // Extra image upload failed - skip this image
         }
       }
 
@@ -382,17 +361,12 @@ export default function ProjectCreatePage({ postType, pageTitle, pageSubtitle, p
         }
       }
 
-      console.log('[PROJECT-CREATE] Submitting payload:', payload);
-
       // apiClientはCookieベースの認証を使用（HttpOnly Cookieが自動送信される）
-      const result = await apiClient.post('/api/posts', payload);
+      await apiClient.post('/api/posts', payload);
 
-      console.log('[PROJECT-CREATE] Post created successfully:', result);
       alert(tForm('postCreated'));
       router.push('/');
     } catch (error) {
-      console.error('[PROJECT-CREATE] Error during submission:', error);
-
       // エラーの詳細を取得
       let errorMessage = tForm('errorUnknown');
       let errorDetails = '';
@@ -403,13 +377,9 @@ export default function ProjectCreatePage({ postType, pageTitle, pageSubtitle, p
 
         // バックエンドからのエラー詳細
         if (err.data) {
-          console.error('[PROJECT-CREATE] Error data:', err.data);
           errorDetails = JSON.stringify(err.data, null, 2);
         }
       }
-
-      console.error('[PROJECT-CREATE] Error message:', errorMessage);
-      console.error('[PROJECT-CREATE] Error details:', errorDetails);
 
       // 401エラーの場合はログインページにリダイレクト
       if (errorMessage.includes('401') || errorMessage.includes('Unauthorized')) {
@@ -1370,7 +1340,6 @@ export default function ProjectCreatePage({ postType, pageTitle, pageSubtitle, p
                     onClick={() => {
                       // TODO: 将来的にAI査定APIと連携
                       // プロジェクトの情報を元にAI査定を実行
-                      console.log('AI査定をリクエスト');
                       // 例: const result = await callAIValuationAPI(projectData);
                       // 結果を表示またはフォームに反映
                     }}

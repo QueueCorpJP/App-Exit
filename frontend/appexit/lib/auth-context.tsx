@@ -58,8 +58,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const result = await response.json();
         const sessionData = result.data;
 
-        console.log('[AUTH-CONTEXT] Backend session found:', sessionData.email);
-
         setUser({
           id: sessionData.id,
           email: sessionData.email,
@@ -73,13 +71,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else if (response.status === 401) {
         // 401のときは、まずトークンリフレッシュを試行してから再確認（UIの一時的な未ログイン化を防ぐ）
         if (!attemptedRefresh) {
-          console.log('[AUTH-CONTEXT] 401 Unauthorized - attempting token refresh before clearing state');
           const refreshed = await refreshBackendToken();
           if (refreshed) {
             return await checkBackendSession(true);
           }
         }
-        console.log('[AUTH-CONTEXT] 401 Unauthorized - session expired, clearing local state');
         setUser(null);
         setProfile(null);
         
@@ -90,13 +86,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         return false;
       } else {
-        console.log('[AUTH-CONTEXT] No backend session found');
         setUser(null);
         setProfile(null);
         return false;
       }
     } catch (error) {
-      console.error('[AUTH-CONTEXT] Error checking backend session:', error);
       // ネットワーク誤判定時の揺れを避けるため、未試行なら一度だけリフレッシュ→再確認
       if (!attemptedRefresh) {
         const refreshed = await refreshBackendToken();
@@ -126,11 +120,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (response.ok) {
-        console.log('[AUTH-CONTEXT] ✓ Backend token refreshed successfully');
         return true;
       } else if (response.status === 401) {
         const errorText = await response.text();
-        console.error('[AUTH-CONTEXT] ❌ Refresh token expired (401):', errorText);
         
         if (typeof document !== 'undefined') {
           document.cookie = 'access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
@@ -140,27 +132,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return false;
       } else {
         const errorText = await response.text();
-        console.error('[AUTH-CONTEXT] ❌ Backend token refresh failed:', response.status, errorText);
         return false;
       }
     } catch (error) {
-      console.error('[AUTH-CONTEXT] Error refreshing backend token:', error);
       return false;
     }
   };
 
   const refreshSession = async () => {
-    console.log('[AUTH-CONTEXT] Manually refreshing session...');
-
     try {
       const refreshed = await refreshBackendToken();
-      if (refreshed) {
-        console.log('[AUTH-CONTEXT] ✓ Backend token refreshed');
-      } else {
-        console.warn('[AUTH-CONTEXT] ⚠️ Backend token refresh failed');
-      }
     } catch (err) {
-      console.error('[AUTH-CONTEXT] Error refreshing backend token:', err);
     }
 
     await checkBackendSession();
@@ -170,8 +152,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
    * サインアウト
    */
   const signOut = async () => {
-    console.log('[AUTH-CONTEXT] Starting sign out process...');
-
     if (sessionCheckIntervalRef.current) {
       clearInterval(sessionCheckIntervalRef.current);
       sessionCheckIntervalRef.current = null;
@@ -188,18 +168,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // ログアウトは常に最新を取得
         cache: 'no-store',
       }).catch(() => {});
-
-      console.log('[AUTH-CONTEXT] Backend cookie cleared');
     } catch (error) {
-      console.error('[AUTH-CONTEXT] Error during sign out:', error);
     }
-
-    console.log('[AUTH-CONTEXT] Sign out complete');
   };
 
   useEffect(() => {
-    console.log('[AUTH-CONTEXT] Initializing auth with backend session check...');
-
     checkBackendSession().then((hasSession) => {
       setLoading(false);
 
@@ -221,12 +194,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         // トークンリフレッシュ間隔を10分から30分に延長（パフォーマンス改善）
         tokenRefreshIntervalRef.current = setInterval(async () => {
-          console.log('[AUTH-CONTEXT] Proactively refreshing tokens (30min interval) to maintain 2-day session...');
           try {
             const backendRefreshed = await refreshBackendToken();
             if (backendRefreshed) {
-              console.log('[AUTH-CONTEXT] ✓ Backend token refreshed proactively');
-              console.log('[AUTH-CONTEXT] Session will be maintained for 2 days via refresh token');
             } else {
               const stillValid = await checkBackendSession();
               if (!stillValid) {
@@ -241,17 +211,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 return;
               }
               
-              console.error('[AUTH-CONTEXT] ❌ Backend token refresh failed, retrying...');
               let retryCount = 0;
               const maxRetries = 2; // リトライ回数を3回から2回に削減
               let retrySuccess = false;
               while (retryCount < maxRetries && !retrySuccess) {
                 retryCount++;
-                console.log(`[AUTH-CONTEXT] Retrying token refresh (attempt ${retryCount}/${maxRetries})...`);
                 await new Promise(resolve => setTimeout(resolve, 2000));
                 const retried = await refreshBackendToken();
                 if (retried) {
-                  console.log('[AUTH-CONTEXT] ✓ Token refreshed after retry');
                   retrySuccess = true;
                 }
               }
@@ -261,7 +228,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               }
             }
           } catch (err) {
-            console.error('[AUTH-CONTEXT] ❌ Error refreshing tokens:', err);
           }
         }, 30 * 60 * 1000); // 30分間隔
       }
@@ -271,7 +237,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // 定期的なチェックとトークンリフレッシュで十分
 
     return () => {
-      console.log('[AUTH-CONTEXT] Cleaning up auth context');
       if (sessionCheckIntervalRef.current) {
         clearInterval(sessionCheckIntervalRef.current);
       }

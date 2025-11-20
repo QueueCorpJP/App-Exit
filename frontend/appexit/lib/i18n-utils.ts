@@ -15,7 +15,7 @@ export async function loadPageDictionary(
     const dict = await import(`@/locales/${locale}/${page}.json`);
     return dict.default || dict;
   } catch (error) {
-    console.warn(`Dictionary not found for page: ${page}, locale: ${locale}`);
+    // Dictionary not found - use empty dictionary
     return {};
   }
 }

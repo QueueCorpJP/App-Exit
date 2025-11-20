@@ -13,14 +13,12 @@ async function getPosts(): Promise<Post[]> {
     });
 
     if (!response.ok) {
-      console.error('Failed to fetch posts:', response.status);
       return [];
     }
 
     const result = await response.json();
     return result.data || [];
   } catch (error) {
-    console.error('Error fetching posts:', error);
     return [];
   }
 }

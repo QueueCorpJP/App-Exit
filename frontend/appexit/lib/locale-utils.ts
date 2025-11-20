@@ -44,7 +44,7 @@ async function getLocaleFromProfileInternal(userId: string): Promise<Locale | nu
 
     return null;
   } catch (error) {
-    console.error('Error getting locale from profile:', error);
+    // Error getting locale from profile - use default
     return null;
   }
 }
@@ -77,7 +77,7 @@ export async function getLocaleFromProfile(): Promise<Locale | null> {
 
     return await getCachedLocale(user.id);
   } catch (error) {
-    console.error('Error getting locale from profile:', error);
+    // Error getting locale from profile - use default
     return null;
   }
 }
@@ -98,7 +98,7 @@ export async function syncLocaleCookie(): Promise<void> {
       });
     }
   } catch (error) {
-    console.error('Error syncing locale cookie:', error);
+    // Error syncing locale cookie - continue without sync
   }
 }
 
@@ -113,7 +113,7 @@ export async function setLocale(locale: Locale): Promise<void> {
       maxAge: 60 * 60 * 24 * 365 // 1年
     });
   } catch (error) {
-    console.error('Error setting locale:', error);
+    // Error setting locale - continue without setting
   }
 }
 
@@ -129,7 +129,7 @@ export async function getLocaleFromCookie(): Promise<Locale> {
       return locale as Locale;
     }
   } catch (error) {
-    console.error('Error getting locale from cookie:', error);
+    // Error getting locale from cookie - use default
   }
 
   return defaultLocale;

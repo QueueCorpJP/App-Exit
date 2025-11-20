@@ -22,8 +22,6 @@ export async function uploadImage(
     formData.append('filePath', filePath);
   }
 
-  console.log('[STORAGE] Uploading image:', { bucket, filePath, size: file.size });
-
   // HttpOnly Cookieで認証されるため、手動でトークンを取得する必要なし
   const response = await fetch(`${API_URL}/api/storage/upload`, {
     method: 'POST',
@@ -33,12 +31,10 @@ export async function uploadImage(
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: 'Upload failed' }));
-    console.error('[STORAGE] Upload error:', error);
     throw new Error(error.error || 'Failed to upload image');
   }
 
   const result = await response.json();
-  console.log('[STORAGE] Upload successful:', result.data.path);
   return result.data.path;
 }
 
@@ -70,7 +66,6 @@ export async function getImageUrl(
 
   // 既に完全なURLの場合はそのまま返す（外部URLや既に署名付きURLの場合）
   if (path.startsWith('http://') || path.startsWith('https://')) {
-    console.log('[STORAGE] Path is already a full URL, returning as-is:', path);
     return path;
   }
 
@@ -101,8 +96,6 @@ export async function getImageUrl(
       }
   }
 
-  console.log('[STORAGE] getImageUrl:', { originalPath: path, actualBucket, actualPath });
-
   try {
     const response = await fetch(`${API_URL}/api/storage/signed-url`, {
       method: 'POST',
@@ -114,14 +107,12 @@ export async function getImageUrl(
     });
 
     if (!response.ok) {
-      console.error('[STORAGE] Failed to get signed URL:', response.status, 'bucket:', actualBucket, 'path:', actualPath);
       return 'https://placehold.co/600x400/e2e8f0/64748b?text=Error';
     }
 
     const result = await response.json();
     return result.data.signedUrl;
   } catch (error) {
-    console.error('[STORAGE] Error getting signed URL:', error);
     return 'https://placehold.co/600x400/e2e8f0/64748b?text=Error';
   }
 }
@@ -150,7 +141,6 @@ export async function getImageUrls(
   paths.forEach(path => {
     // 既に完全なURLの場合はそのまま返す（外部URLや既に署名付きURLの場合）
     if (path.startsWith('http://') || path.startsWith('https://')) {
-      console.log('[STORAGE] Path is already a full URL, skipping:', path);
       urlMap.set(path, path);
       return;
     }
@@ -180,8 +170,6 @@ export async function getImageUrls(
       }
     }
 
-    console.log('[STORAGE] getImageUrls path:', { originalPath: path, actualBucket, actualPath });
-
     if (!bucketGroups.has(actualBucket)) {
       bucketGroups.set(actualBucket, []);
     }
@@ -201,7 +189,6 @@ export async function getImageUrls(
       });
 
       if (!response.ok) {
-        console.error('[STORAGE] Failed to get signed URLs for bucket:', bucketName, response.status);
         return new Map<string, string>();
       }
 
@@ -217,7 +204,6 @@ export async function getImageUrls(
 
       return bucketUrlMap;
     } catch (error) {
-      console.error('[STORAGE] Error getting signed URLs for bucket:', bucketName, error);
       return new Map<string, string>();
     }
   });

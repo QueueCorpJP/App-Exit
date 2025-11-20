@@ -117,16 +117,13 @@ export default function PostBoardPage({ initialPosts = [], sidebarData, pageDict
 
       // 画像パスを収集
       const imagePaths = postsData.map(post => post.eyecatch_url).filter((path): path is string => !!path);
-      console.log('[BOARD] Image paths:', imagePaths);
 
       // 署名付きURLを一括取得
       const imageUrlMap = await getImageUrls(imagePaths);
-      console.log('[BOARD] Image URL map size:', imageUrlMap.size);
 
       // 投稿データに画像URLを追加
       const postsWithImages: PostWithImageUrl[] = postsData.map(post => {
         const imageUrl = post.eyecatch_url ? imageUrlMap.get(post.eyecatch_url) : undefined;
-        console.log(`[BOARD] Post ${post.id}: path="${post.eyecatch_url}" → url="${imageUrl ? imageUrl.substring(0, 50) + '...' : 'none'}"`);
 
         return {
           ...post,
@@ -134,10 +131,9 @@ export default function PostBoardPage({ initialPosts = [], sidebarData, pageDict
         };
       });
 
-      console.log('[BOARD] Posts with images:', postsWithImages.length);
       setPosts(postsWithImages);
     } catch (err) {
-      console.error('[BOARD] Failed to load image URLs:', err);
+      // Failed to load image URLs - continue without images
     }
   };
 
@@ -172,7 +168,7 @@ export default function PostBoardPage({ initialPosts = [], sidebarData, pageDict
         setDislikeStates(updatesDislike);
         setCommentCounts(updatesCommentCount);
       } catch (e) {
-        console.warn('[BOARD] Failed to load meta:', e);
+        // Failed to load meta - continue without metadata
       }
     };
     fetchMeta();
@@ -253,7 +249,6 @@ export default function PostBoardPage({ initialPosts = [], sidebarData, pageDict
       // サーバーコンポーネントを再実行して最新データを取得
       router.refresh();
     } catch (err) {
-      console.error('Post creation error:', err);
       setError(err instanceof Error ? err.message : tp('postFailed'));
     } finally {
       setLoading(false);
@@ -266,7 +261,7 @@ export default function PostBoardPage({ initialPosts = [], sidebarData, pageDict
       const res = await postApi.toggleLike(postId);
       setLikeStates(prev => ({ ...prev, [postId]: { like_count: res.like_count ?? 0, is_liked: res.is_liked ?? false } }));
     } catch (e) {
-      console.error('toggle like failed', e);
+      // Toggle like failed - silently fail
     }
   };
   const handleToggleDislike = async (postId: string) => {
@@ -274,7 +269,7 @@ export default function PostBoardPage({ initialPosts = [], sidebarData, pageDict
       const res = await postApi.toggleDislike(postId);
       setDislikeStates(prev => ({ ...prev, [postId]: { dislike_count: res.dislike_count ?? 0, is_disliked: res.is_disliked ?? false } }));
     } catch (e) {
-      console.error('toggle dislike failed', e);
+      // Toggle dislike failed - silently fail
     }
   };
 
@@ -319,7 +314,7 @@ export default function PostBoardPage({ initialPosts = [], sidebarData, pageDict
           setCommentDislikeStates(prev => ({ ...prev, ...commentDislikes }));
         }
       } catch (e) {
-        console.error(`[BOARD] Failed to load comments for post ${postId}:`, e);
+        // Failed to load comments - continue without comments
       }
     }
 
@@ -373,7 +368,7 @@ export default function PostBoardPage({ initialPosts = [], sidebarData, pageDict
         setCommentDislikeStates(prev => ({ ...prev, ...newCommentDislikes }));
       }
     } catch (e) {
-      console.error('create comment failed', e);
+      // Create comment failed - silently fail
     }
   };
 
@@ -386,7 +381,7 @@ export default function PostBoardPage({ initialPosts = [], sidebarData, pageDict
         [commentId]: { like_count: res.like_count ?? 0, is_liked: res.is_liked ?? false }
       }));
     } catch (e) {
-      console.error('toggle comment like failed', e);
+      // Toggle comment like failed - silently fail
     }
   };
 
@@ -398,7 +393,7 @@ export default function PostBoardPage({ initialPosts = [], sidebarData, pageDict
         [commentId]: { dislike_count: res.dislike_count ?? 0, is_disliked: res.is_disliked ?? false }
       }));
     } catch (e) {
-      console.error('toggle comment dislike failed', e);
+      // Toggle comment dislike failed - silently fail
     }
   };
 
@@ -431,7 +426,7 @@ export default function PostBoardPage({ initialPosts = [], sidebarData, pageDict
           setReplyDislikeStates(prev => ({ ...prev, ...replyDislikes }));
         }
       } catch (e) {
-        console.error('Failed to load replies:', e);
+        // Failed to load replies - continue without replies
       }
     }
   };
@@ -479,7 +474,7 @@ export default function PostBoardPage({ initialPosts = [], sidebarData, pageDict
         setReplyDislikeStates(prev => ({ ...prev, ...replyDislikes }));
       }
     } catch (e) {
-      console.error('create reply failed', e);
+      // Create reply failed - silently fail
     }
   };
 
@@ -492,7 +487,7 @@ export default function PostBoardPage({ initialPosts = [], sidebarData, pageDict
         [replyId]: { like_count: res.like_count ?? 0, is_liked: res.is_liked ?? false }
       }));
     } catch (e) {
-      console.error('toggle reply like failed', e);
+      // Toggle reply like failed - silently fail
     }
   };
 
@@ -504,7 +499,7 @@ export default function PostBoardPage({ initialPosts = [], sidebarData, pageDict
         [replyId]: { dislike_count: res.dislike_count ?? 0, is_disliked: res.is_disliked ?? false }
       }));
     } catch (e) {
-      console.error('toggle reply dislike failed', e);
+      // Toggle reply dislike failed - silently fail
     }
   };
 
@@ -769,11 +764,10 @@ export default function PostBoardPage({ initialPosts = [], sidebarData, pageDict
             setHasMore(false);
           }
         } catch (e) {
-          console.warn('[BOARD] Failed to load meta for new posts:', e);
+          // Failed to load meta for new posts - continue without metadata
         }
       }
     } catch (err) {
-      console.error('[BOARD] Failed to load more posts:', err);
       setHasMore(false);
     } finally {
       setIsLoadingMore(false);
