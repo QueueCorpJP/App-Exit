@@ -1,0 +1,64 @@
+
+> appexit@0.1.0 build
+> next build
+
+   ▲ Next.js 16.0.0 (Turbopack)
+   - Environments: .env.local, .env.production
+   - Experiments (use with caution):
+     · optimizePackageImports
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully in 32.0s
+   Running TypeScript ...
+   Collecting page data ...
+   Generating static pages (0/66) ...
+   Generating static pages (16/66) 
+   Generating static pages (32/66) 
+   Generating static pages (49/66) 
+ ✓ Generating static pages (66/66) in 11.8s
+   Finalizing page optimization ...
+
+Route (app)
+┌ ○ /_not-found
+├ ƒ /[locale]
+├ ƒ /[locale]/about
+├ ƒ /[locale]/compliance
+├ ƒ /[locale]/contact
+├ ƒ /[locale]/cookie-policy
+├ ƒ /[locale]/customer-harassment
+├ ƒ /[locale]/debug-auth
+├ ƒ /[locale]/faq
+├ ƒ /[locale]/form
+├ ƒ /[locale]/help
+├ ƒ /[locale]/login
+├ ƒ /[locale]/messages
+├ ƒ /[locale]/messages/[id]
+├ ƒ /[locale]/nda
+├ ƒ /[locale]/nda/[appId]
+├ ƒ /[locale]/onboarding
+├ ƒ /[locale]/payment/success
+├ ƒ /[locale]/privacy
+├ ƒ /[locale]/profile
+├ ƒ /[locale]/profile/[id]
+├ ƒ /[locale]/projects
+├ ƒ /[locale]/projects/[id]
+├ ƒ /[locale]/projects/new/board
+├ ƒ /[locale]/projects/new/secret
+├ ƒ /[locale]/projects/new/transaction
+├ ƒ /[locale]/register
+├ ƒ /[locale]/report
+├ ƒ /[locale]/safety
+├ ƒ /[locale]/security
+├ ƒ /[locale]/seminar
+├ ƒ /[locale]/settings
+├ ƒ /[locale]/settings/profile
+├ ƒ /[locale]/sitemap.xml
+├ ƒ /[locale]/support-service
+├ ƒ /[locale]/terms
+├ ƒ /[locale]/tokusho
+└ ƒ /[locale]/transactions
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

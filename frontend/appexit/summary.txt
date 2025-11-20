@@ -1,0 +1,16 @@
+=== バンドルサイズ問題の詳細分析 ===
+
+1. 大きいコンポーネント（動的インポート候補）
+   - ProjectCreatePage.tsx: 76KB (1534行)
+   - PostBoardPage.tsx: 60KB (1377行)  
+   - RegisterPageClient.tsx: 56KB (1349行)
+   
+2. ページごとの静的インポート
+   全20ページで直接インポート（dynamic importなし）
+   
+3. 依存関係
+   - @supabase/supabase-js: 148KB（サーバーチャンク）
+   - lucide-react: 約50個のアイコン使用
+   - next-intl: 68KB（locale files）
+   
+4. フォント: 5.2MB（124ファイル）※対応不要

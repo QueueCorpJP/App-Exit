@@ -1223,7 +1223,7 @@ export default function PostBoardPage({ initialPosts = [], sidebarData, pageDict
                 <div className="p-6">
                   {replyToComment[post.id] && (
                     <div className="mb-2 text-xs text-gray-500">
-                      返信先: @{replyToComment[post.id].userName}
+                      返信先: @{replyToComment[post.id]?.userName}
                       <button
                         onClick={() => {
                           setReplyToComment(prev => ({ ...prev, [post.id]: null }));

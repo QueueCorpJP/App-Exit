@@ -1,5 +1,9 @@
-import ProjectCreatePage from '@/components/pages/ProjectCreatePage';
+import dynamic from 'next/dynamic';
 import { loadPageDictionary } from '@/lib/i18n-utils';
+
+const ProjectCreatePage = dynamic(() => import('@/components/pages/ProjectCreatePage'), {
+  ssr: true,
+});
 import { createPageDictHelper } from '@/lib/page-dict';
 import type { Locale } from '@/i18n/config';
 

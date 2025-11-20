@@ -1,5 +1,9 @@
-import RegisterPageClient from '@/components/pages/RegisterPageClient';
+import dynamic from 'next/dynamic';
 import { cookies } from 'next/headers';
+
+const RegisterPageClient = dynamic(() => import('@/components/pages/RegisterPageClient'), {
+  ssr: true,
+});
 import { redirect } from 'next/navigation';
 import type { Locale } from '@/i18n/config';
 

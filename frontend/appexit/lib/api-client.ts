@@ -394,6 +394,7 @@ export interface CommentReplyWithDetails {
   is_liked: boolean;
   dislike_count: number;
   is_disliked: boolean;
+  reply_count?: number;
 }
 
 export interface CreateCommentRequest {

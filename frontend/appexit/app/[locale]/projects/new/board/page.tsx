@@ -1,4 +1,8 @@
-import PostBoardPage from '@/components/pages/PostBoardPage';
+import dynamicImport from 'next/dynamic';
+
+const PostBoardPage = dynamicImport(() => import('@/components/pages/PostBoardPage'), {
+  ssr: true,
+});
 
 // このページは動的にレンダリングする
 export const dynamic = 'force-dynamic';
