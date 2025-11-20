@@ -28,9 +28,30 @@ export default function NDAPage({ appId, sellerId }: NDAPageProps) {
     setIsSigning(true)
 
     try {
+      // バックエンドにNDA同意を保存
+      const apiUrl = typeof window !== 'undefined'
+        ? (window.location.hostname === 'localhost' ? 'http://localhost:8080' : `${window.location.protocol}//${window.location.hostname}:8080`)
+        : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080');
+
+      const response = await fetch(`${apiUrl}/api/auth/profile`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          nda_flag: true,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save NDA agreement');
+      }
+
       alert(t('ndaCompleted'))
       router.push(`/projects/${appId}`)
     } catch (error) {
+      console.error('NDA sign error:', error);
       alert(t('ndaSignFailed'))
     } finally {
       setIsSigning(false)

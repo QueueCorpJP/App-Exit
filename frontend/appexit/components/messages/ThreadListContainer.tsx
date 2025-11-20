@@ -35,11 +35,26 @@ function ThreadListContainer({ onThreadSelect, currentThreadId }: ThreadListCont
         return;
       }
 
+      console.log('[ThreadListContainer] Raw response:', response);
+      console.log('[ThreadListContainer] Response type:', typeof response);
+      console.log('[ThreadListContainer] Is array?', Array.isArray(response));
+
       if (response && Array.isArray(response)) {
+        console.log('[ThreadListContainer] Setting threads (array):', response);
+        console.log('[ThreadListContainer] First thread:', response[0]);
+        if (response[0]) {
+          console.log('[ThreadListContainer] First thread participants:', response[0].participants);
+        }
         setThreads(response);
       } else if (response && typeof response === 'object' && 'success' in response && 'data' in response && (response as any).success) {
         // バックエンドが { success: true, data: [...] } 形式で返す場合
+        console.log('[ThreadListContainer] Response has success/data structure');
         if (Array.isArray((response as any).data)) {
+          console.log('[ThreadListContainer] Setting threads (data array):', (response as any).data);
+          console.log('[ThreadListContainer] First thread:', (response as any).data[0]);
+          if ((response as any).data[0]) {
+            console.log('[ThreadListContainer] First thread participants:', (response as any).data[0].participants);
+          }
           setThreads((response as any).data);
         }
       }

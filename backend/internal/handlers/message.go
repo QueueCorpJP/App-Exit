@@ -60,7 +60,6 @@ type (
 		NDAFlag           bool    `json:"nda_flag"`
 		TermsAcceptedAt   *string `json:"terms_accepted_at"`
 		PrivacyAcceptedAt *string `json:"privacy_accepted_at"`
-		StripeCustomerID  *string `json:"stripe_customer_id"`
 		CreatedAt         string  `json:"created_at"`
 		UpdatedAt         string  `json:"updated_at"`
 	}
@@ -150,7 +149,6 @@ func (s *Server) buildProfilesFromRows(rows []profileRow, signedURLMap map[strin
 			NDAFlag:           row.NDAFlag,
 			TermsAcceptedAt:   termsAcceptedAt,
 			PrivacyAcceptedAt: privacyAcceptedAt,
-			StripeCustomerID:  row.StripeCustomerID,
 			CreatedAt:         parseTime(row.CreatedAt),
 			UpdatedAt:         parseTime(row.UpdatedAt),
 		})
@@ -413,6 +411,11 @@ func (s *Server) GetThreads(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// スレッド作成者も参加者として追加（thread_participantsに存在しない場合のため）
+	for _, row := range threadRows {
+		allParticipantIDs[row.CreatedBy] = true
+	}
+
 	profilesMap := make(map[string]models.Profile)
 	if len(allParticipantIDs) > 0 {
 		participantIDList := make([]string, 0, len(allParticipantIDs))
@@ -424,7 +427,7 @@ func (s *Server) GetThreads(w http.ResponseWriter, r *http.Request) {
 
 		var profileRows []profileRow
 		_, err = serviceClient.From("profiles").
-			Select("id, role, party, display_name, icon_url, nda_flag, terms_accepted_at, privacy_accepted_at, stripe_customer_id, created_at, updated_at", "", false).
+			Select("id, role, party, display_name, icon_url, nda_flag, terms_accepted_at, privacy_accepted_at, created_at, updated_at", "", false).
 			In("id", participantIDList).
 			ExecuteTo(&profileRows)
 
@@ -656,9 +659,21 @@ func (s *Server) GetThreadByID(w http.ResponseWriter, r *http.Request) {
 									participantIDs[i] = row.UserID
 								}
 
+								// スレッド作成者も参加者として追加（thread_participantsに存在しない場合のため）
+								creatorExists := false
+								for _, pid := range participantIDs {
+									if pid == existingThreadRows[0].CreatedBy {
+										creatorExists = true
+										break
+									}
+								}
+								if !creatorExists {
+									participantIDs = append(participantIDs, existingThreadRows[0].CreatedBy)
+								}
+
 								var profileRows []profileRow
 								_, err = client.From("profiles").
-									Select("id, role, party, display_name, icon_url, nda_flag, terms_accepted_at, privacy_accepted_at, stripe_customer_id, created_at, updated_at", "", false).
+									Select("id, role, party, display_name, icon_url, nda_flag, terms_accepted_at, privacy_accepted_at, created_at, updated_at", "", false).
 									In("id", participantIDs).
 									ExecuteTo(&profileRows)
 								
@@ -781,9 +796,21 @@ func (s *Server) GetThreadByID(w http.ResponseWriter, r *http.Request) {
 					participantIDsForResponse[i] = row.UserID
 				}
 
+				// スレッド作成者も参加者として追加（thread_participantsに存在しない場合のため）
+				creatorExists := false
+				for _, pid := range participantIDsForResponse {
+					if pid == newThread.CreatedBy {
+						creatorExists = true
+						break
+					}
+				}
+				if !creatorExists {
+					participantIDsForResponse = append(participantIDsForResponse, newThread.CreatedBy)
+				}
+
 				var profileRows []profileRow
 				_, err = client.From("profiles").
-					Select("id, role, party, display_name, icon_url, nda_flag, terms_accepted_at, privacy_accepted_at, stripe_customer_id, created_at, updated_at", "", false).
+					Select("id, role, party, display_name, icon_url, nda_flag, terms_accepted_at, privacy_accepted_at, created_at, updated_at", "", false).
 					In("id", participantIDsForResponse).
 					ExecuteTo(&profileRows)
 				
@@ -870,11 +897,23 @@ func (s *Server) GetThreadByID(w http.ResponseWriter, r *http.Request) {
 		participantIDs[i] = row.UserID
 	}
 
+	// スレッド作成者も参加者として追加（thread_participantsに存在しない場合のため）
+	creatorExists := false
+	for _, pid := range participantIDs {
+		if pid == threadRows[0].CreatedBy {
+			creatorExists = true
+			break
+		}
+	}
+	if !creatorExists {
+		participantIDs = append(participantIDs, threadRows[0].CreatedBy)
+	}
+
 	log.Printf("[GetThreadByID] Fetching profiles for %d participant IDs: %v", len(participantIDs), participantIDs)
 
 	var profileRows []profileRow
 	_, err = client.From("profiles").
-		Select("id, role, party, display_name, icon_url, nda_flag, terms_accepted_at, privacy_accepted_at, stripe_customer_id, created_at, updated_at", "", false).
+		Select("id, role, party, display_name, icon_url, nda_flag, terms_accepted_at, privacy_accepted_at, created_at, updated_at", "", false).
 		In("id", participantIDs).
 		ExecuteTo(&profileRows)
 

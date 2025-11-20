@@ -50,7 +50,12 @@ const ThreadItem = memo(({ thread, isSelected, currentUserId, onSelect }: Thread
   }, [onSelect, thread]);
 
   // 相手のユーザー情報を取得（自分以外の参加者）
+  console.log('[ThreadItem] Thread:', thread.id);
+  console.log('[ThreadItem] Thread participants:', thread.participants);
+  console.log('[ThreadItem] Current user ID:', currentUserId);
+
   const otherParticipant = thread.participants?.find(p => p.id !== currentUserId);
+  console.log('[ThreadItem] Other participant:', otherParticipant);
 
   const displayName = otherParticipant?.display_name ? truncateDisplayName(otherParticipant.display_name, 'post') : t('user');
   
