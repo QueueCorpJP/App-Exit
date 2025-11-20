@@ -79,9 +79,9 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
       },
     },
     icons: {
-      icon: '/icon.png',
-      shortcut: '/icon.png',
-      apple: '/apple-touch-icon.png',
+      icon: '/logo.png',
+      shortcut: '/logo.png',
+      apple: '/logo.png',
     },
     manifest: '/manifest.json',
     verification: {

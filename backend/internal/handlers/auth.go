@@ -1065,9 +1065,14 @@ func (s *Server) LoginWithOAuth(w http.ResponseWriter, r *http.Request) {
 			provider = "twitter"
 		}
 
-		// リダイレクト先はバックエンドのコールバックURL
-		// フロントエンドのURLは使用せず、バックエンドで処理
-		backendCallbackURL := fmt.Sprintf("%s/api/auth/callback", s.config.BackendURL)
+		// リダイレクト先はフロントエンドのログインページ
+		// URLフラグメントでトークンを受け取るため
+		var frontendCallbackURL string
+		if req.RedirectURL != "" {
+			frontendCallbackURL = req.RedirectURL
+		} else {
+			frontendCallbackURL = fmt.Sprintf("%s/login", s.config.FrontendURL)
+		}
 
 		builder, err := url.Parse(fmt.Sprintf("%s/auth/v1/authorize", s.config.SupabaseURL))
 		if err != nil {
@@ -1077,7 +1082,7 @@ func (s *Server) LoginWithOAuth(w http.ResponseWriter, r *http.Request) {
 
 		query := builder.Query()
 		query.Set("provider", provider)
-		query.Set("redirect_to", backendCallbackURL)
+		query.Set("redirect_to", frontendCallbackURL)
 		builder.RawQuery = query.Encode()
 
 		response.Success(w, http.StatusOK, models.OAuthLoginResponse{
@@ -1161,4 +1166,103 @@ func (s *Server) RefreshToken(w http.ResponseWriter, r *http.Request) {
 		"token": authResp.AccessToken,
 		"user":  user,
 	})
+}
+
+// HandleOAuthSessionFromToken - URLフラグメントから取得したトークンを処理
+func (s *Server) HandleOAuthSessionFromToken(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		response.Error(w, http.StatusMethodNotAllowed, "Method not allowed")
+		return
+	}
+
+	fmt.Printf("\n========== OAUTH SESSION FROM TOKEN START ==========\n")
+	fmt.Printf("[OAUTH SESSION] Request received from %s\n", r.RemoteAddr)
+
+	var req struct {
+		AccessToken  string `json:"access_token"`
+		RefreshToken string `json:"refresh_token"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		fmt.Printf("[OAUTH SESSION] ❌ ERROR: Failed to decode request: %v\n", err)
+		response.Error(w, http.StatusBadRequest, "リクエスト形式が不正です")
+		return
+	}
+
+	if req.AccessToken == "" {
+		fmt.Printf("[OAUTH SESSION] ❌ ERROR: No access token provided\n")
+		response.Error(w, http.StatusBadRequest, "アクセストークンが必要です")
+		return
+	}
+
+	fmt.Printf("[OAUTH SESSION] ✓ Received tokens (access_token length: %d, refresh_token length: %d)\n",
+		len(req.AccessToken), len(req.RefreshToken))
+
+	// トークンを検証してユーザー情報を取得
+	token, err := jwt.ParseWithClaims(req.AccessToken, &middleware.SupabaseJWTClaims{}, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return []byte(s.config.SupabaseJWTSecret), nil
+	})
+
+	if err != nil {
+		fmt.Printf("[OAUTH SESSION] ❌ ERROR: Failed to parse token: %v\n", err)
+		response.Error(w, http.StatusUnauthorized, "無効なトークンです")
+		return
+	}
+
+	claims, ok := token.Claims.(*middleware.SupabaseJWTClaims)
+	if !ok || !token.Valid {
+		fmt.Printf("[OAUTH SESSION] ❌ ERROR: Invalid claims or token\n")
+		response.Error(w, http.StatusUnauthorized, "無効なトークンです")
+		return
+	}
+
+	userID := claims.Sub
+	userEmail := claims.Email
+	fmt.Printf("[OAUTH SESSION] ✓ Token validated for user: %s (%s)\n", userID, userEmail)
+
+	// プロフィール情報を取得
+	userClient := s.supabase.GetAuthenticatedClient(req.AccessToken)
+	var profiles []models.Profile
+	_, err = userClient.From("profiles").Select("*", "", false).Eq("id", userID).ExecuteTo(&profiles)
+
+	var profilePtr *models.Profile
+	if err == nil && len(profiles) > 0 {
+		profilePtr = &profiles[0]
+		fmt.Printf("[OAUTH SESSION] ✓ Profile found for user\n")
+	} else {
+		fmt.Printf("[OAUTH SESSION] ⚠️ No profile found (new user)\n")
+	}
+
+	displayName := userEmail
+	if profilePtr != nil {
+		displayName = profilePtr.DisplayName
+	}
+
+	user := models.User{
+		ID:    userID,
+		Email: userEmail,
+		Name:  displayName,
+		// CreatedAt/UpdatedAtはクレームから取得できないため、現在時刻を使用
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+
+	// HTTPOnly Cookieにトークンを設定
+	s.setAuthCookies(w, req.AccessToken, req.RefreshToken, &user, profilePtr)
+	fmt.Printf("[OAUTH SESSION] ✓ Auth cookies set successfully\n")
+
+	// セッション情報を返す
+	responseData := map[string]interface{}{
+		"id":      user.ID,
+		"email":   user.Email,
+		"name":    user.Name,
+		"profile": profilePtr,
+	}
+
+	fmt.Printf("[OAUTH SESSION] ✅ OAuth session established successfully\n")
+	fmt.Printf("========== OAUTH SESSION FROM TOKEN END (SUCCESS) ==========\n\n")
+	response.Success(w, http.StatusOK, responseData)
 }

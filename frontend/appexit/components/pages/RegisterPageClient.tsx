@@ -275,6 +275,65 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
         ? (process.env.NEXT_PUBLIC_API_URL || `${window.location.protocol}//${window.location.hostname}:8080`)
         : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080');
 
+      // URLフラグメントからSupabaseのセッショントークンを取得
+      const hash = window.location.hash;
+      console.log('[RegisterPage] Current URL:', window.location.href);
+      console.log('[RegisterPage] URL Hash:', hash);
+      console.log('[RegisterPage] Hash includes access_token:', hash.includes('access_token'));
+
+      if (hash && hash.includes('access_token')) {
+        try {
+          // URLフラグメントからトークン情報を抽出
+          const params = new URLSearchParams(hash.substring(1));
+          const accessToken = params.get('access_token');
+          const refreshToken = params.get('refresh_token');
+
+          if (accessToken) {
+            console.log('OAuth callback detected, setting up session...');
+
+            // バックエンドにトークンを送信してCookie認証を確立
+            const sessionResponse = await fetch(`${apiUrl}/api/auth/oauth/callback`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                access_token: accessToken,
+                refresh_token: refreshToken,
+              }),
+              credentials: 'include',
+              cache: 'no-store',
+            });
+
+            if (sessionResponse.ok) {
+              const result = await sessionResponse.json();
+              console.log('Session established:', result);
+
+              // URLフラグメントをクリア
+              window.history.replaceState(null, '', window.location.pathname + window.location.search);
+
+              // プロフィールが未作成の場合はステップ2へ
+              if (result.data && !result.data.profile) {
+                setSelectedMethod('github'); // または適切なメソッドを設定
+                setStep(2);
+              } else if (result.data && result.data.profile) {
+                // プロフィールが既に存在する場合はホームへリダイレクト
+                router.push('/');
+              }
+              return;
+            } else {
+              const errorData = await sessionResponse.json().catch(() => ({ error: 'セッションの確立に失敗しました' }));
+              console.error('Session setup failed:', errorData);
+              setError(errorData.error || 'セッションの確立に失敗しました');
+            }
+          }
+        } catch (error) {
+          console.error('OAuth callback error:', error);
+          setError('OAuth認証の処理中にエラーが発生しました');
+        }
+      }
+
+      // 通常のセッションチェック（URLフラグメントがない場合）
       try {
         const response = await fetch(`${apiUrl}/api/auth/session`, {
           method: 'GET',
@@ -296,7 +355,7 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
       }
     };
     checkSessionAndAdvance();
-  }, [step]);
+  }, [step, router]);
 
   const ensureAccessToken = async (): Promise<string> => {
     if (accessToken) {

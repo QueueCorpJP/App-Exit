@@ -63,8 +63,9 @@ func (s *Server) RegisterStep1(w http.ResponseWriter, r *http.Request) {
 			provider = "twitter"
 		}
 
-		// リダイレクト先はバックエンドのコールバックURL
-		backendCallbackURL := fmt.Sprintf("%s/api/auth/callback", s.config.BackendURL)
+		// リダイレクト先はフロントエンドの登録ページ
+		// URLフラグメントでトークンを受け取るため
+		frontendCallbackURL := fmt.Sprintf("%s/register", s.config.FrontendURL)
 
 		builder, err := url.Parse(fmt.Sprintf("%s/auth/v1/authorize", s.config.SupabaseURL))
 		if err != nil {
@@ -74,7 +75,7 @@ func (s *Server) RegisterStep1(w http.ResponseWriter, r *http.Request) {
 
 		query := builder.Query()
 		query.Set("provider", provider)
-		query.Set("redirect_to", backendCallbackURL)
+		query.Set("redirect_to", frontendCallbackURL)
 		builder.RawQuery = query.Encode()
 
 		response.Success(w, http.StatusOK, models.RegistrationStep1Response{
