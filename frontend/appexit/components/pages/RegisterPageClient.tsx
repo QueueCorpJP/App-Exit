@@ -305,12 +305,12 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
               // URLフラグメントをクリア
               window.history.replaceState(null, '', window.location.pathname + window.location.search);
 
-              // プロフィールが未作成の場合はステップ2へ
-              if (result.data && !result.data.profile) {
+              // プロフィールが未作成または登録未完了の場合はステップ2へ
+              if (result.data && (!result.data.profile || result.data.profile.registration_step < 5)) {
                 setSelectedMethod('github'); // または適切なメソッドを設定
                 setStep(2);
-              } else if (result.data && result.data.profile) {
-                // プロフィールが既に存在する場合はホームへリダイレクト
+              } else if (result.data && result.data.profile && result.data.profile.registration_step >= 5) {
+                // 登録が完了している場合はホームへリダイレクト
                 router.push('/');
               }
               return;
@@ -456,7 +456,7 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
     setError(undefined);
     setIsLoading(true);
     try {
-      const redirectUrl = typeof window !== 'undefined' ? `${window.location.origin}/register` : undefined;
+      const redirectUrl = typeof window !== 'undefined' ? `${window.location.origin}/${locale}/register` : undefined;
       const result = await registerStep1({ method, redirect_url: redirectUrl });
       if (result.type === 'oauth' && result.provider_url) {
         window.location.href = result.provider_url;
