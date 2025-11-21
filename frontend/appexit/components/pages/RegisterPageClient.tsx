@@ -272,7 +272,7 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
 
       // バックエンドのセッションをチェック
       const apiUrl = typeof window !== 'undefined'
-        ? (process.env.NEXT_PUBLIC_API_URL || `${window.location.protocol}//${window.location.hostname}:8080`)
+        ? (process.env.NEXT_PUBLIC_API_URL || (window.location.hostname === 'localhost' ? `${window.location.protocol}//${window.location.hostname}:8080` : `${window.location.protocol}//${window.location.hostname}`))
         : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080');
 
       // URLフラグメントからSupabaseのセッショントークンを取得
@@ -390,7 +390,7 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
     try {
       // ユーザーIDを取得（バックエンドセッションから）
       const apiUrl = typeof window !== 'undefined'
-        ? (process.env.NEXT_PUBLIC_API_URL || `${window.location.protocol}//${window.location.hostname}:8080`)
+        ? (process.env.NEXT_PUBLIC_API_URL || (window.location.hostname === 'localhost' ? `${window.location.protocol}//${window.location.hostname}:8080` : `${window.location.protocol}//${window.location.hostname}`))
         : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080');
 
       const response = await fetch(`${apiUrl}/api/auth/session`, {

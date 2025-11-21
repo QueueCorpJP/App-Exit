@@ -25,7 +25,7 @@ const AuthContext = createContext<AuthContextType>({
  */
 function getApiUrl(): string {
   if (typeof window !== 'undefined') {
-    return process.env.NEXT_PUBLIC_API_URL || `${window.location.protocol}//${window.location.hostname}:8080`;
+    return process.env.NEXT_PUBLIC_API_URL || (window.location.hostname === 'localhost' ? `${window.location.protocol}//${window.location.hostname}:8080` : `${window.location.protocol}//${window.location.hostname}`);
   }
   return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 }

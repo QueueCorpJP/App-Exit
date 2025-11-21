@@ -60,7 +60,7 @@ export default function LoginPageClient({ error: serverError }: LoginPageClientP
             console.log('[OAuth Callback] Access token length:', accessToken.length);
 
             const apiUrl = typeof window !== 'undefined'
-              ? (window.location.hostname === 'localhost' ? 'http://localhost:8080' : `${window.location.protocol}//${window.location.hostname}:8080`)
+              ? (window.location.hostname === 'localhost' ? 'http://localhost:8080' : `${window.location.protocol}//${window.location.hostname}`)
               : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080');
 
             console.log('[OAuth Callback] Sending tokens to backend:', apiUrl);

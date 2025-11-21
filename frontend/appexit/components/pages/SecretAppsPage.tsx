@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { postApi, Post } from '@/lib/api-client'
 
 interface SecretApp {
   id: string
@@ -18,39 +19,41 @@ export default function SecretAppsPage() {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    // TODO: APIからシークレット投稿を取得
-    // 仮のデータ
-    const mockApps: SecretApp[] = [
-      {
-        id: '1',
-        title: undefined, // NDA未締結の場合は非表示
-        price: 10000000,
-        category: undefined,
-        nda_required: true,
-        has_access: false,
-        seller_name: undefined,
-      },
-      {
-        id: '2',
-        title: '大手EC向けシステム',
-        price: 50000000,
-        category: 'ec',
-        nda_required: true,
-        has_access: true,
-        seller_name: '株式会社テック',
-      },
-      {
-        id: '3',
-        title: undefined,
-        price: 8000000,
-        category: undefined,
-        nda_required: true,
-        has_access: false,
-        seller_name: undefined,
-      },
-    ]
-    setApps(mockApps)
-    setIsLoading(false)
+    const fetchSecretPosts = async () => {
+      try {
+        setIsLoading(true)
+        // APIからシークレット投稿を取得
+        const posts = await postApi.getPosts({
+          post_types: ['secret'],
+          limit: 100,
+        })
+
+        // Post型をSecretApp型に変換
+        const secretApps: SecretApp[] = posts.map((post: Post) => {
+          // タイトルが空の場合はNDA未締結と判断
+          const hasAccess = post.title !== '' && post.title != null
+          
+          return {
+            id: post.id,
+            title: hasAccess ? post.title : undefined,
+            price: post.price || 0,
+            category: post.app_categories?.[0] || undefined,
+            nda_required: true,
+            has_access: hasAccess,
+            seller_name: post.author_profile?.display_name || undefined,
+          }
+        })
+
+        setApps(secretApps)
+      } catch (error) {
+        console.error('Failed to fetch secret posts:', error)
+        setApps([])
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchSecretPosts()
   }, [])
 
   const formatPrice = (amount: number) => {

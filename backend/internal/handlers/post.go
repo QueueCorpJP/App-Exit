@@ -91,6 +91,74 @@ func (s *Server) ListPostsWithAuth(w http.ResponseWriter, r *http.Request) {
 	s.ListPosts(w, r)
 }
 
+// checkNDAAgreement checks if the user/organization has signed NDA with the seller
+func (s *Server) checkNDAAgreement(buyerUserID string, sellerUserID string, sellerOrgID *string) (bool, error) {
+	if buyerUserID == "" {
+		return false, nil
+	}
+
+	client := s.supabase.GetServiceClient()
+
+	// Check if buyer user has signed NDA with seller (user-level)
+	var ndaAgreements []struct {
+		ID          string  `json:"id"`
+		BuyerUserID *string `json:"buyer_user_id"`
+		Status      string  `json:"status"`
+	}
+
+	query := client.From("nda_agreements").
+		Select("id, buyer_user_id, status", "", false).
+		Eq("status", "signed").
+		Eq("buyer_user_id", buyerUserID)
+
+	if sellerOrgID != nil && *sellerOrgID != "" {
+		query = query.Eq("seller_org_id", *sellerOrgID)
+	} else {
+		query = query.Eq("seller_user_id", sellerUserID)
+	}
+
+	_, err := query.ExecuteTo(&ndaAgreements)
+	if err == nil && len(ndaAgreements) > 0 {
+		return true, nil
+	}
+
+	// Check organization-level NDA
+	var orgMemberships []struct {
+		OrgID string `json:"org_id"`
+	}
+	_, err = client.From("org_memberships").
+		Select("org_id", "", false).
+		Eq("user_id", buyerUserID).
+		ExecuteTo(&orgMemberships)
+
+	if err == nil && len(orgMemberships) > 0 {
+		for _, membership := range orgMemberships {
+			var orgNDAAgreements []struct {
+				ID         string `json:"id"`
+				BuyerOrgID string `json:"buyer_org_id"`
+				Status     string `json:"status"`
+			}
+			orgQuery := client.From("nda_agreements").
+				Select("id, buyer_org_id, status", "", false).
+				Eq("status", "signed").
+				Eq("buyer_org_id", membership.OrgID)
+
+			if sellerOrgID != nil && *sellerOrgID != "" {
+				orgQuery = orgQuery.Eq("seller_org_id", *sellerOrgID)
+			} else {
+				orgQuery = orgQuery.Eq("seller_user_id", sellerUserID)
+			}
+
+			_, err = orgQuery.ExecuteTo(&orgNDAAgreements)
+			if err == nil && len(orgNDAAgreements) > 0 {
+				return true, nil
+			}
+		}
+	}
+
+	return false, nil
+}
+
 // ListPosts retrieves a list of posts with optional filters using Supabase
 func (s *Server) ListPosts(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("\n========== LIST POSTS START ==========\n")
@@ -98,6 +166,13 @@ func (s *Server) ListPosts(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("[GET /api/posts] Query params: %v\n", r.URL.Query())
 	
 	urlQuery := r.URL.Query()
+
+	// Get user ID from context if available (for NDA check)
+	var currentUserID string
+	if userID, ok := r.Context().Value("user_id").(string); ok {
+		currentUserID = userID
+		fmt.Printf("[ListPosts] Current user ID: %s\n", currentUserID)
+	}
 
 	// Build query parameters
 	params := models.PostQueryParams{
@@ -355,10 +430,80 @@ func (s *Server) ListPosts(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Transform to PostWithDetails
+	// Transform to PostWithDetails and apply NDA filtering for secret posts
 	result := make([]models.PostWithDetails, 0, len(postsData))
 	for _, post := range postsData {
 		activeCount := activeViewCountMap[post.ID]
+		
+		// For secret posts, check NDA agreement and filter/hide details if not signed
+		if post.Type == models.PostTypeSecret {
+			// If user is not authenticated, hide all details
+			if currentUserID == "" {
+				// Hide title, body, and other sensitive information
+				post.Title = ""
+				post.Body = nil
+				post.AppCategories = nil
+				post.ServiceURLs = nil
+				post.RevenueModels = nil
+				post.MonthlyRevenue = nil
+				post.MonthlyCost = nil
+				post.AppealText = nil
+				post.TechStack = nil
+				post.UserCount = nil
+				post.ReleaseDate = nil
+				post.OperationForm = nil
+				post.OperationEffort = nil
+				post.TransferItems = nil
+				post.DesiredTransferTiming = nil
+				post.GrowthPotential = nil
+				post.TargetCustomers = nil
+				post.MarketingChannels = nil
+				post.MediaMentions = nil
+				post.ExtraImageURLs = nil
+				post.DashboardURL = nil
+				post.UserUIURL = nil
+				post.PerformanceURL = nil
+			} else {
+				// Check NDA agreement
+				hasNDA, err := s.checkNDAAgreement(currentUserID, post.AuthorUserID, post.AuthorOrgID)
+				if err != nil {
+					fmt.Printf("[ListPosts] ⚠️ Warning: Failed to check NDA for post %s: %v\n", post.ID, err)
+				}
+				if !hasNDA {
+					// Hide details if NDA not signed
+					post.Title = ""
+					post.Body = nil
+					post.AppCategories = nil
+					post.ServiceURLs = nil
+					post.RevenueModels = nil
+					post.MonthlyRevenue = nil
+					post.MonthlyCost = nil
+					post.AppealText = nil
+					post.TechStack = nil
+					post.UserCount = nil
+					post.ReleaseDate = nil
+					post.OperationForm = nil
+					post.OperationEffort = nil
+					post.TransferItems = nil
+					post.DesiredTransferTiming = nil
+					post.GrowthPotential = nil
+					post.TargetCustomers = nil
+					post.MarketingChannels = nil
+					post.MediaMentions = nil
+					post.ExtraImageURLs = nil
+					post.DashboardURL = nil
+					post.UserUIURL = nil
+					post.PerformanceURL = nil
+					// Hide author profile name for secret posts without NDA
+					if profilesMap[post.AuthorUserID] != nil {
+						profileCopy := *profilesMap[post.AuthorUserID]
+						profileCopy.DisplayName = ""
+						profilesMap[post.AuthorUserID] = &profileCopy
+					}
+				}
+			}
+		}
+		
 		result = append(result, models.PostWithDetails{
 			Post:            post,
 			AuthorProfile:   profilesMap[post.AuthorUserID],
@@ -402,6 +547,13 @@ func (s *Server) ListPosts(w http.ResponseWriter, r *http.Request) {
 func (s *Server) GetPost(w http.ResponseWriter, r *http.Request, postID string) {
 	fmt.Printf("[GET /api/posts/%s] Querying post from Supabase...\n", postID)
 
+	// Get user ID from context if available (for NDA check)
+	var currentUserID string
+	if userID, ok := r.Context().Value("user_id").(string); ok {
+		currentUserID = userID
+		fmt.Printf("[GET /api/posts/%s] Current user ID: %s\n", postID, currentUserID)
+	}
+
 	// Use Supabase service client for querying post
 	client := s.supabase.GetServiceClient()
 	var postsData []models.Post
@@ -426,6 +578,30 @@ func (s *Server) GetPost(w http.ResponseWriter, r *http.Request, postID string) 
 
 	post := postsData[0]
 	fmt.Printf("[GET /api/posts/%s] ✓ Post found: %s\n", postID, post.Title)
+
+	// For secret posts, check NDA agreement and return 403 if not signed
+	if post.Type == models.PostTypeSecret {
+		// If user is not authenticated, return 403
+		if currentUserID == "" {
+			fmt.Printf("[GET /api/posts/%s] ❌ ERROR: Unauthenticated user trying to access secret post\n", postID)
+			http.Error(w, "NDA agreement required", http.StatusForbidden)
+			return
+		}
+
+		// Check NDA agreement
+		hasNDA, err := s.checkNDAAgreement(currentUserID, post.AuthorUserID, post.AuthorOrgID)
+		if err != nil {
+			fmt.Printf("[GET /api/posts/%s] ❌ ERROR: Failed to check NDA: %v\n", postID, err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+		if !hasNDA {
+			fmt.Printf("[GET /api/posts/%s] ❌ ERROR: User %s does not have NDA agreement for this post\n", postID, currentUserID)
+			http.Error(w, "NDA agreement required", http.StatusForbidden)
+			return
+		}
+		fmt.Printf("[GET /api/posts/%s] ✓ User %s has NDA agreement\n", postID, currentUserID)
+	}
 
 	// Fetch author profile
 	var authorProfilePtr *models.AuthorProfile

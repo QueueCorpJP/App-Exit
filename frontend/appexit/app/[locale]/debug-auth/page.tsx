@@ -11,7 +11,7 @@ export default function DebugAuthPage() {
   useEffect(() => {
     const checkAuth = async () => {
       const apiUrl = typeof window !== 'undefined'
-        ? (process.env.NEXT_PUBLIC_API_URL || `${window.location.protocol}//${window.location.hostname}:8080`)
+        ? (process.env.NEXT_PUBLIC_API_URL || (window.location.hostname === 'localhost' ? `${window.location.protocol}//${window.location.hostname}:8080` : `${window.location.protocol}//${window.location.hostname}`))
         : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080');
 
       try {
@@ -36,7 +36,7 @@ export default function DebugAuthPage() {
 
   const handleClearCookies = async () => {
     const apiUrl = typeof window !== 'undefined'
-      ? (process.env.NEXT_PUBLIC_API_URL || `${window.location.protocol}//${window.location.hostname}:8080`)
+      ? (process.env.NEXT_PUBLIC_API_URL || (window.location.hostname === 'localhost' ? `${window.location.protocol}//${window.location.hostname}:8080` : `${window.location.protocol}//${window.location.hostname}`))
       : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080');
 
     await fetch(`${apiUrl}/api/auth/logout`, {
