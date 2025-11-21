@@ -4,6 +4,9 @@
  * 1. 環境変数 NEXT_PUBLIC_API_URL (推奨)
  * 2. ブラウザ環境の場合、現在のホストから推測 (本番環境用)
  * 3. デフォルト: http://localhost:8080 (開発環境用)
+ *
+ * 注意: 本番環境ではNginxが /api/ をバックエンドにプロキシするため、
+ * ベースURLは https://appexit.jp （/api なし）を返す
  */
 function getApiUrl(): string {
   // 環境変数が設定されている場合はそれを使用（ビルド時に埋め込まれる）
@@ -15,11 +18,14 @@ function getApiUrl(): string {
   if (typeof window !== 'undefined') {
     const host = window.location.hostname;
     const protocol = window.location.protocol;
-    
-    // 本番環境（localhost以外）の場合、同じホストのポート8080を使用
+
+    // 本番環境（localhost以外）の場合、同じホストを使用（Nginxが /api/ をプロキシ）
     if (host !== 'localhost' && host !== '127.0.0.1') {
-      return `${protocol}//${host}:8080`;
+      return `${protocol}//${host}`;
     }
+
+    // 開発環境（localhost）の場合、ポート8080を使用
+    return `${protocol}//${host}:8080`;
   }
 
   // デフォルト（開発環境）
@@ -38,6 +44,9 @@ function getApiUrlWithCache(): string {
 
 // デフォルト値（SSR時や初期化時用）
 const API_URL = typeof window !== 'undefined' ? getApiUrl() : 'http://localhost:8080';
+
+// Export getApiUrl for use in other components
+export { getApiUrl };
 
 
 export interface LoginRequest {

@@ -1,4 +1,6 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+import { getApiUrl } from './auth-api';
+
+const API_URL = getApiUrl();
 
 interface RequestOptions extends RequestInit {
   params?: Record<string, string | number | boolean>;
@@ -515,9 +517,10 @@ export const messageApi = {
     const formData = new FormData();
     formData.append('image', file);
 
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+    // 上部でインポートしたgetApiUrl()を使用
+    const apiUrl = getApiUrl();
 
-    const response = await fetch(`${API_URL}/api/messages/upload-image`, {
+    const response = await fetch(`${apiUrl}/api/messages/upload-image`, {
       method: 'POST',
       credentials: 'include',
       body: formData,

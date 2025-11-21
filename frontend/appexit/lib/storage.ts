@@ -1,4 +1,6 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+import { getApiUrl } from './auth-api';
+
+const API_URL = getApiUrl();
 
 /**
  * バックエンドAPI経由で画像をアップロードする

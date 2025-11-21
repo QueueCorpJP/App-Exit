@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, useRef } from 'react';
-import { User, Profile } from './auth-api';
+import { User, Profile, getApiUrl } from './auth-api';
 import { supabase } from './supabase';
 
 interface AuthContextType {
@@ -20,15 +20,7 @@ const AuthContext = createContext<AuthContextType>({
   signOut: async () => {},
 });
 
-/**
- * API URLを取得
- */
-function getApiUrl(): string {
-  if (typeof window !== 'undefined') {
-    return process.env.NEXT_PUBLIC_API_URL || (window.location.hostname === 'localhost' ? `${window.location.protocol}//${window.location.hostname}:8080` : `${window.location.protocol}//${window.location.hostname}`);
-  }
-  return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
-}
+// getApiUrl は auth-api.ts からインポート
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);

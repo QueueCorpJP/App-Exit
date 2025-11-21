@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
+import { getApiUrl } from '@/lib/auth-api';
 
 export default function DebugAuthPage() {
   const { user, loading } = useAuth();
@@ -10,9 +11,7 @@ export default function DebugAuthPage() {
 
   useEffect(() => {
     const checkAuth = async () => {
-      const apiUrl = typeof window !== 'undefined'
-        ? (process.env.NEXT_PUBLIC_API_URL || (window.location.hostname === 'localhost' ? `${window.location.protocol}//${window.location.hostname}:8080` : `${window.location.protocol}//${window.location.hostname}`))
-        : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080');
+      const apiUrl = getApiUrl();
 
       try {
         const response = await fetch(`${apiUrl}/api/auth/session`, {
@@ -35,9 +34,7 @@ export default function DebugAuthPage() {
   }, []);
 
   const handleClearCookies = async () => {
-    const apiUrl = typeof window !== 'undefined'
-      ? (process.env.NEXT_PUBLIC_API_URL || (window.location.hostname === 'localhost' ? `${window.location.protocol}//${window.location.hostname}:8080` : `${window.location.protocol}//${window.location.hostname}`))
-      : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080');
+    const apiUrl = getApiUrl();
 
     await fetch(`${apiUrl}/api/auth/logout`, {
       method: 'POST',

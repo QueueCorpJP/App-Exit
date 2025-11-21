@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 import Button from '@/components/ui/Button'
+import { getApiUrl } from '@/lib/auth-api'
 
 interface NDAPageProps {
   appId: string
@@ -29,9 +30,7 @@ export default function NDAPage({ appId, sellerId }: NDAPageProps) {
 
     try {
       // バックエンドにNDA同意を保存
-      const apiUrl = typeof window !== 'undefined'
-        ? (window.location.hostname === 'localhost' ? 'http://localhost:8080' : `${window.location.protocol}//${window.location.hostname}`)
-        : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080');
+      const apiUrl = getApiUrl();
 
       const response = await fetch(`${apiUrl}/api/auth/profile`, {
         method: 'PUT',

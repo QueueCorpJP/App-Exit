@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations, useLocale } from 'next-intl';
 import { useAuth } from '@/lib/auth-context';
 import Button from '@/components/ui/Button';
-import { loginWithBackend, loginWithOAuth, LoginMethod } from '@/lib/auth-api';
+import { loginWithBackend, loginWithOAuth, LoginMethod, getApiUrl } from '@/lib/auth-api';
 import { validateEmail, INPUT_LIMITS } from '@/lib/input-validator';
 
 interface LoginPageClientProps {
@@ -59,9 +59,8 @@ export default function LoginPageClient({ error: serverError }: LoginPageClientP
           if (accessToken) {
             console.log('[OAuth Callback] Access token length:', accessToken.length);
 
-            const apiUrl = typeof window !== 'undefined'
-              ? (window.location.hostname === 'localhost' ? 'http://localhost:8080' : `${window.location.protocol}//${window.location.hostname}`)
-              : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080');
+            // 統一されたAPI URL取得関数を使用
+            const apiUrl = getApiUrl();
 
             console.log('[OAuth Callback] Sending tokens to backend:', apiUrl);
 

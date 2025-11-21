@@ -18,6 +18,7 @@ import {
   registerStep3,
   registerStep4,
   registerStep5,
+  getApiUrl,
 } from '@/lib/auth-api';
 import { UserRound, Building, Camera, X } from 'lucide-react';
 import RoleSelector from '@/components/register/RoleSelector';
@@ -271,9 +272,7 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
       if (step !== 1) return;
 
       // バックエンドのセッションをチェック
-      const apiUrl = typeof window !== 'undefined'
-        ? (process.env.NEXT_PUBLIC_API_URL || (window.location.hostname === 'localhost' ? `${window.location.protocol}//${window.location.hostname}:8080` : `${window.location.protocol}//${window.location.hostname}`))
-        : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080');
+      const apiUrl = getApiUrl();
 
       // URLフラグメントからSupabaseのセッショントークンを取得
       const hash = window.location.hash;
@@ -389,9 +388,7 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
     setError(undefined);
     try {
       // ユーザーIDを取得（バックエンドセッションから）
-      const apiUrl = typeof window !== 'undefined'
-        ? (process.env.NEXT_PUBLIC_API_URL || (window.location.hostname === 'localhost' ? `${window.location.protocol}//${window.location.hostname}:8080` : `${window.location.protocol}//${window.location.hostname}`))
-        : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080');
+      const apiUrl = getApiUrl();
 
       const response = await fetch(`${apiUrl}/api/auth/session`, {
         method: 'GET',
