@@ -598,7 +598,7 @@ func (s *Server) setAuthCookies(w http.ResponseWriter, accessToken, refreshToken
 		Domain:   cookieDomain,
 		HttpOnly: true,
 		Secure:   isSecure, // 本番環境ではtrue（HTTPS必須）
-		SameSite: http.SameSiteLaxMode,
+		SameSite: http.SameSiteStrictMode,
 		MaxAge:   30 * 60, // 30分（Supabase JWTの有効期限と一致）
 	})
 
@@ -611,7 +611,7 @@ func (s *Server) setAuthCookies(w http.ResponseWriter, accessToken, refreshToken
 		Domain:   cookieDomain,
 		HttpOnly: true, // XSS攻撃から保護（JavaScriptからアクセス不可）
 		Secure:   isSecure, // 本番環境ではtrue（HTTPS必須）
-		SameSite: http.SameSiteLaxMode,
+		SameSite: http.SameSiteStrictMode,
 		MaxAge:   30 * 60, // 30分（Supabase JWTの有効期限と一致）
 	})
 
@@ -623,7 +623,7 @@ func (s *Server) setAuthCookies(w http.ResponseWriter, accessToken, refreshToken
 		Domain:   cookieDomain,
 		HttpOnly: true,
 		Secure:   isSecure, // 本番環境ではtrue（HTTPS必須）
-		SameSite: http.SameSiteLaxMode,
+		SameSite: http.SameSiteStrictMode,
 		MaxAge:   60 * 60 * 24 * 2, // 2日間
 	})
 
@@ -637,7 +637,7 @@ func (s *Server) setAuthCookies(w http.ResponseWriter, accessToken, refreshToken
 		Domain:   cookieDomain,
 		HttpOnly: true,
 		Secure:   isSecure, // 本番環境ではtrue（HTTPS必須）
-		SameSite: http.SameSiteLaxMode,
+		SameSite: http.SameSiteStrictMode,
 		MaxAge:   60 * 60 * 24 * 2, // 2日間（refresh_tokenと同じ）
 	})
 
