@@ -356,22 +356,38 @@ export async function registerStep5(data: RegistrationStep5Request, token: strin
  */
 export async function loginWithOAuth(data: OAuthLoginRequest): Promise<OAuthLoginResponse> {
   const apiUrl = typeof window !== 'undefined' ? getApiUrlWithCache() : API_URL;
-  const response = await fetch(`${apiUrl}/api/auth/login/oauth`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(data),
-    cache: 'no-store',
+
+  console.log('[Auth API] OAuth login request:', {
+    method: data.method,
+    apiUrl,
+    redirectUrl: data.redirect_url
   });
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: 'OAuthログインの開始に失敗しました' }));
-    throw new Error(error.error || error.message || 'OAuthログインの開始に失敗しました');
-  }
+  try {
+    const response = await fetch(`${apiUrl}/api/auth/login/oauth`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+      cache: 'no-store',
+    });
 
-  const result = await response.json();
-  return result.data as OAuthLoginResponse;
+    console.log('[Auth API] OAuth response status:', response.status);
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'OAuthログインの開始に失敗しました' }));
+      console.error('[Auth API] OAuth error response:', error);
+      throw new Error(error.error || error.message || 'OAuthログインの開始に失敗しました');
+    }
+
+    const result = await response.json();
+    console.log('[Auth API] OAuth success response:', result);
+    return result.data as OAuthLoginResponse;
+  } catch (error) {
+    console.error('[Auth API] OAuth request failed:', error);
+    throw error;
+  }
 }
 
 /**

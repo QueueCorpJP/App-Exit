@@ -13,5 +13,10 @@
   "company": "Company Name",
   "position": "Position",
   "signature": "Signature",
-  "date": "Date"
+  "date": "Date",
+  "ndaTitle": "Non-Disclosure Agreement",
+  "ndaSubtitle": "Confidentiality Agreement",
+  "cancel": "Cancel",
+  "updating": "Updating...",
+  "failedToUpdate": "Failed to update"
 }

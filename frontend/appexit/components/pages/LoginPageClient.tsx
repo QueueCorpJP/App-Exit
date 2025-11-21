@@ -37,18 +37,33 @@ export default function LoginPageClient({ error: serverError }: LoginPageClientP
     const handleOAuthCallback = async () => {
       const hash = window.location.hash;
 
+      console.log('[OAuth Callback] Checking URL hash:', hash);
+
       if (hash && hash.includes('access_token')) {
         setIsLoading(true);
+        console.log('[OAuth Callback] Access token found in URL fragment');
         try {
           // URLフラグメントからトークン情報を抽出
           const params = new URLSearchParams(hash.substring(1));
           const accessToken = params.get('access_token');
           const refreshToken = params.get('refresh_token');
+          const errorParam = params.get('error');
+          const errorDescription = params.get('error_description');
+
+          // エラーチェック
+          if (errorParam) {
+            console.error('[OAuth Callback] Error from provider:', errorParam, errorDescription);
+            throw new Error(errorDescription || errorParam);
+          }
 
           if (accessToken) {
+            console.log('[OAuth Callback] Access token length:', accessToken.length);
+
             const apiUrl = typeof window !== 'undefined'
               ? (window.location.hostname === 'localhost' ? 'http://localhost:8080' : `${window.location.protocol}//${window.location.hostname}:8080`)
               : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080');
+
+            console.log('[OAuth Callback] Sending tokens to backend:', apiUrl);
 
             // バックエンドにトークンを送信してCookie認証を確立
             const sessionResponse = await fetch(`${apiUrl}/api/auth/oauth/callback`, {
@@ -64,9 +79,15 @@ export default function LoginPageClient({ error: serverError }: LoginPageClientP
               cache: 'no-store',
             });
 
+            console.log('[OAuth Callback] Backend response status:', sessionResponse.status);
+
             if (!sessionResponse.ok) {
-              throw new Error('OAuth認証に失敗しました');
+              const errorData = await sessionResponse.json().catch(() => ({ error: 'OAuth認証に失敗しました' }));
+              console.error('[OAuth Callback] Backend error:', errorData);
+              throw new Error(errorData.error || 'OAuth認証に失敗しました');
             }
+
+            console.log('[OAuth Callback] Session established successfully');
 
             // 認証コンテキストを更新
             await refreshSession();
@@ -74,15 +95,27 @@ export default function LoginPageClient({ error: serverError }: LoginPageClientP
             // URLフラグメントをクリア
             window.history.replaceState(null, '', window.location.pathname + window.location.search);
 
+            console.log('[OAuth Callback] Redirecting to:', redirectUrl);
+
             // リダイレクト先へ遷移
             router.push(redirectUrl);
             router.refresh();
           }
         } catch (err) {
-          console.error('OAuth callback error:', err);
+          console.error('[OAuth Callback] Error:', err);
           setError(err instanceof Error ? err.message : 'OAuth認証に失敗しました');
           setIsLoading(false);
+          // URLフラグメントをクリア（エラー時も）
+          window.history.replaceState(null, '', window.location.pathname + window.location.search);
         }
+      } else if (hash && hash.includes('error')) {
+        // エラーがURLフラグメントに含まれている場合
+        const params = new URLSearchParams(hash.substring(1));
+        const errorParam = params.get('error');
+        const errorDescription = params.get('error_description');
+        console.error('[OAuth Callback] OAuth error in URL:', errorParam, errorDescription);
+        setError(errorDescription || errorParam || 'OAuth認証に失敗しました');
+        window.history.replaceState(null, '', window.location.pathname + window.location.search);
       }
     };
 
@@ -95,16 +128,23 @@ export default function LoginPageClient({ error: serverError }: LoginPageClientP
     try {
       const redirectUrl = typeof window !== 'undefined' ? `${window.location.origin}/login` : undefined;
 
+      console.log(`[OAuth Login] Starting ${method} login with redirect: ${redirectUrl}`);
+
       const result = await loginWithOAuth({ method, redirect_url: redirectUrl });
 
+      console.log('[OAuth Login] Received response:', result);
+
       if (result.type === 'oauth' && result.provider_url) {
+        console.log(`[OAuth Login] Redirecting to provider URL: ${result.provider_url}`);
         window.location.href = result.provider_url;
         return;
       }
+      console.error('[OAuth Login] Invalid response:', result);
       throw new Error(t('auth.loginError'));
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('auth.loginError'));
-    } finally {
+      console.error('[OAuth Login] Error:', err);
+      const errorMessage = err instanceof Error ? err.message : t('auth.loginError');
+      setError(errorMessage);
       setIsLoading(false);
     }
   }

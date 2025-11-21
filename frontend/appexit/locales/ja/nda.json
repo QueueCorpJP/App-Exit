@@ -13,5 +13,10 @@
   "company": "会社名",
   "position": "役職",
   "signature": "署名",
-  "date": "日付"
+  "date": "日付",
+  "ndaTitle": "秘密保持契約書",
+  "ndaSubtitle": "Non-Disclosure Agreement (NDA)",
+  "cancel": "キャンセル",
+  "updating": "更新中...",
+  "failedToUpdate": "更新に失敗しました"
 }

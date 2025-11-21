@@ -70,6 +70,8 @@
   "failedToCreateSaleRequest": "Failed to create sale request",
   "saleRequestNotFound": "Sale request not found",
   "paymentProcessingFailed": "Payment processing failed",
+  "purchaseConfirmedTitle": "Purchase confirmed",
+  "purchaseConfirmedMessage": "We will contact you by email within 1 business day.",
   "contracts": {
     "nda": "Non-Disclosure Agreement (NDA)",
     "loi": "Letter of Intent (LOI / MOU)",

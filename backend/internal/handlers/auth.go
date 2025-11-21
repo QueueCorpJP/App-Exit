@@ -1104,13 +1104,19 @@ func (s *Server) LoginWithOAuth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	fmt.Printf("\n========== OAUTH LOGIN START ==========\n")
+	fmt.Printf("[OAUTH LOGIN] Request received from %s\n", r.RemoteAddr)
+
 	var req models.OAuthLoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		fmt.Printf("[OAUTH LOGIN] ❌ ERROR: Failed to decode request: %v\n", err)
 		response.Error(w, http.StatusBadRequest, "リクエスト形式が不正です")
 		return
 	}
 
 	method := strings.ToLower(string(req.Method))
+	fmt.Printf("[OAUTH LOGIN] Requested provider: %s\n", method)
+
 	switch method {
 	case "google", "github", "x":
 		provider := method
@@ -1126,9 +1132,12 @@ func (s *Server) LoginWithOAuth(w http.ResponseWriter, r *http.Request) {
 		} else {
 			frontendCallbackURL = fmt.Sprintf("%s/login", s.config.FrontendURL)
 		}
+		fmt.Printf("[OAUTH LOGIN] Frontend callback URL: %s\n", frontendCallbackURL)
 
+		// Supabase OAuth URLを構築
 		builder, err := url.Parse(fmt.Sprintf("%s/auth/v1/authorize", s.config.SupabaseURL))
 		if err != nil {
+			fmt.Printf("[OAUTH LOGIN] ❌ ERROR: Failed to parse OAuth URL: %v\n", err)
 			response.Error(w, http.StatusInternalServerError, "OAuth URLの生成に失敗しました")
 			return
 		}
@@ -1138,13 +1147,19 @@ func (s *Server) LoginWithOAuth(w http.ResponseWriter, r *http.Request) {
 		query.Set("redirect_to", frontendCallbackURL)
 		builder.RawQuery = query.Encode()
 
+		oauthURL := builder.String()
+		fmt.Printf("[OAUTH LOGIN] ✓ Generated OAuth URL: %s\n", oauthURL)
+		fmt.Printf("[OAUTH LOGIN] ✓ Provider: %s\n", provider)
+		fmt.Printf("========== OAUTH LOGIN END ==========\n\n")
+
 		response.Success(w, http.StatusOK, models.OAuthLoginResponse{
 			Type:        "oauth",
-			ProviderURL: builder.String(),
+			ProviderURL: oauthURL,
 		})
 		return
 	default:
-		response.Error(w, http.StatusBadRequest, "サポートされていないログイン方法です")
+		fmt.Printf("[OAUTH LOGIN] ❌ ERROR: Unsupported provider: %s\n", method)
+		response.Error(w, http.StatusBadRequest, fmt.Sprintf("サポートされていないログイン方法です: %s", method))
 		return
 	}
 }

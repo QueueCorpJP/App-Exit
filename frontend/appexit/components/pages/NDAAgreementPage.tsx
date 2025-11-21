@@ -33,7 +33,7 @@ export default function NDAAgreementPage() {
       router.back();
     } catch (error) {
       console.error('Failed to update NDA flag:', error);
-      alert(locale === 'ja' ? '更新に失敗しました' : 'Failed to update');
+      alert(t('nda.failedToUpdate'));
     } finally {
       setIsUpdating(false);
     }
@@ -52,10 +52,10 @@ export default function NDAAgreementPage() {
           {/* タイトル */}
           <div className="text-center mb-12 border-b-2 pb-6" style={{ borderColor: '#323232' }}>
             <h1 className="text-2xl font-bold mb-2 tracking-wide" style={{ color: '#323232' }}>
-              {locale === 'ja' ? '秘密保持契約書' : 'Non-Disclosure Agreement'}
+              {t('nda.ndaTitle')}
             </h1>
             <p className="text-sm mt-2" style={{ color: '#323232' }}>
-              {locale === 'ja' ? 'Non-Disclosure Agreement (NDA)' : 'Confidentiality Agreement'}
+              {t('nda.ndaSubtitle')}
             </p>
           </div>
 
@@ -321,7 +321,7 @@ export default function NDAAgreementPage() {
                 className="flex-1 px-6 py-3 border-2 text-sm font-medium hover:bg-gray-50 transition-colors rounded-sm"
                 style={{ borderColor: '#323232', color: '#323232' }}
               >
-                {locale === 'ja' ? 'キャンセル' : 'Cancel'}
+                {t('nda.cancel')}
               </button>
               <button
                 type="button"
@@ -334,9 +334,9 @@ export default function NDAAgreementPage() {
                 }`}
                 style={agreed && !authLoading && !isUpdating ? { backgroundColor: '#323232', borderColor: '#323232' } : { borderColor: '#d1d5db' }}
               >
-                {isUpdating 
-                  ? (locale === 'ja' ? '更新中...' : 'Updating...')
-                  : (locale === 'ja' ? '同意する' : 'I Agree')
+                {isUpdating
+                  ? t('nda.updating')
+                  : t('nda.iAgree')
                 }
               </button>
             </div>

@@ -639,10 +639,7 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
   };
 
   const handleSubmitStep5 = async () => {
-    if (!agreements.nda) {
-      setError(t('registerAgreeNDA'));
-      return;
-    }
+    // NDAは任意なのでチェックを削除
     if (!agreements.terms || !agreements.privacy) {
       setError(t('registerAgreeTermsPrivacy'));
       return;
@@ -1188,22 +1185,25 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
               {t('registerAgreements')}
             </h3>
             <div className="space-y-4">
-              <label className="flex items-center gap-3 text-sm text-gray-900">
+              <div className="flex items-center gap-3 text-sm text-gray-900">
                 <input
                   type="checkbox"
                   className="h-4 w-4 border-gray-300"
                   style={{ accentColor: '#323232' }}
                   checked={agreements.nda}
                   onChange={(e) => setAgreements((prev) => ({ ...prev, nda: e.target.checked }))}
-                  required
                 />
                 <span>
-                  <span className="font-medium">
+                  <button
+                    type="button"
+                    onClick={() => window.open(`/${locale}/nda`, '_blank')}
+                    className="font-medium underline hover:text-blue-600"
+                  >
                     {t('registerAgreeNDALabel')}
-                  </span>
+                  </button>
                 </span>
-              </label>
-              <label className="flex items-center gap-3 text-sm text-gray-900">
+              </div>
+              <div className="flex items-center gap-3 text-sm text-gray-900">
                 <input
                   type="checkbox"
                   className="h-4 w-4 border-gray-300"
@@ -1213,21 +1213,16 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
                   required
                 />
                 <span>
-                  <>
-                    {t('registerAgreeTermsLabel')}{' '}
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => window.open(`/${locale}/terms`, '_blank')}
-                      className="p-0 h-auto ml-1 underline"
-                    >
-                      {t('registerViewDetails')}
-                    </Button>
-                  </>
+                  <button
+                    type="button"
+                    onClick={() => window.open(`/${locale}/terms`, '_blank')}
+                    className="font-medium underline hover:text-blue-600"
+                  >
+                    {t('registerAgreeTermsLabel')}
+                  </button>
                 </span>
-              </label>
-              <label className="flex items-center gap-3 text-sm text-gray-900">
+              </div>
+              <div className="flex items-center gap-3 text-sm text-gray-900">
                 <input
                   type="checkbox"
                   className="h-4 w-4 border-gray-300"
@@ -1237,20 +1232,15 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
                   required
                 />
                 <span>
-                  <>
-                    {t('registerAgreePrivacyLabel')}{' '}
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => window.open(`/${locale}/privacy`, '_blank')}
-                      className="p-0 h-auto ml-1 underline"
-                    >
-                      {t('registerViewDetails')}
-                    </Button>
-                  </>
+                  <button
+                    type="button"
+                    onClick={() => window.open(`/${locale}/privacy`, '_blank')}
+                    className="font-medium underline hover:text-blue-600"
+                  >
+                    {t('registerAgreePrivacyLabel')}
+                  </button>
                 </span>
-              </label>
+              </div>
             </div>
           </div>
         );

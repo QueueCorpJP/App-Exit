@@ -125,14 +125,14 @@ function MessageThread({
     const now = new Date();
     const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
 
-    if (diffInMinutes < 1) return locale === 'ja' ? 'たった今' : 'Just now';
-    if (diffInMinutes < 60) return locale === 'ja' ? `${diffInMinutes}分前` : `${diffInMinutes}m ago`;
+    if (diffInMinutes < 1) return t('messages.justNow');
+    if (diffInMinutes < 60) return t('messages.minutesAgo', { minutes: diffInMinutes });
 
     const diffInHours = Math.floor(diffInMinutes / 60);
-    if (diffInHours < 24) return locale === 'ja' ? `${diffInHours}時間前` : `${diffInHours}h ago`;
+    if (diffInHours < 24) return t('messages.hoursAgo', { hours: diffInHours });
 
     const diffInDays = Math.floor(diffInHours / 24);
-    if (diffInDays < 7) return locale === 'ja' ? `${diffInDays}日前` : `${diffInDays}d ago`;
+    if (diffInDays < 7) return t('messages.daysAgo', { days: diffInDays });
 
     return date.toLocaleDateString(locale === 'ja' ? 'ja-JP' : 'en-US', { month: 'short', day: 'numeric' });
   };
@@ -227,7 +227,10 @@ function MessageThread({
   // 売却リクエストの状態を判定
   const currentUserSaleRequest = saleRequests.find(req => req.user_id === currentUserId && req.status === 'pending');
   const otherUserSaleRequest = saleRequests.find(req => req.user_id !== currentUserId && req.status === 'pending');
-  
+
+  // 買収が確定しているかチェック（activeステータス）
+  const activeSaleRequest = saleRequests.find(req => req.status === 'active');
+
   // ボタンの表示を判定
   const getSaleButtonConfig = () => {
     if (currentUserSaleRequest) {
@@ -276,6 +279,23 @@ function MessageThread({
 
   return (
     <div className="flex-1 md:flex-1 w-full md:w-auto flex flex-col h-full overflow-hidden bg-white relative">
+      {/* 買収確定トースト */}
+      {activeSaleRequest && (
+        <div className="bg-green-50 border-b-2 border-green-500 px-4 py-3 flex items-center gap-3 flex-shrink-0">
+          <div className="flex-shrink-0">
+            <Check className="w-5 h-5 text-green-600" />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-green-900">
+              {t('messages.purchaseConfirmedTitle')}
+            </p>
+            <p className="text-xs text-green-700 mt-0.5">
+              {t('messages.purchaseConfirmedMessage')}
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* チャットヘッダー */}
       <div className="p-4 border-b border-gray-200 bg-white flex-shrink-0 relative z-10">
         <div className="flex items-center justify-between gap-4">
@@ -295,7 +315,7 @@ function MessageThread({
             <button
               onClick={() => {
                 if (otherParticipant?.id) {
-                  router.push(`/profiles/${otherParticipant.id}`);
+                  router.push(`/profile/${otherParticipant.id}`);
                 }
               }}
               className="relative hover:opacity-80 transition-opacity cursor-pointer flex-shrink-0"
@@ -321,7 +341,7 @@ function MessageThread({
             <button
               onClick={() => {
                 if (otherParticipant?.id) {
-                  router.push(`/profiles/${otherParticipant.id}`);
+                  router.push(`/profile/${otherParticipant.id}`);
                 }
               }}
               className="hidden md:block hover:opacity-80 transition-opacity cursor-pointer min-w-0"

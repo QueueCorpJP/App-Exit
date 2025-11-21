@@ -70,6 +70,8 @@
   "failedToCreateSaleRequest": "売却リクエストの作成に失敗しました",
   "saleRequestNotFound": "売却リクエストが見つかりません",
   "paymentProcessingFailed": "決済処理に失敗しました",
+  "purchaseConfirmedTitle": "買収が確定しました",
+  "purchaseConfirmedMessage": "1営業日以内にメールにてご連絡いたします。",
   "contracts": {
     "nda": "秘密保持契約（NDA）",
     "loi": "基本合意書（LOI / MOU）",
