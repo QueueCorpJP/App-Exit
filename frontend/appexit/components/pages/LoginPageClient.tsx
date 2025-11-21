@@ -96,8 +96,10 @@ export default function LoginPageClient({ error: serverError }: LoginPageClientP
 
             console.log('[OAuth Callback] Redirecting to:', redirectUrl);
 
-            // リダイレクト先へ遷移
-            router.push(redirectUrl);
+            // リダイレクト先へ遷移（ロケール付き）
+            const finalRedirectUrl = redirectUrl.startsWith('/') ? `/${locale}${redirectUrl}` : redirectUrl;
+            console.log('[OAuth Callback] Final redirect URL with locale:', finalRedirectUrl);
+            router.push(finalRedirectUrl);
             router.refresh();
           }
         } catch (err) {
@@ -125,7 +127,10 @@ export default function LoginPageClient({ error: serverError }: LoginPageClientP
     setError(undefined);
     setIsLoading(true);
     try {
-      const redirectUrl = typeof window !== 'undefined' ? `${window.location.origin}/login` : undefined;
+      // ロケールを含めたリダイレクトURLを生成
+      const redirectUrl = typeof window !== 'undefined'
+        ? `${window.location.origin}/${locale}/login`
+        : undefined;
 
       console.log(`[OAuth Login] Starting ${method} login with redirect: ${redirectUrl}`);
 
