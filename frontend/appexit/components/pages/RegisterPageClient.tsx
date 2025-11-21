@@ -305,14 +305,9 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
               // URLフラグメントをクリア
               window.history.replaceState(null, '', window.location.pathname + window.location.search);
 
-              // プロフィールが未作成または登録未完了の場合はステップ2へ
-              if (result.data && (!result.data.profile || result.data.profile.registration_step < 5)) {
-                setSelectedMethod('github'); // または適切なメソッドを設定
-                setStep(2);
-              } else if (result.data && result.data.profile && result.data.profile.registration_step >= 5) {
-                // 登録が完了している場合はホームへリダイレクト
-                router.push('/');
-              }
+              // OAuth認証成功後は常にステップ2へ進む（メールアドレスはOAuthから取得済み）
+              setSelectedMethod('github');
+              setStep(2);
               return;
             } else {
               const errorData = await sessionResponse.json().catch(() => ({ error: 'セッションの確立に失敗しました' }));
