@@ -480,9 +480,9 @@ func (s *Server) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	// 更新されたプロフィールを取得
 	fmt.Printf("[UPDATE PROFILE] Fetching updated profile...\n")
 	var profiles []models.Profile
-	_, err = impersonateClient.From("profiles").Select("*", "", false).Eq("id", userID).ExecuteTo(&profiles)
-	if err != nil {
-		fmt.Printf("[UPDATE PROFILE] ❌ ERROR: Failed to fetch updated profile: %v\n", err)
+	_, profileErr := impersonateClient.From("profiles").Select("*", "", false).Eq("id", userID).ExecuteTo(&profiles)
+	if profileErr != nil {
+		fmt.Printf("[UPDATE PROFILE] ❌ ERROR: Failed to fetch updated profile: %v\n", profileErr)
 		fmt.Printf("========== UPDATE PROFILE END (FAILED) ==========\n\n")
 		response.Error(w, http.StatusInternalServerError, "Failed to fetch updated profile")
 		return
