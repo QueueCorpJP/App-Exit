@@ -311,7 +311,7 @@
     "registerAcquisitionPlaceholder": "e.g., 6",
     "registerSelectRolesHint": "Select roles in Step 2 to see corresponding input fields here.",
     "registerAgreements": "Agreements",
-    "registerAgreeNDALabel": "I agree to the NDA (Non-Disclosure Agreement) (Required)",
+    "registerAgreeNDALabel": "I agree to the NDA (Non-Disclosure Agreement) (Optional)",
     "registerAgreeTermsLabel": "I agree to the Terms of Service (Required)",
     "registerAgreePrivacyLabel": "I agree to the Privacy Policy (Required)",
     "registerViewDetails": "View Details",

@@ -311,7 +311,7 @@
     "registerAcquisitionPlaceholder": "例: 6",
     "registerSelectRolesHint": "ステップ2でロールを選択すると、ここに対応する入力項目が表示されます。",
     "registerAgreements": "同意事項",
-    "registerAgreeNDALabel": "NDA（秘密保持契約）の締結に同意します（必須）",
+    "registerAgreeNDALabel": "NDA（秘密保持契約）の締結に同意します（任意）",
     "registerAgreeTermsLabel": "利用規約に同意します（必須）",
     "registerAgreePrivacyLabel": "プライバシーポリシーに同意します（必須）",
     "registerViewDetails": "内容を確認する",

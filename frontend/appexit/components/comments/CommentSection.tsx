@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { commentApi, PostCommentWithDetails, CreateCommentRequest } from '@/lib/api-client';
 import StorageImage from '@/components/ui/StorageImage';
+import AvatarImage from '@/components/ui/AvatarImage';
 import { useAuth } from '@/lib/auth-context';
 import { sanitizeText, INPUT_LIMITS } from '@/lib/input-validator';
 
@@ -124,23 +125,11 @@ export default function CommentSection({ postId }: CommentSectionProps) {
       {user && (
         <div className="border-b border-gray-200 pb-6">
           <div className="flex items-center gap-3">
-            {profile?.icon_url ? (
-              <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0">
-                <StorageImage
-                  path={profile.icon_url}
-                  alt={profile.display_name || (t('user'))}
-                  width={40}
-                  height={40}
-                  className="object-cover w-full h-full"
-                />
-              </div>
-            ) : (
-              <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center flex-shrink-0">
-                <span className="text-sm font-bold text-gray-600">
-                  {(profile?.display_name || user.email || 'U').charAt(0).toUpperCase()}
-                </span>
-              </div>
-            )}
+            <AvatarImage
+              path={profile?.icon_url}
+              alt={profile?.display_name || t('user')}
+              size="md"
+            />
             <div className="flex-1 flex items-center gap-2">
               <textarea
                 value={commentContent}
@@ -196,23 +185,11 @@ export default function CommentSection({ postId }: CommentSectionProps) {
         <div className="space-y-6">
           {comments.map((comment) => (
             <div key={comment.id} className="flex gap-3">
-              {comment.author_profile?.icon_url ? (
-                <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0">
-                  <StorageImage
-                    path={comment.author_profile.icon_url}
-                    alt={comment.author_profile.display_name}
-                    width={40}
-                    height={40}
-                    className="object-cover w-full h-full"
-                  />
-                </div>
-              ) : (
-                <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center flex-shrink-0">
-                  <span className="text-sm font-bold text-gray-600">
-                    {comment.author_profile?.display_name?.charAt(0).toUpperCase() || 'U'}
-                  </span>
-                </div>
-              )}
+              <AvatarImage
+                path={comment.author_profile?.icon_url}
+                alt={comment.author_profile?.display_name || t('anonymousUser')}
+                size="md"
+              />
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
                   <span className="font-semibold text-sm text-gray-900">

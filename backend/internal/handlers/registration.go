@@ -559,10 +559,10 @@ func (s *Server) GetRegistrationProgress(w http.ResponseWriter, r *http.Request)
         return
     }
 
-    // 同意完了（NDA/規約/プライバシー）: 全ロールで完了していれば完了
+    // 同意完了（規約/プライバシー）: 全ロールで完了していれば完了 (NDAは任意)
     needConsent := false
     for _, p := range profiles {
-        if !p.NDAFlag || p.TermsAcceptedAt == nil || p.PrivacyAcceptedAt == nil {
+        if p.TermsAcceptedAt == nil || p.PrivacyAcceptedAt == nil {
             needConsent = true
             break
         }

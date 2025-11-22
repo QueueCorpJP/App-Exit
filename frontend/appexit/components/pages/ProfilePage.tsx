@@ -15,6 +15,7 @@ import ProjectCard from '@/components/ui/ProjectCard';
 import Button from '@/components/ui/Button';
 import { getImageUrls } from '@/lib/storage';
 import { useAuthGuard } from '@/hooks/useAuthGuard';
+import { useAvatarUrl } from '@/hooks/useAvatarUrl';
 
 interface ProfilePageProps {
   pageDict?: Record<string, any>;
@@ -41,6 +42,9 @@ export default function ProfilePage({ pageDict = {} }: ProfilePageProps) {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // アバターURLを自動変換
+  const avatarUrl = useAvatarUrl(profile?.icon_url, 'avatars');
   const INITIAL_POSTS = 3; // 初期表示の投稿数
   const POSTS_PER_PAGE = 6; // 「もっと見る」で追加する投稿数
 
@@ -394,9 +398,9 @@ export default function ProfilePage({ pageDict = {} }: ProfilePageProps) {
         {/* プロフィール画像と編集ボタン */}
         <div className="flex items-end justify-between mb-4">
           <div className="w-32 h-32 rounded-full overflow-hidden bg-gray-200">
-            {profile.icon_url ? (
+            {avatarUrl ? (
               <Image
-                src={profile.icon_url}
+                src={avatarUrl}
                 alt={profile.display_name}
                 width={128}
                 height={128}

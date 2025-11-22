@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { truncateDisplayName } from '@/lib/text-utils';
 import LanguageSwitcher from './LanguageSwitcher';
 import { useTranslations, useLocale } from 'next-intl';
+import { useAvatarUrl } from '@/hooks/useAvatarUrl';
 
 export default function Header() {
   const t = useTranslations();
@@ -22,6 +23,9 @@ export default function Header() {
   const mobileMenuRef = useRef<HTMLDivElement>(null);
   const mobileMenuButtonRef = useRef<HTMLButtonElement>(null);
   const router = useRouter();
+
+  // アバターURLを自動変換
+  const avatarUrl = useAvatarUrl(profile?.icon_url, 'avatars');
 
   // ドロップダウン外クリックで閉じる
   useEffect(() => {
@@ -169,10 +173,10 @@ export default function Header() {
                     href="/profile"
                     className="flex items-center gap-2 text-gray-700 hover:text-gray-900"
                   >
-                    {profile?.icon_url ? (
+                    {avatarUrl ? (
                       <img
-                        src={profile.icon_url}
-                        alt={profile.display_name || user.email}
+                        src={avatarUrl}
+                        alt={profile?.display_name || user.email}
                         className="w-8 h-8 rounded-full object-cover cursor-pointer"
                       />
                     ) : (
@@ -245,10 +249,10 @@ export default function Header() {
                 href="/profile"
                 className="flex items-center"
               >
-                {profile?.icon_url ? (
+                {avatarUrl ? (
                   <img
-                    src={profile.icon_url}
-                    alt={profile.display_name || user.email}
+                    src={avatarUrl}
+                    alt={profile?.display_name || user.email}
                     className="w-8 h-8 rounded-full object-cover"
                   />
                 ) : (

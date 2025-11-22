@@ -10,6 +10,7 @@ import { Camera } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
 import { sanitizeText, INPUT_LIMITS } from '@/lib/input-validator'
 import { useAuthGuard } from '@/hooks/useAuthGuard'
+import { useAvatarUrl } from '@/hooks/useAvatarUrl'
 
 interface ProfileSettingsPageProps {
   pageDict?: any;
@@ -35,6 +36,9 @@ export default function ProfileSettingsPage({ pageDict, locale: propLocale }: Pr
   const [avatarPreview, setAvatarPreview] = useState<string>('')
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
 
+  // プロフィール画像のURLを自動的に変換
+  const avatarUrl = useAvatarUrl(profile?.icon_url, 'avatars')
+
   useEffect(() => {
     loadProfile()
   }, [])
@@ -50,7 +54,6 @@ export default function ProfileSettingsPage({ pageDict, locale: propLocale }: Pr
         setProfile(profile)
         setDisplayName(profile.display_name)
         setAge(profile.age || undefined)
-        setAvatarPreview(profile.icon_url || '')
       } else {
         setError(t('profileNotFound'))
       }
@@ -100,7 +103,7 @@ export default function ProfileSettingsPage({ pageDict, locale: propLocale }: Pr
     } catch (err) {
       setError(err instanceof Error ? err.message : t('failedToUploadAvatar'))
       setAvatarFile(null)
-      setAvatarPreview(profile?.icon_url || '')
+      setAvatarPreview('')
     } finally {
       setIsUploadingAvatar(false)
     }
@@ -223,9 +226,9 @@ export default function ProfileSettingsPage({ pageDict, locale: propLocale }: Pr
                 }`}
               >
                 {/* 背景画像 */}
-                {avatarPreview ? (
+                {avatarPreview || avatarUrl ? (
                   <img
-                    src={avatarPreview}
+                    src={avatarPreview || avatarUrl}
                     alt={t('iconPreview')}
                     className="w-full h-full object-cover"
                   />

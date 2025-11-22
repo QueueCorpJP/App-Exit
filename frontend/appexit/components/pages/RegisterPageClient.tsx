@@ -24,6 +24,7 @@ import { useAuth } from '@/lib/auth-context';
 import { UserRound, Building, Camera, X } from 'lucide-react';
 import RoleSelector from '@/components/register/RoleSelector';
 import { uploadAvatarImage } from '@/lib/storage';
+import { saveRegistrationStep, getRegistrationStep, clearRegistrationStep } from '@/lib/cookie-utils';
 
 const TOTAL_STEPS = 5;
 
@@ -268,6 +269,23 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
     privacy: false,
   });
 
+  // ステップ変更時にクッキーに保存する関数
+  const updateStep = (newStep: number | ((prev: number) => number)) => {
+    setStep((prev) => {
+      const nextStep = typeof newStep === 'function' ? newStep(prev) : newStep;
+      saveRegistrationStep(nextStep);
+      return nextStep;
+    });
+  };
+
+  // 初回マウント時にクッキーから登録ステップを復元
+  useEffect(() => {
+    const savedStep = getRegistrationStep();
+    if (savedStep && savedStep >= 1 && savedStep <= TOTAL_STEPS) {
+      setStep(savedStep);
+    }
+  }, []);
+
   // OAuthで戻ってきてバックエンドCookieがある場合はステップ2へ進める
   useEffect(() => {
     const checkSessionAndAdvance = async () => {
@@ -312,7 +330,7 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
 
               // OAuth認証成功後は常にステップ2へ進む（メールアドレスはOAuthから取得済み）
               setSelectedMethod('github');
-              setStep(2);
+              updateStep(2);
               return;
             } else {
               const errorData = await sessionResponse.json().catch(() => ({ error: 'セッションの確立に失敗しました' }));
@@ -338,10 +356,10 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
           if (result.data && !result.data.profile) {
             // 認証コンテキストを更新（ログイン状態を反映）
             await refreshSession();
-            
+
             // OAuthの場合、トークンは不要（Cookie認証）
             setSelectedMethod('google'); // または適切なメソッドを設定
-            setStep(2);
+            updateStep(2);
           }
         }
       } catch (error) {
@@ -447,11 +465,11 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
       // トークンは後続のstep2-5で使用するため保持
       setAccessToken(result.auth.access_token);
       setSelectedMethod('email');
-      
+
       // 認証コンテキストを更新（ログイン状態を反映）
       await refreshSession();
-      
-      setStep(2);
+
+      updateStep(2);
     } catch (err) {
       setError(err instanceof Error ? err.message : t('registerEmailFailed'));
     } finally {
@@ -527,7 +545,7 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
       );
       const result = await registerStep2({ roles: rolesPayload }, token);
       setSelectedRoles(result.roles);
-      setStep(3);
+      updateStep(3);
     } catch (err) {
       setError(err instanceof Error ? err.message : t('registerSaveRolesFailed'));
     } finally {
@@ -557,7 +575,7 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
         .map((link) => ({ name: link.name.trim(), url: link.url.trim() }));
       if (cleanedLinks.length > 0) payload.links = cleanedLinks;
       await registerStep3(payload, token);
-      setStep(4);
+      updateStep(4);
     } catch (err) {
       setError(err instanceof Error ? err.message : t('registerSaveProfileFailed'));
     } finally {
@@ -634,7 +652,7 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
     try {
       const token = await ensureAccessToken();
       await registerStep4(payload, token);
-      setStep(5);
+      updateStep(5);
     } catch (err) {
       setError(err instanceof Error ? err.message : t('registerSaveInfoFailed'));
     } finally {
@@ -657,10 +675,13 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
         privacy_accepted: agreements.privacy,
       };
       await registerStep5(payload, token);
-      
+
       // 登録完了後、認証コンテキストを更新（プロフィール情報を含む最新の状態を反映）
       await refreshSession();
-      
+
+      // 登録完了したのでステップクッキーをクリア
+      clearRegistrationStep();
+
       router.push('/');
       router.refresh();
     } catch (err) {
@@ -1318,7 +1339,7 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => setStep((prev) => Math.max(1, prev - 1))}
+                onClick={() => updateStep((prev) => Math.max(1, prev - 1))}
                 disabled={isLoading || step === 1}
                 className="w-full"
               >
