@@ -197,6 +197,13 @@ func SanitizeURL(url string) SanitizeResult {
 
 	url = strings.TrimSpace(url)
 
+	// 空文字列の場合は無効
+	if url == "" {
+		result.IsValid = false
+		result.Errors = append(result.Errors, "URL cannot be empty")
+		return result
+	}
+
 	// 長さチェック
 	if len(url) > MaxURLLength {
 		result.IsValid = false
@@ -215,20 +222,61 @@ func SanitizeURL(url string) SanitizeResult {
 		}
 	}
 
-	// HTTPまたはHTTPSのみ許可
-	if !strings.HasPrefix(lowerURL, "http://") && !strings.HasPrefix(lowerURL, "https://") {
-		result.IsValid = false
-		result.Errors = append(result.Errors, "Only HTTP and HTTPS URLs are allowed")
+	// HTTPまたはHTTPSのURLの場合
+	if strings.HasPrefix(lowerURL, "http://") || strings.HasPrefix(lowerURL, "https://") {
+		// URLフォーマットチェック
+		if !validURLRegex.MatchString(url) {
+			result.IsValid = false
+			result.Errors = append(result.Errors, "Invalid URL format")
+		}
+		result.Sanitized = url
 		return result
 	}
 
-	// URLフォーマットチェック
-	if !validURLRegex.MatchString(url) {
-		result.IsValid = false
-		result.Errors = append(result.Errors, "Invalid URL format")
+	// Storageパスの場合
+	// バケット名を含むパス（post-images/, avatars/, message-images/, contract-documents/, profile-icons/）
+	// またはバケット名を含まないパス（covers/, ユーザーIDで始まるパスなど）
+	validStoragePrefixes := []string{
+		"post-images/",
+		"avatars/",
+		"message-images/",
+		"contract-documents/",
+		"profile-icons/",
+		"covers/",
+	}
+	
+	isStoragePath := false
+	for _, prefix := range validStoragePrefixes {
+		if strings.HasPrefix(lowerURL, prefix) {
+			isStoragePath = true
+			break
+		}
 	}
 
-	result.Sanitized = url
+	// バケット名を含まないパスの場合（UUIDで始まるパスなど、avatarsバケット用）
+	if !isStoragePath {
+		// UUID形式（8-4-4-4-12）で始まるパスを許可（avatarsバケット用）
+		uuidPattern := regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}`)
+		if uuidPattern.MatchString(lowerURL) {
+			isStoragePath = true
+		}
+	}
+
+	if isStoragePath {
+		// 危険なパストラバーサル攻撃を防ぐ
+		if strings.Contains(url, "..") || strings.Contains(url, "//") || strings.HasPrefix(url, "/") || strings.Contains(url, "\\") {
+			result.IsValid = false
+			result.Errors = append(result.Errors, "Invalid storage path format")
+			return result
+		}
+		// Storageパスは有効
+		result.Sanitized = url
+		return result
+	}
+
+	// HTTP/HTTPSでもStorageパスでもない場合は無効
+	result.IsValid = false
+	result.Errors = append(result.Errors, "Only HTTP, HTTPS URLs or valid storage paths are allowed")
 	return result
 }
 

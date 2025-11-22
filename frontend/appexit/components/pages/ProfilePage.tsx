@@ -68,28 +68,29 @@ export default function ProfilePage({ pageDict = {} }: ProfilePageProps) {
           setLoading(true);
         }
 
-        // ⚡ パフォーマンス改善: プロフィールと投稿を並列取得
+        // ⚡ BFF経由でプロフィールと投稿を並列取得
         // 初期表示は少数の投稿のみ取得してパフォーマンス向上
-        const [profileResult, postsResult] = await Promise.allSettled([
-          profileApi.getProfile(),
-          postApi.getPosts({
-            author_user_id: currentUser.id,
-            limit: INITIAL_POSTS,
-            offset: 0
-          })
-        ]);
+        const bffUrl = process.env.NEXT_PUBLIC_BFF_URL || 'http://localhost:8080';
+        const response = await fetch(
+          `${bffUrl}/bff/profile-and-posts?limit=${INITIAL_POSTS}&offset=0`
+        );
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch profile and posts');
+        }
+
+        const data = await response.json();
 
         // プロフィールの結果を処理
-        if (isMounted && profileResult.status === 'fulfilled' && profileResult.value) {
-          setProfile(profileResult.value);
+        if (isMounted && data.profile) {
+          setProfile(data.profile);
         }
 
         // 投稿の結果を処理
-        if (isMounted && postsResult.status === 'fulfilled') {
-          const postsArray = Array.isArray(postsResult.value) ? postsResult.value : [];
-          setPosts(postsArray);
+        if (isMounted && Array.isArray(data.posts)) {
+          setPosts(data.posts);
           setPostsOffset(INITIAL_POSTS);
-          setHasMorePosts(postsArray.length >= INITIAL_POSTS);
+          setHasMorePosts(data.posts.length >= INITIAL_POSTS);
         }
       } catch (error) {
         // Failed to fetch profile data - continue without data

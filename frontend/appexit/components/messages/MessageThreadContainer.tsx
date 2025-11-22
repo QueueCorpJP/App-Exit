@@ -60,11 +60,17 @@ function MessageThreadContainer({ threadId, onBack }: MessageThreadContainerProp
           return;
         }
 
-        // スレッド詳細とメッセージ一覧を並行取得（最新50件のみ）
-        const [detailResponse, messagesResponse] = await Promise.all([
-          messageApi.getThread(currentThreadId),
-          messageApi.getMessages(currentThreadId, { limit: MESSAGES_PER_PAGE, offset: 0 }),
-        ]);
+        // BFF経由でスレッド詳細とメッセージ一覧を並列取得（最新50件のみ）
+        const bffUrl = process.env.NEXT_PUBLIC_BFF_URL || 'http://localhost:8080';
+        const response = await fetch(
+          `${bffUrl}/bff/thread-and-messages?thread_id=${currentThreadId}&limit=${MESSAGES_PER_PAGE}&offset=0`
+        );
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch thread and messages');
+        }
+
+        const data = await response.json();
 
         // threadIdが変更された場合は処理を中断（新しいリクエストが開始された）
         if (prevThreadIdRef.current !== currentThreadId) {
@@ -72,14 +78,14 @@ function MessageThreadContainer({ threadId, onBack }: MessageThreadContainerProp
         }
 
         // スレッド詳細の処理
-        if (detailResponse && typeof detailResponse === 'object' && 'id' in detailResponse) {
-          const responseThreadId = (detailResponse as ThreadDetail).id;
+        if (data.thread && typeof data.thread === 'object' && 'id' in data.thread) {
+          const responseThreadId = (data.thread as ThreadDetail).id;
 
           // デバッグログ: スレッド詳細のデータ構造を確認
           console.log('[MessageThreadContainer] Thread detail received:', {
             id: responseThreadId,
-            participants: (detailResponse as ThreadDetail).participants,
-            participantCount: (detailResponse as ThreadDetail).participants?.length || 0,
+            participants: (data.thread as ThreadDetail).participants,
+            participantCount: (data.thread as ThreadDetail).participants?.length || 0,
           });
 
           // 取得したスレッドIDが現在のthreadIdと一致するかチェック
@@ -99,15 +105,13 @@ function MessageThreadContainer({ threadId, onBack }: MessageThreadContainerProp
             return; // 現在の処理を中断して再取得
           }
 
-          setThreadDetail(detailResponse as ThreadDetail);
+          setThreadDetail(data.thread as ThreadDetail);
         }
 
         // メッセージ一覧の処理 - 空配列も許容
         let messages: MessageWithSender[] = [];
-        if (messagesResponse && Array.isArray(messagesResponse)) {
-          messages = messagesResponse;
-        } else if (messagesResponse && typeof messagesResponse === 'object' && 'data' in messagesResponse && Array.isArray((messagesResponse as any).data)) {
-          messages = (messagesResponse as any).data;
+        if (data.messages && Array.isArray(data.messages)) {
+          messages = data.messages;
         }
 
         // threadIdが変更された場合は処理を中断

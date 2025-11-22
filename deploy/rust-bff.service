@@ -1,0 +1,40 @@
+[Unit]
+Description=Rust BFF (Backend For Frontend) Server
+Documentation=https://github.com/your-org/appexit
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/appexit/bff
+
+# Environment variables
+Environment="BFF_PORT=8082"
+Environment="GO_API_URL=http://localhost:8080"
+Environment="RUST_LOG=info"
+
+# Start the BFF server
+ExecStart=/opt/appexit/bff/target/release/bff
+
+# Restart policy
+Restart=always
+RestartSec=10
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/log/rust-bff
+
+# Resource limits
+LimitNOFILE=65536
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=rust-bff
+
+[Install]
+WantedBy=multi-user.target

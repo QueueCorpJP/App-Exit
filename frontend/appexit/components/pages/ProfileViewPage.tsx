@@ -29,23 +29,26 @@ export default function ProfileViewPage({ userId }: ProfileViewPageProps) {
       try {
         setLoading(true);
 
-        // プロフィールと投稿を並列で取得
-        const [profile, postsResult] = await Promise.allSettled([
-          profileApi.getProfileById(userId),
-          postApi.getPosts({
-            author_user_id: userId,
-            limit: 50
-          })
-        ]);
+        // BFF経由でプロフィールと投稿を並列取得
+        const bffUrl = process.env.NEXT_PUBLIC_BFF_URL || 'http://localhost:8080';
+        const response = await fetch(
+          `${bffUrl}/bff/profile-and-posts?user_id=${userId}&limit=50&offset=0`
+        );
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch profile and posts');
+        }
+
+        const data = await response.json();
 
         // プロフィール結果の処理
-        if (profile.status === 'fulfilled' && profile.value) {
-          setProfile(profile.value);
+        if (data.profile) {
+          setProfile(data.profile);
         }
 
         // 投稿結果の処理
-        if (postsResult.status === 'fulfilled') {
-          setPosts(Array.isArray(postsResult.value) ? postsResult.value : []);
+        if (Array.isArray(data.posts)) {
+          setPosts(data.posts);
         } else {
           setPosts([]);
         }
