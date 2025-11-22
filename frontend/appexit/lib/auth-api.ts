@@ -104,6 +104,7 @@ export interface Profile {
   prefecture?: string | null;
   company_name?: string | null;
   introduction?: string | null;
+  public?: boolean | null;
 }
 
 export interface CreateProfileRequest {

@@ -124,6 +124,7 @@ export default function InfiniteCarousel({ items }: InfiniteCarouselProps) {
               alt={nextItem.title}
               fill
               className="object-cover"
+              priority
               sizes="100vw"
             />
             <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/30 to-transparent" />

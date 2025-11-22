@@ -35,6 +35,7 @@ interface ProjectCardProps {
   size?: 'small' | 'large';
   authorProfile?: AuthorProfile | null;
   activeViewCount?: number; // アクティブビュー数
+  priority?: boolean; // 画像の優先読み込み（ファーストビューのカードに使用）
 }
 
 export default function ProjectCard({
@@ -55,7 +56,8 @@ export default function ProjectCard({
   badge,
   size = 'small',
   authorProfile,
-  activeViewCount = 0
+  activeViewCount = 0,
+  priority = false
 }: ProjectCardProps) {
   const isLarge = size === 'large';
   const [imageError, setImageError] = useState(false);
@@ -177,6 +179,7 @@ export default function ProjectCard({
             fill
             className="object-cover"
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            priority={priority}
             onError={() => setImageError(true)}
           />
           {badge && (

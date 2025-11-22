@@ -37,6 +37,7 @@ type Profile struct {
 	Expertise                []string   `json:"expertise,omitempty"`
 	PortfolioSummary         *string    `json:"portfolio_summary,omitempty"`
 	ProposalStyle            *string    `json:"proposal_style,omitempty"`
+	Public                   bool       `json:"public"`
 	CreatedAt         time.Time  `json:"created_at"`
 	UpdatedAt         time.Time  `json:"updated_at"`
 }

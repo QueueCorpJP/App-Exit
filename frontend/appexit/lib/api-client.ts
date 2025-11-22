@@ -229,6 +229,7 @@ export interface Profile {
   stripe_customer_id?: string;
   stripe_account_id?: string;
   stripe_onboarding_completed?: boolean;
+  public?: boolean;
   created_at: string;
   updated_at: string;
   // その他のフィールド

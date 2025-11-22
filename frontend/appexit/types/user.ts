@@ -35,6 +35,7 @@ export interface Profile {
   phone_number?: string;
   role: string;
   party: string;
+  public?: boolean;
   created_at: string;
   updated_at: string;
 }

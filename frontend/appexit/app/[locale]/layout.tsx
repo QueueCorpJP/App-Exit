@@ -13,7 +13,9 @@ const notoSansJP = Noto_Sans_JP({
   variable: "--font-noto-sans-jp",
   subsets: ["latin"],
   weight: ["400", "500", "700", "900"],
-  display: "swap",
+  display: "optional", // CLSを防ぐためoptionalに変更（100ms以内に読み込まれなければシステムフォント使用）
+  preload: true, // フォントをプリロード
+  adjustFontFallback: true, // フォールバックフォントのサイズを調整してCLSを最小化
 });
 
 export function generateStaticParams() {

@@ -127,6 +127,13 @@ func (s *Server) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// レート制限チェック
+	if middleware.CheckLoginRateLimit(w, r) {
+		fmt.Printf("[LOGIN] ❌ Rate limit exceeded\n")
+		fmt.Printf("========== LOGIN END (RATE LIMITED) ==========\n\n")
+		return
+	}
+
 	var req models.LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		fmt.Printf("[LOGIN] ❌ ERROR: Failed to decode request body: %v\n", err)
@@ -152,7 +159,10 @@ func (s *Server) Login(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("[LOGIN] ❌ ERROR: Supabase authentication failed: %v\n", err)
 		fmt.Printf("[LOGIN] Error type: %T\n", err)
 		fmt.Printf("[LOGIN] Error details: %+v\n", err)
-		
+
+		// ログイン失敗をカウント
+		middleware.IncrementLoginAttempts(w, r)
+
 		// エラーメッセージを解析してより詳細な情報を提供
 		errMsg := err.Error()
 		var errorMessage string
@@ -165,7 +175,7 @@ func (s *Server) Login(w http.ResponseWriter, r *http.Request) {
 		} else {
 			errorMessage = fmt.Sprintf("ログインに失敗しました: %s", errMsg)
 		}
-		
+
 		fmt.Printf("[LOGIN] Returning error message: %s\n", errorMessage)
 		response.Error(w, http.StatusUnauthorized, errorMessage)
 		return
@@ -223,6 +233,9 @@ func (s *Server) Login(w http.ResponseWriter, r *http.Request) {
 
 	// 3. Cookieにトークンを設定（setAuthCookies関数を使用）
 	s.setAuthCookies(w, authResp.AccessToken, authResp.RefreshToken, &user, profilePtr)
+
+	// ログイン成功時にレート制限Cookieをクリア
+	middleware.ClearLoginRateLimitCookies(w)
 
 	// 4. SupabaseのAccessTokenを返す（RefreshTokenはHttpOnly Cookieにのみ保存）
 	// セキュリティ: RefreshTokenはフロントエンドのJavaScriptからアクセスできないようにする

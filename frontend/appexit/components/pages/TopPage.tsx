@@ -469,7 +469,7 @@ export default function TopPage({ initialPosts = [], useMockCarousel = true, pag
           <h2 className="text-2xl font-black mb-8 text-center" style={{ color: '#323232' }}>{tHome('recommended')}</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {recommendedProjects.length > 0 ? (
-              recommendedProjects.map((project) => (
+              recommendedProjects.map((project, index) => (
                 <ProjectCard
                   key={project.id}
                   id={project.id}
@@ -489,10 +489,11 @@ export default function TopPage({ initialPosts = [], useMockCarousel = true, pag
                   badge={project.badge}
                   authorProfile={project.authorProfile}
                   activeViewCount={project.activeViewCount}
+                  priority={index < 6}
                 />
               ))
             ) : (
-              projects.slice(0, 12).map((project) => (
+              projects.slice(0, 12).map((project, index) => (
                 <ProjectCard
                   key={project.id}
                   id={project.id}
@@ -512,6 +513,7 @@ export default function TopPage({ initialPosts = [], useMockCarousel = true, pag
                   badge={project.badge}
                   activeViewCount={project.activeViewCount}
                   authorProfile={project.authorProfile}
+                  priority={index < 6}
                 />
               ))
             )}
