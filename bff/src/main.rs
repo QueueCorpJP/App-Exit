@@ -3,7 +3,7 @@ use axum::{
     Router,
     Json,
     extract::Query,
-    http::{header, Method, StatusCode},
+    http::{header, Method, StatusCode, HeaderMap},
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -78,10 +78,16 @@ async fn health_check() -> Json<serde_json::Value> {
 }
 
 async fn get_profile_and_posts(
+    headers: HeaderMap,
     Query(params): Query<ProfileAndPostsQuery>,
 ) -> Result<Json<ProfileAndPostsResponse>, StatusCode> {
     let client = reqwest::Client::new();
     let go_api_url = env::var("GO_API_URL").unwrap_or_else(|_| "http://localhost:8081".to_string());
+
+    // 認証ヘッダーを取得
+    let auth_header = headers.get(header::AUTHORIZATION)
+        .and_then(|h| h.to_str().ok())
+        .unwrap_or("");
 
     // プロフィールAPIのURLを構築
     let profile_url = if let Some(user_id) = &params.user_id {
@@ -110,9 +116,18 @@ async fn get_profile_and_posts(
     println!("🔍 Fetching profile from: {}", profile_url);
     println!("🔍 Fetching posts from: {}", posts_url);
 
-    // プロフィールと投稿を並列で取得
-    let profile_fut = client.get(&profile_url).send();
-    let posts_fut = client.get(&posts_url).send();
+    // プロフィールと投稿を並列で取得（認証ヘッダー付き）
+    let mut profile_req = client.get(&profile_url);
+    let mut posts_req = client.get(&posts_url);
+
+    // 認証ヘッダーがあれば追加
+    if !auth_header.is_empty() {
+        profile_req = profile_req.header(header::AUTHORIZATION, auth_header);
+        posts_req = posts_req.header(header::AUTHORIZATION, auth_header);
+    }
+
+    let profile_fut = profile_req.send();
+    let posts_fut = posts_req.send();
 
     let (profile_res, posts_res) = tokio::join!(profile_fut, posts_fut);
 
@@ -170,10 +185,16 @@ async fn get_profile_and_posts(
 }
 
 async fn get_thread_and_messages(
+    headers: HeaderMap,
     Query(params): Query<ThreadAndMessagesQuery>,
 ) -> Result<Json<ThreadAndMessagesResponse>, StatusCode> {
     let client = reqwest::Client::new();
     let go_api_url = env::var("GO_API_URL").unwrap_or_else(|_| "http://localhost:8081".to_string());
+
+    // 認証ヘッダーを取得
+    let auth_header = headers.get(header::AUTHORIZATION)
+        .and_then(|h| h.to_str().ok())
+        .unwrap_or("");
 
     // スレッド詳細APIのURLを構築
     let thread_url = format!("{}/api/messages/threads/{}", go_api_url, params.thread_id);
@@ -189,9 +210,18 @@ async fn get_thread_and_messages(
     println!("🔍 Fetching thread from: {}", thread_url);
     println!("🔍 Fetching messages from: {}", messages_url);
 
-    // スレッド詳細とメッセージを並列で取得
-    let thread_fut = client.get(&thread_url).send();
-    let messages_fut = client.get(&messages_url).send();
+    // スレッド詳細とメッセージを並列で取得（認証ヘッダー付き）
+    let mut thread_req = client.get(&thread_url);
+    let mut messages_req = client.get(&messages_url);
+
+    // 認証ヘッダーがあれば追加
+    if !auth_header.is_empty() {
+        thread_req = thread_req.header(header::AUTHORIZATION, auth_header);
+        messages_req = messages_req.header(header::AUTHORIZATION, auth_header);
+    }
+
+    let thread_fut = thread_req.send();
+    let messages_fut = messages_req.send();
 
     let (thread_res, messages_res) = tokio::join!(thread_fut, messages_fut);
 

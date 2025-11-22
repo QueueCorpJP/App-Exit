@@ -7,12 +7,18 @@ import { messageApi, MessageWithSender, ThreadDetail } from '@/lib/api-client';
 import { getImageUrls } from '@/lib/storage';
 import MessageThread from './MessageThread';
 
+interface ThreadAndMessagesData {
+  thread: any | null;
+  messages: any[];
+}
+
 interface MessageThreadContainerProps {
   threadId: string | undefined;
   onBack?: () => void;
+  initialData?: ThreadAndMessagesData | null;
 }
 
-function MessageThreadContainer({ threadId, onBack }: MessageThreadContainerProps) {
+function MessageThreadContainer({ threadId, onBack, initialData }: MessageThreadContainerProps) {
   const router = useRouter();
   const { user } = useAuth();
   const [threadDetail, setThreadDetail] = useState<ThreadDetail | null>(null);
@@ -60,17 +66,24 @@ function MessageThreadContainer({ threadId, onBack }: MessageThreadContainerProp
           return;
         }
 
-        // BFF経由でスレッド詳細とメッセージ一覧を並列取得（最新50件のみ）
-        const bffUrl = process.env.NEXT_PUBLIC_BFF_URL || 'http://localhost:8080';
-        const response = await fetch(
-          `${bffUrl}/bff/thread-and-messages?thread_id=${currentThreadId}&limit=${MESSAGES_PER_PAGE}&offset=0`
-        );
+        let data;
 
-        if (!response.ok) {
-          throw new Error('Failed to fetch thread and messages');
+        // initialDataが利用可能な場合はそれを使用、そうでなければBFFから取得
+        if (initialData && initialData.thread && initialData.thread.id === currentThreadId) {
+          data = initialData;
+        } else {
+          // BFF経由でスレッド詳細とメッセージ一覧を並列取得（最新50件のみ）
+          const bffUrl = process.env.NEXT_PUBLIC_BFF_URL || 'http://localhost:8080';
+          const response = await fetch(
+            `${bffUrl}/bff/thread-and-messages?thread_id=${currentThreadId}&limit=${MESSAGES_PER_PAGE}&offset=0`
+          );
+
+          if (!response.ok) {
+            throw new Error('Failed to fetch thread and messages');
+          }
+
+          data = await response.json();
         }
-
-        const data = await response.json();
 
         // threadIdが変更された場合は処理を中断（新しいリクエストが開始された）
         if (prevThreadIdRef.current !== currentThreadId) {
@@ -240,7 +253,7 @@ function MessageThreadContainer({ threadId, onBack }: MessageThreadContainerProp
         redirectTimeoutRef.current = null;
       }
     };
-  }, [threadId, user]);
+  }, [threadId, user, initialData]);
 
   // 古いメッセージを読み込む
   const loadMoreMessages = useCallback(async () => {

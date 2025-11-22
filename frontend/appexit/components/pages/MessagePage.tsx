@@ -10,9 +10,15 @@ import ThreadListContainer from '@/components/messages/ThreadListContainer';
 import MessageThreadContainer from '@/components/messages/MessageThreadContainer';
 import { useAuthGuard } from '@/hooks/useAuthGuard';
 
+interface ThreadAndMessagesData {
+  thread: any | null;
+  messages: any[];
+}
+
 interface MessagePageProps {
   threadId?: string;
   pageDict?: Record<string, any>;
+  initialData?: ThreadAndMessagesData | null;
 }
 
 // UUID形式かどうかをチェックする関数
@@ -21,7 +27,7 @@ function isUUID(str: string): boolean {
   return uuidRegex.test(str);
 }
 
-export default function MessagePage({ threadId: initialThreadId, pageDict }: MessagePageProps) {
+export default function MessagePage({ threadId: initialThreadId, pageDict, initialData }: MessagePageProps) {
   const router = useRouter();
   const locale = useLocale();
   const t = useTranslations();
@@ -543,6 +549,7 @@ export default function MessagePage({ threadId: initialThreadId, pageDict }: Mes
           <MessageThreadContainer
             threadId={resolvedThreadId}
             onBack={handleBackToThreads}
+            initialData={initialData}
           />
         ) : (
           <div className="h-full flex items-center justify-center bg-white">
