@@ -7,15 +7,19 @@ import { useAuth } from '@/lib/auth-context';
 import { profileApi } from '@/lib/api-client';
 
 export default function NDAAgreementPage() {
-  const t = useTranslations();
+  const t = useTranslations('nda');
   const locale = useLocale();
   const { profile, loading: authLoading, refreshSession } = useAuth();
   const [agreed, setAgreed] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const router = useRouter();
 
-  // チェックボックスの初期状態は常にfalse（未同意）
-  // データベースの状態に関係なく、ユーザーが明示的にチェックするまでfalseのまま
+  // プロフィールのnda_flagを確認して、既に同意済みの場合はチェックボックスをオンにする
+  useEffect(() => {
+    if (profile?.nda_flag) {
+      setAgreed(true);
+    }
+  }, [profile?.nda_flag]);
 
   const handleAgree = async () => {
     // チェックが入っていない場合は処理しない
@@ -33,7 +37,7 @@ export default function NDAAgreementPage() {
       router.back();
     } catch (error) {
       console.error('Failed to update NDA flag:', error);
-      alert(t('nda.failedToUpdate'));
+      alert(t('failedToUpdate'));
     } finally {
       setIsUpdating(false);
     }
@@ -45,6 +49,9 @@ export default function NDAAgreementPage() {
     setAgreed(checked);
   };
 
+  // 既に同意済みかどうか
+  const isAlreadySigned = profile?.nda_flag === true;
+
   return (
     <div className="min-h-screen bg-white">
       <div className="max-w-4xl mx-auto px-8 py-12">
@@ -52,11 +59,19 @@ export default function NDAAgreementPage() {
           {/* タイトル */}
           <div className="text-center mb-12 border-b-2 pb-6" style={{ borderColor: '#323232' }}>
             <h1 className="text-2xl font-bold mb-2 tracking-wide" style={{ color: '#323232' }}>
-              {t('nda.ndaTitle')}
+              {t('ndaTitle')}
             </h1>
             <p className="text-sm mt-2" style={{ color: '#323232' }}>
-              {t('nda.ndaSubtitle')}
+              {t('ndaSubtitle')}
             </p>
+            {isAlreadySigned && (
+              <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-green-50 border border-green-200 rounded-md">
+                <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                <span className="text-sm font-medium text-green-800">{t('signed')}</span>
+              </div>
+            )}
           </div>
 
           {/* 契約書本文 */}
@@ -293,53 +308,88 @@ export default function NDAAgreementPage() {
 
           {/* 同意欄 */}
           <div className="mt-16 border-t-2 pt-8" style={{ borderColor: '#323232' }}>
-            <div className="mb-8">
-              <label className="flex items-start space-x-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={agreed}
-                  onChange={(e) => handleCheckboxChange(e.target.checked)}
-                  disabled={authLoading || isUpdating}
-                  className="mt-1 w-5 h-5 border-2 rounded-none focus:ring-0 focus:ring-offset-0 disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{ borderColor: '#323232', accentColor: '#323232' }}
-                />
-                <div className="flex-1">
-                  <p className="text-sm leading-6" style={{ color: '#323232' }}>
-                    {locale === 'ja' 
-                      ? '私は上記の秘密保持契約書の内容を読み、理解し、これに同意します。' 
-                      : 'I have read, understood, and agree to the above Non-Disclosure Agreement.'}
+            {isAlreadySigned ? (
+              // 同意済みの場合
+              <div>
+                <div className="mb-8 p-6 bg-green-50 border-2 border-green-200 rounded-lg">
+                  <div className="flex items-center gap-3 mb-3">
+                    <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <p className="text-base font-semibold text-green-800">
+                      {locale === 'ja' ? '同意済み' : 'Agreement Signed'}
+                    </p>
+                  </div>
+                  <p className="text-sm text-green-700 leading-6">
+                    {locale === 'ja'
+                      ? 'あなたは既にこの秘密保持契約に同意しています。'
+                      : 'You have already agreed to this Non-Disclosure Agreement.'}
                   </p>
                 </div>
-              </label>
-            </div>
 
-            {/* ボタン */}
-            <div className="flex space-x-4">
-              <button
-                type="button"
-                onClick={() => router.back()}
-                className="flex-1 px-6 py-3 border-2 text-sm font-medium hover:bg-gray-50 transition-colors rounded-sm"
-                style={{ borderColor: '#323232', color: '#323232' }}
-              >
-                {t('nda.cancel')}
-              </button>
-              <button
-                type="button"
-                onClick={handleAgree}
-                disabled={!agreed || authLoading || isUpdating}
-                className={`flex-1 px-6 py-3 border-2 text-sm font-medium transition-colors rounded-sm ${
-                  agreed && !authLoading && !isUpdating
-                    ? 'text-white hover:opacity-90'
-                    : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                }`}
-                style={agreed && !authLoading && !isUpdating ? { backgroundColor: '#323232', borderColor: '#323232' } : { borderColor: '#d1d5db' }}
-              >
-                {isUpdating
-                  ? t('nda.updating')
-                  : t('nda.iAgree')
-                }
-              </button>
-            </div>
+                <div className="flex justify-center">
+                  <button
+                    type="button"
+                    onClick={() => router.back()}
+                    className="px-8 py-3 border-2 text-sm font-medium hover:bg-gray-50 transition-colors rounded-sm"
+                    style={{ borderColor: '#323232', color: '#323232' }}
+                  >
+                    {locale === 'ja' ? '戻る' : 'Back'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              // 未同意の場合
+              <div>
+                <div className="mb-8">
+                  <label className="flex items-start space-x-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={agreed}
+                      onChange={(e) => handleCheckboxChange(e.target.checked)}
+                      disabled={authLoading || isUpdating}
+                      className="mt-1 w-5 h-5 border-2 rounded-none focus:ring-0 focus:ring-offset-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                      style={{ borderColor: '#323232', accentColor: '#323232' }}
+                    />
+                    <div className="flex-1">
+                      <p className="text-sm leading-6" style={{ color: '#323232' }}>
+                        {locale === 'ja'
+                          ? '私は上記の秘密保持契約書の内容を読み、理解し、これに同意します。'
+                          : 'I have read, understood, and agree to the above Non-Disclosure Agreement.'}
+                      </p>
+                    </div>
+                  </label>
+                </div>
+
+                {/* ボタン */}
+                <div className="flex space-x-4">
+                  <button
+                    type="button"
+                    onClick={() => router.back()}
+                    className="flex-1 px-6 py-3 border-2 text-sm font-medium hover:bg-gray-50 transition-colors rounded-sm"
+                    style={{ borderColor: '#323232', color: '#323232' }}
+                  >
+                    {t('cancel')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleAgree}
+                    disabled={!agreed || authLoading || isUpdating}
+                    className={`flex-1 px-6 py-3 border-2 text-sm font-medium transition-colors rounded-sm ${
+                      agreed && !authLoading && !isUpdating
+                        ? 'text-white hover:opacity-90'
+                        : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    }`}
+                    style={agreed && !authLoading && !isUpdating ? { backgroundColor: '#323232', borderColor: '#323232' } : { borderColor: '#d1d5db' }}
+                  >
+                    {isUpdating
+                      ? t('updating')
+                      : t('iAgree')
+                    }
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

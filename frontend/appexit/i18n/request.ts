@@ -23,7 +23,8 @@ export default getRequestConfig(async ({ requestLocale }) => {
     transactions,
     categories,
     profile,
-    filters
+    filters,
+    nda
   ] = await Promise.all([
     import(`../locales/${locale}/common.json`).then(m => m.default),
     import(`../locales/${locale}/auth.json`).then(m => m.default),
@@ -36,6 +37,7 @@ export default getRequestConfig(async ({ requestLocale }) => {
     import(`../locales/${locale}/categories.json`).then(m => m.default),
     import(`../locales/${locale}/profile.json`).then(m => m.default),
     import(`../locales/${locale}/filters.json`).then(m => m.default),
+    import(`../locales/${locale}/nda.json`).then(m => m.default),
   ]);
 
   // 使用頻度の低い翻訳は各ページで遅延ロード
@@ -61,6 +63,7 @@ export default getRequestConfig(async ({ requestLocale }) => {
       categories,
       profile,
       filters,
+      nda,
     }
   };
 });
