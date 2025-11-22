@@ -72,8 +72,10 @@ function MessageThreadContainer({ threadId, onBack, initialData }: MessageThread
         if (initialData && initialData.thread && initialData.thread.id === currentThreadId) {
           data = initialData;
         } else {
-          // BFF経由でスレッド詳細とメッセージ一覧を並列取得（最新50件のみ）
-          const bffUrl = process.env.NEXT_PUBLIC_BFF_URL || 'http://localhost:8080';
+          // クライアントサイドでBFFから取得（Nginx経由で /bff/ にアクセス）
+          // 本番環境: https://appexit.jp/bff/...
+          // 開発環境: http://localhost:8082/bff/...
+          const bffUrl = process.env.NEXT_PUBLIC_BFF_URL || 'http://localhost:8082';
           const response = await fetch(
             `${bffUrl}/bff/thread-and-messages?thread_id=${currentThreadId}&limit=${MESSAGES_PER_PAGE}&offset=0`
           );

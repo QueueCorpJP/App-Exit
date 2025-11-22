@@ -60,6 +60,39 @@ module.exports = {
       max_restarts: 10,
       restart_delay: 4000,
     },
+    {
+      name: 'appexit-bff',
+      cwd: './bff',
+      script: './target/release/bff',
+      interpreter: 'none',
+      instances: 1,
+      exec_mode: 'fork',
+      autorestart: true,
+      watch: false,
+      max_memory_restart: '512M',
+      env: {
+        BFF_PORT: '8082',
+        GO_API_URL: 'http://localhost:8080',
+        RUST_LOG: 'info',
+      },
+      env_development: {
+        BFF_PORT: '8082',
+        GO_API_URL: 'http://localhost:8080',
+        RUST_LOG: 'debug',
+      },
+      env_production: {
+        BFF_PORT: '8082',
+        GO_API_URL: 'http://localhost:8080',
+        RUST_LOG: 'info',
+      },
+      error_file: './logs/bff-error.log',
+      out_file: './logs/bff-out.log',
+      log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
+      merge_logs: true,
+      min_uptime: '10s',
+      max_restarts: 10,
+      restart_delay: 4000,
+    },
   ],
 
   deploy: {
@@ -72,6 +105,7 @@ module.exports = {
       'pre-deploy-local': '',
       'post-deploy':
         'cd backend && go build -o appexit-backend ./cmd/api && ' +
+        'cd ../bff && cargo build --release && ' +
         'cd ../frontend/appexit && npm install && npm run build && ' +
         'pm2 reload ecosystem.config.js --env production',
       'pre-setup': '',
@@ -84,6 +118,7 @@ module.exports = {
       path: '/var/www/appexit-staging',
       'post-deploy':
         'cd backend && go build -o appexit-backend ./cmd/api && ' +
+        'cd ../bff && cargo build --release && ' +
         'cd ../frontend/appexit && npm install && npm run build && ' +
         'pm2 reload ecosystem.config.js --env development',
     },

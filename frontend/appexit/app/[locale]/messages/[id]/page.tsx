@@ -26,7 +26,9 @@ export default async function Messages({ params }: PageProps) {
     const authToken = cookieStore.get('auth_token');
 
     if (authToken?.value) {
-      const bffUrl = process.env.NEXT_PUBLIC_BFF_URL || 'http://localhost:8082';
+      // サーバーサイドでは内部通信用のURLを使用（BFF_INTERNAL_URLまたはlocalhost）
+      // これによりサーバー内部で直接BFFにアクセス（Nginxを経由しない）
+      const bffUrl = process.env.BFF_INTERNAL_URL || 'http://localhost:8082';
       const response = await fetch(
         `${bffUrl}/bff/thread-and-messages?thread_id=${id}&limit=50&offset=0`,
         {
