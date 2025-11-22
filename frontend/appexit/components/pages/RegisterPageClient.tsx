@@ -20,6 +20,7 @@ import {
   registerStep5,
   getApiUrl,
 } from '@/lib/auth-api';
+import { useAuth } from '@/lib/auth-context';
 import { UserRound, Building, Camera, X } from 'lucide-react';
 import RoleSelector from '@/components/register/RoleSelector';
 import { uploadAvatarImage } from '@/lib/storage';
@@ -215,6 +216,7 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
   const t = useTranslations();
   const locale = useLocale();
   const router = useRouter();
+  const { refreshSession } = useAuth();
   const [step, setStep] = useState<number>(1);
   const [error, setError] = useState<string | undefined>(serverError);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -305,6 +307,9 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
               // URLフラグメントをクリア
               window.history.replaceState(null, '', window.location.pathname + window.location.search);
 
+              // 認証コンテキストを更新（ログイン状態を反映）
+              await refreshSession();
+
               // OAuth認証成功後は常にステップ2へ進む（メールアドレスはOAuthから取得済み）
               setSelectedMethod('github');
               setStep(2);
@@ -331,6 +336,9 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
           const result = await response.json();
           // セッションがあり、かつプロフィールが未作成の場合はステップ2へ
           if (result.data && !result.data.profile) {
+            // 認証コンテキストを更新（ログイン状態を反映）
+            await refreshSession();
+            
             // OAuthの場合、トークンは不要（Cookie認証）
             setSelectedMethod('google'); // または適切なメソッドを設定
             setStep(2);
@@ -341,7 +349,7 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
       }
     };
     checkSessionAndAdvance();
-  }, [step, router]);
+  }, [step, router, refreshSession]);
 
   const ensureAccessToken = async (): Promise<string> => {
     if (accessToken) {
@@ -439,6 +447,10 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
       // トークンは後続のstep2-5で使用するため保持
       setAccessToken(result.auth.access_token);
       setSelectedMethod('email');
+      
+      // 認証コンテキストを更新（ログイン状態を反映）
+      await refreshSession();
+      
       setStep(2);
     } catch (err) {
       setError(err instanceof Error ? err.message : t('registerEmailFailed'));
@@ -645,6 +657,10 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
         privacy_accepted: agreements.privacy,
       };
       await registerStep5(payload, token);
+      
+      // 登録完了後、認証コンテキストを更新（プロフィール情報を含む最新の状態を反映）
+      await refreshSession();
+      
       router.push('/');
       router.refresh();
     } catch (err) {
@@ -1091,8 +1107,8 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
                     <div className="mt-2 flex items-center gap-3">
                       <input
                         type="number"
-                        min="0"
-                        step="10000"
+                        min="1"
+                        step="1"
                         value={buyerForm.investmentMin}
                         onChange={(e) => setBuyerForm((prev) => ({ ...prev, investmentMin: e.target.value }))}
                         className="w-24 px-2 py-1.5 text-sm border border-gray-300 rounded-md text-gray-900 focus:border-gray-900 focus:outline-none"
@@ -1103,8 +1119,8 @@ export default function RegisterPageClient({ error: serverError }: RegisterPageC
                       </span>
                       <input
                         type="number"
-                        min="0"
-                        step="10000"
+                        min="1"
+                        step="1"
                         value={buyerForm.investmentMax}
                         onChange={(e) => setBuyerForm((prev) => ({ ...prev, investmentMax: e.target.value }))}
                         className="w-24 px-2 py-1.5 text-sm border border-gray-300 rounded-md text-gray-900 focus:border-gray-900 focus:outline-none"
