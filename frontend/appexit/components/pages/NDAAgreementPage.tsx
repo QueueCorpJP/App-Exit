@@ -52,6 +52,18 @@ export default function NDAAgreementPage() {
   // 既に同意済みかどうか
   const isAlreadySigned = profile?.nda_flag === true;
 
+  // ローディング中の表示
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
+          <p className="mt-4 text-sm text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-white">
       <div className="max-w-4xl mx-auto px-8 py-12">
