@@ -122,12 +122,12 @@ func (s *Server) RegisterStep2(w http.ResponseWriter, r *http.Request) {
 	}
 
     // Step2でprofilesにロール行を作成（partyはNULL許可なので後で埋める）
-    impersonateJWT, ok := r.Context().Value("impersonate_jwt").(string)
-    if !ok || strings.TrimSpace(impersonateJWT) == "" {
+    accessToken, ok := r.Context().Value("access_token").(string)
+    if !ok || strings.TrimSpace(accessToken) == "" {
         response.Error(w, http.StatusUnauthorized, "Unauthorized")
         return
     }
-    impersonateClient := s.supabase.GetAuthenticatedClient(impersonateJWT)
+    authClient := s.supabase.GetAuthenticatedClient(accessToken)
 
     payloads := make([]models.ProfileUpsert, 0, len(roles))
     for _, role := range roles {
@@ -138,12 +138,12 @@ func (s *Server) RegisterStep2(w http.ResponseWriter, r *http.Request) {
         })
     }
     if len(payloads) > 0 {
-        if _, _, err := impersonateClient.From("profiles").Insert(payloads, true, "id,role", "minimal", "").Execute(); err != nil {
+        if _, _, err := authClient.From("profiles").Insert(payloads, true, "id,role", "minimal", "").Execute(); err != nil {
             response.Error(w, http.StatusInternalServerError, fmt.Sprintf("ロール行の保存に失敗しました: %v", err))
             return
         }
         // 配列カラムrolesも同期
-        if _, _, err := impersonateClient.From("profiles").Update(map[string]interface{}{"roles": roles}, "", "").Eq("id", userID).Execute(); err != nil {
+        if _, _, err := authClient.From("profiles").Update(map[string]interface{}{"roles": roles}, "", "").Eq("id", userID).Execute(); err != nil {
             response.Error(w, http.StatusInternalServerError, fmt.Sprintf("ロール配列の保存に失敗しました: %v", err))
             return
         }
@@ -164,8 +164,8 @@ func (s *Server) RegisterStep3(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	impersonateJWT, ok := r.Context().Value("impersonate_jwt").(string)
-	if !ok || impersonateJWT == "" {
+	accessToken, ok := r.Context().Value("access_token").(string)
+	if !ok || accessToken == "" {
 		response.Error(w, http.StatusUnauthorized, "Unauthorized")
 		return
 	}
@@ -200,7 +200,7 @@ func (s *Server) RegisterStep3(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-    impersonateClient := s.supabase.GetAuthenticatedClient(impersonateJWT)
+    authClient := s.supabase.GetAuthenticatedClient(accessToken)
     // ロールはStep3のリクエストから受け取る
     roles := uniqueStrings(req.Roles)
     if len(roles) == 0 {
@@ -229,12 +229,12 @@ func (s *Server) RegisterStep3(w http.ResponseWriter, r *http.Request) {
         })
     }
     if len(payloads) > 0 {
-        if _, _, err := impersonateClient.From("profiles").Insert(payloads, true, "id,role", "minimal", "").Execute(); err != nil {
+        if _, _, err := authClient.From("profiles").Insert(payloads, true, "id,role", "minimal", "").Execute(); err != nil {
             response.Error(w, http.StatusInternalServerError, fmt.Sprintf("プロフィール情報の保存に失敗しました: %v", err))
             return
         }
         // 同期: 役割配列カラム（roles）を更新
-        if _, _, err := impersonateClient.From("profiles").Update(map[string]interface{}{"roles": roles}, "", "").Eq("id", userID).Execute(); err != nil {
+        if _, _, err := authClient.From("profiles").Update(map[string]interface{}{"roles": roles}, "", "").Eq("id", userID).Execute(); err != nil {
             response.Error(w, http.StatusInternalServerError, fmt.Sprintf("ロール配列の保存に失敗しました: %v", err))
             return
         }
@@ -255,7 +255,7 @@ func (s *Server) RegisterStep3(w http.ResponseWriter, r *http.Request) {
             })
         }
         if len(linkPayloads) > 0 {
-            if _, _, err := impersonateClient.From("user_links").Insert(linkPayloads, false, "", "minimal", "").Execute(); err != nil {
+            if _, _, err := authClient.From("user_links").Insert(linkPayloads, false, "", "minimal", "").Execute(); err != nil {
                 response.Error(w, http.StatusInternalServerError, fmt.Sprintf("リンク情報の保存に失敗しました: %v", err))
                 return
             }
@@ -265,7 +265,7 @@ func (s *Server) RegisterStep3(w http.ResponseWriter, r *http.Request) {
     // メタデータ保存は廃止。追加フィールドが必要なら profiles にカラムを追加してください。
 
     var profiles []models.Profile
-    if _, err := impersonateClient.From("profiles").Select("*", "", false).Eq("id", userID).ExecuteTo(&profiles); err != nil || len(profiles) == 0 {
+    if _, err := authClient.From("profiles").Select("*", "", false).Eq("id", userID).ExecuteTo(&profiles); err != nil || len(profiles) == 0 {
 		response.Error(w, http.StatusInternalServerError, "プロフィール情報の取得に失敗しました")
 		return
 	}
@@ -288,8 +288,8 @@ func (s *Server) RegisterStep4(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	impersonateJWT, ok := r.Context().Value("impersonate_jwt").(string)
-	if !ok || impersonateJWT == "" {
+	accessToken, ok := r.Context().Value("access_token").(string)
+	if !ok || accessToken == "" {
 		response.Error(w, http.StatusUnauthorized, "Unauthorized")
 		return
 	}
@@ -300,10 +300,10 @@ func (s *Server) RegisterStep4(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-    impersonateClient := s.supabase.GetAuthenticatedClient(impersonateJWT)
+    authClient := s.supabase.GetAuthenticatedClient(accessToken)
     // ロールは profiles から取得
     var rowsStep4 []struct{ Role string `json:"role"` }
-    if _, err := impersonateClient.From("profiles").Select("role", "", false).Eq("id", userID).ExecuteTo(&rowsStep4); err != nil {
+    if _, err := authClient.From("profiles").Select("role", "", false).Eq("id", userID).ExecuteTo(&rowsStep4); err != nil {
         response.Error(w, http.StatusInternalServerError, "ロール取得に失敗しました")
         return
     }
@@ -333,7 +333,7 @@ func (s *Server) RegisterStep4(w http.ResponseWriter, r *http.Request) {
 				update["desired_exit_timing"] = strings.TrimSpace(*req.Seller.DesiredExitTiming)
 			}
             if len(update) > 0 {
-                if _, _, err := impersonateClient.From("profiles").Update(update, "", "").Eq("id", userID).Eq("role", "seller").Execute(); err != nil {
+                if _, _, err := authClient.From("profiles").Update(update, "", "").Eq("id", userID).Eq("role", "seller").Execute(); err != nil {
 					response.Error(w, http.StatusInternalServerError, fmt.Sprintf("売り手情報の更新に失敗しました: %v", err))
 					return
 				}
@@ -363,7 +363,7 @@ func (s *Server) RegisterStep4(w http.ResponseWriter, r *http.Request) {
 				update["desired_purchase_timing"] = strings.TrimSpace(*req.Buyer.DesiredAcquisitionTiming)
 			}
             if len(update) > 0 {
-                if _, _, err := impersonateClient.From("profiles").Update(update, "", "").Eq("id", userID).Eq("role", "buyer").Execute(); err != nil {
+                if _, _, err := authClient.From("profiles").Update(update, "", "").Eq("id", userID).Eq("role", "buyer").Execute(); err != nil {
 					response.Error(w, http.StatusInternalServerError, fmt.Sprintf("買い手情報の更新に失敗しました: %v", err))
 					return
 				}
@@ -399,7 +399,7 @@ func (s *Server) RegisterStep4(w http.ResponseWriter, r *http.Request) {
 				update["proposal_style"] = strings.TrimSpace(*req.Advisor.ProposalStyle)
 			}
             if len(update) > 0 {
-                if _, _, err := impersonateClient.From("profiles").Update(update, "", "").Eq("id", userID).Eq("role", "advisor").Execute(); err != nil {
+                if _, _, err := authClient.From("profiles").Update(update, "", "").Eq("id", userID).Eq("role", "advisor").Execute(); err != nil {
 					response.Error(w, http.StatusInternalServerError, fmt.Sprintf("提案者情報の更新に失敗しました: %v", err))
 					return
 				}
@@ -411,7 +411,7 @@ func (s *Server) RegisterStep4(w http.ResponseWriter, r *http.Request) {
 	}
 
     var profiles []models.Profile
-    if _, err := impersonateClient.From("profiles").Select("*", "", false).Eq("id", userID).ExecuteTo(&profiles); err != nil {
+    if _, err := authClient.From("profiles").Select("*", "", false).Eq("id", userID).ExecuteTo(&profiles); err != nil {
 		response.Error(w, http.StatusInternalServerError, "プロフィール情報の取得に失敗しました")
 		return
 	}
@@ -431,8 +431,8 @@ func (s *Server) RegisterStep5(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	impersonateJWT, ok := r.Context().Value("impersonate_jwt").(string)
-	if !ok || impersonateJWT == "" {
+	accessToken, ok := r.Context().Value("access_token").(string)
+	if !ok || accessToken == "" {
 		response.Error(w, http.StatusUnauthorized, "Unauthorized")
 		return
 	}
@@ -443,10 +443,10 @@ func (s *Server) RegisterStep5(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-    impersonateClient := s.supabase.GetAuthenticatedClient(impersonateJWT)
+    authClient := s.supabase.GetAuthenticatedClient(accessToken)
     // ロールは profiles から取得
     var rowsStep5 []struct{ Role string `json:"role"` }
-    if _, err := impersonateClient.From("profiles").Select("role", "", false).Eq("id", userID).ExecuteTo(&rowsStep5); err != nil {
+    if _, err := authClient.From("profiles").Select("role", "", false).Eq("id", userID).ExecuteTo(&rowsStep5); err != nil {
         response.Error(w, http.StatusInternalServerError, "ロール取得に失敗しました")
         return
     }
@@ -473,7 +473,7 @@ func (s *Server) RegisterStep5(w http.ResponseWriter, r *http.Request) {
     if req.PrivacyAccepted {
         update["privacy_accepted_at"] = now
     }
-    if _, _, err := impersonateClient.From("profiles").Update(update, "", "").Eq("id", userID).Execute(); err != nil {
+    if _, _, err := authClient.From("profiles").Update(update, "", "").Eq("id", userID).Execute(); err != nil {
         response.Error(w, http.StatusInternalServerError, fmt.Sprintf("同意情報の保存に失敗しました: %v", err))
         return
     }

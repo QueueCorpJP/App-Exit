@@ -30,9 +30,22 @@ export default function ProfileViewPage({ userId }: ProfileViewPageProps) {
         setLoading(true);
 
         // BFF経由でプロフィールと投稿を並列取得
-        const bffUrl = process.env.NEXT_PUBLIC_BFF_URL || 'http://localhost:8080';
+        const bffUrl = process.env.NEXT_PUBLIC_BFF_URL || 'http://localhost:8082';
+
+        // Cookieから認証トークンを取得
+        const authToken = document.cookie
+          .split('; ')
+          .find(row => row.startsWith('access_token='))
+          ?.split('=')[1];
+
         const response = await fetch(
-          `${bffUrl}/bff/profile-and-posts?user_id=${userId}&limit=50&offset=0`
+          `${bffUrl}/bff/profile-and-posts?user_id=${userId}&limit=50&offset=0`,
+          {
+            credentials: 'include', // 🔥 Cookieを送信するために必須
+            headers: authToken ? {
+              'Authorization': `Bearer ${authToken}`
+            } : {}
+          }
         );
 
         if (!response.ok) {

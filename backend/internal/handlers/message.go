@@ -202,7 +202,7 @@ func (s *Server) HandleMessages(w http.ResponseWriter, r *http.Request) {
 
 // CreateThread creates a new conversation thread
 func (s *Server) CreateThread(w http.ResponseWriter, r *http.Request) {
-	userID, impersonateJWT, ok := utils.RequireAuth(r, w)
+	userID, accessToken, ok := utils.RequireAuth(r, w)
 	if !ok {
 		return
 	}
@@ -220,7 +220,7 @@ func (s *Server) CreateThread(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	client := s.supabase.GetAuthenticatedClient(impersonateJWT)
+	client := s.supabase.GetAuthenticatedClient(accessToken)
 
 	insertData := threadInsert{
 		CreatedBy:     userID,
@@ -257,11 +257,10 @@ func (s *Server) CreateThread(w http.ResponseWriter, r *http.Request) {
 		uniqueParticipants[pid] = true
 	}
 
-	serviceClient := s.supabase.GetServiceClient()
-	
+	// 🔒 SECURITY: Use access token instead of Service Role Key to enforce RLS
 	// Check existing participants
 	var existingParticipants []participantCheck
-	_, checkErr := serviceClient.From("thread_participants").
+	_, checkErr := client.From("thread_participants").
 		Select("user_id", "", false).
 		Eq("thread_id", thread.ID).
 		ExecuteTo(&existingParticipants)
@@ -286,7 +285,7 @@ func (s *Server) CreateThread(w http.ResponseWriter, r *http.Request) {
 
 	// Insert participants if any
 	if len(participantInserts) > 0 {
-		_, _, err := serviceClient.From("thread_participants").
+		_, _, err := client.From("thread_participants").
 			Insert(participantInserts, false, "", "", "").
 			Execute()
 
@@ -302,7 +301,7 @@ func (s *Server) CreateThread(w http.ResponseWriter, r *http.Request) {
 
 // GetThreads retrieves all threads for the authenticated user
 func (s *Server) GetThreads(w http.ResponseWriter, r *http.Request) {
-	userID, impersonateJWT, ok := utils.RequireAuth(r, w)
+	userID, accessToken, ok := utils.RequireAuth(r, w)
 	if !ok {
 		return
 	}
@@ -323,7 +322,7 @@ func (s *Server) GetThreads(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	client := s.supabase.GetAuthenticatedClient(impersonateJWT)
+	client := s.supabase.GetAuthenticatedClient(accessToken)
 
 	var threadParticipantRows []participantRow
 	_, err := client.From("thread_participants").
@@ -352,9 +351,9 @@ func (s *Server) GetThreads(w http.ResponseWriter, r *http.Request) {
 		threadIDList = append(threadIDList, threadID)
 	}
 
-	serviceClient := s.supabase.GetServiceClient()
+	// 🔒 SECURITY: Use access token instead of Service Role Key to enforce RLS
 	var threadRows []threadRow
-	_, err = serviceClient.From("threads").
+	_, err = client.From("threads").
 		Select("id, created_by, related_post_id, created_at", "", false).
 		In("id", threadIDList).
 		Order("created_at", nil). // 新しいスレッドから取得
@@ -381,7 +380,7 @@ func (s *Server) GetThreads(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var allMessageRows []messageRow
-	_, err = serviceClient.From("messages").
+	_, err = client.From("messages").
 		Select("id, thread_id, sender_user_id, type, text, created_at", "", false).
 		In("thread_id", threadIDs).
 		ExecuteTo(&allMessageRows)
@@ -397,7 +396,7 @@ func (s *Server) GetThreads(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var allParticipantRows []participantRow
-	_, err = serviceClient.From("thread_participants").
+	_, err = client.From("thread_participants").
 		Select("thread_id, user_id", "", false).
 		In("thread_id", threadIDList).
 		ExecuteTo(&allParticipantRows)
@@ -426,7 +425,7 @@ func (s *Server) GetThreads(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[GetThreads] Fetching profiles for %d participant IDs: %v", len(participantIDList), participantIDList)
 
 		var profileRows []profileRow
-		_, err = serviceClient.From("profiles").
+		_, err = client.From("profiles").
 			Select("id, role, party, display_name, icon_url, nda_flag, terms_accepted_at, privacy_accepted_at, created_at, updated_at", "", false).
 			In("id", participantIDList).
 			ExecuteTo(&profileRows)
@@ -530,8 +529,74 @@ func (s *Server) GetThreads(w http.ResponseWriter, r *http.Request) {
 		}
 		log.Printf("[GetThreads] Thread %s: %d participant IDs, %d profiles added", row.ID, len(thread.ParticipantIDs), len(thread.Participants))
 
-		thread.UnreadCount = 0
 		threads = append(threads, thread)
+	}
+
+	// 未読数を計算
+	// 各スレッドのメッセージIDを取得
+	threadMessageIDs := make(map[string][]string)
+	for _, msg := range allMessageRows {
+		threadMessageIDs[msg.ThreadID] = append(threadMessageIDs[msg.ThreadID], msg.ID)
+	}
+
+	// 既読レコードを取得
+	type messageReadRow struct {
+		MessageID string `json:"message_id"`
+		UserID    string `json:"user_id"`
+	}
+	var readRows []messageReadRow
+	if len(threadIDs) > 0 {
+		// すべてのスレッドのメッセージIDを収集
+		allMessageIDs := make([]string, 0)
+		for _, msgIDs := range threadMessageIDs {
+			allMessageIDs = append(allMessageIDs, msgIDs...)
+		}
+
+		if len(allMessageIDs) > 0 {
+			_, err = client.From("message_reads").
+				Select("message_id, user_id", "", false).
+				In("message_id", allMessageIDs).
+				Eq("user_id", userID).
+				ExecuteTo(&readRows)
+
+			if err != nil {
+				log.Printf("[GetThreads] Failed to query message_reads: %v", err)
+			}
+		}
+	}
+
+	// 既読メッセージIDのセットを作成
+	readMessageIDs := make(map[string]bool)
+	for _, readRow := range readRows {
+		readMessageIDs[readRow.MessageID] = true
+	}
+
+	// 各スレッドの未読数を計算
+	for i := range threads {
+		threadID := threads[i].ID
+		unreadCount := 0
+
+		// このスレッドのメッセージを取得
+		if msgIDs, exists := threadMessageIDs[threadID]; exists {
+			for _, msgID := range msgIDs {
+				// メッセージの送信者を確認
+				var msgSenderID string
+				for _, msg := range allMessageRows {
+					if msg.ID == msgID {
+						msgSenderID = msg.SenderUserID
+						break
+					}
+				}
+
+				// 自分が送信者でないメッセージで、かつ既読レコードが存在しない場合、未読としてカウント
+				if msgSenderID != userID && !readMessageIDs[msgID] {
+					unreadCount++
+				}
+			}
+		}
+
+		threads[i].UnreadCount = unreadCount
+		log.Printf("[GetThreads] Thread %s: unread_count = %d", threadID, unreadCount)
 	}
 
 	log.Printf("[GetThreads] Returning %d threads with full details", len(threads))
@@ -540,7 +605,7 @@ func (s *Server) GetThreads(w http.ResponseWriter, r *http.Request) {
 
 // GetThreadByID retrieves a specific thread with its details
 func (s *Server) GetThreadByID(w http.ResponseWriter, r *http.Request) {
-	userID, impersonateJWT, ok := utils.RequireAuth(r, w)
+	userID, accessToken, ok := utils.RequireAuth(r, w)
 	if !ok {
 		return
 	}
@@ -551,7 +616,7 @@ func (s *Server) GetThreadByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client := s.supabase.GetAuthenticatedClient(impersonateJWT)
+	client := s.supabase.GetAuthenticatedClient(accessToken)
 
 	var participantCheck []participantCheck
 	_, err := client.From("thread_participants").
@@ -562,9 +627,9 @@ func (s *Server) GetThreadByID(w http.ResponseWriter, r *http.Request) {
 
 	isParticipant := err == nil && len(participantCheck) > 0
 
-	serviceClient := s.supabase.GetServiceClient()
+	// 🔒 SECURITY: Use access token instead of Service Role Key to enforce RLS
 	var threadRows []threadRow
-	_, err = serviceClient.From("threads").
+	_, err = client.From("threads").
 		Select("id, created_by, related_post_id, created_at", "", false).
 		Eq("id", threadID).
 		ExecuteTo(&threadRows)
@@ -584,7 +649,7 @@ func (s *Server) GetThreadByID(w http.ResponseWriter, r *http.Request) {
 		var profileRows []struct {
 			ID string `json:"id"`
 		}
-		_, profileErr := serviceClient.From("profiles").
+		_, profileErr := client.From("profiles").
 			Select("id", "", false).
 			Eq("id", threadID).
 			ExecuteTo(&profileRows)
@@ -594,9 +659,9 @@ func (s *Server) GetThreadByID(w http.ResponseWriter, r *http.Request) {
 			log.Printf("[GetThreadByID] ID is a valid user ID, checking for existing thread or creating new one")
 			
 			// Check if there's already a thread between these two users
-			// Use serviceClient to bypass RLS and check all threads
+			// Use access token to respect RLS
 			var existingThreadParticipants []participantRow
-			_, err = serviceClient.From("thread_participants").
+			_, err = client.From("thread_participants").
 				Select("thread_id, user_id", "", false).
 				Eq("user_id", userID).
 				ExecuteTo(&existingThreadParticipants)
@@ -616,7 +681,7 @@ func (s *Server) GetThreadByID(w http.ResponseWriter, r *http.Request) {
 					}
 					
 					var targetUserParticipants []participantRow
-					_, err = serviceClient.From("thread_participants").
+					_, err = client.From("thread_participants").
 						Select("thread_id, user_id", "", false).
 						In("thread_id", threadIDList).
 						Eq("user_id", threadID).
@@ -630,7 +695,7 @@ func (s *Server) GetThreadByID(w http.ResponseWriter, r *http.Request) {
 						// Recursively call GetThreadByID with the actual thread ID
 						// But we need to avoid infinite recursion, so we'll fetch it directly
 						var existingThreadRows []threadRow
-						_, err = serviceClient.From("threads").
+						_, err = client.From("threads").
 							Select("id, created_by, related_post_id, created_at", "", false).
 							Eq("id", existingThreadID).
 							ExecuteTo(&existingThreadRows)
@@ -648,7 +713,7 @@ func (s *Server) GetThreadByID(w http.ResponseWriter, r *http.Request) {
 							
 							// Get participants
 							var participantRows []participantRowSimple
-							_, queryErr := serviceClient.From("thread_participants").
+							_, queryErr := client.From("thread_participants").
 								Select("user_id", "", false).
 								Eq("thread_id", existingThreadID).
 								ExecuteTo(&participantRows)
@@ -767,7 +832,7 @@ func (s *Server) GetThreadByID(w http.ResponseWriter, r *http.Request) {
 			}
 			
 			if len(participantInserts) > 0 {
-				_, _, err = serviceClient.From("thread_participants").
+				_, _, err = client.From("thread_participants").
 					Insert(participantInserts, false, "", "", "").
 					Execute()
 				
@@ -785,7 +850,7 @@ func (s *Server) GetThreadByID(w http.ResponseWriter, r *http.Request) {
 			
 			// Get participants for response
 			var participantRows []participantRowSimple
-			_, queryErr := serviceClient.From("thread_participants").
+			_, queryErr := client.From("thread_participants").
 				Select("user_id", "", false).
 				Eq("thread_id", newThread.ID).
 				ExecuteTo(&participantRows)
@@ -875,7 +940,7 @@ func (s *Server) GetThreadByID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var participantRows []participantRowSimple
-	_, queryErr := serviceClient.From("thread_participants").
+	_, queryErr := client.From("thread_participants").
 		Select("user_id", "", false).
 		Eq("thread_id", threadID).
 		ExecuteTo(&participantRows)
@@ -982,7 +1047,7 @@ func (s *Server) GetThreadByID(w http.ResponseWriter, r *http.Request) {
 
 // GetMessages retrieves messages for a specific thread
 func (s *Server) GetMessages(w http.ResponseWriter, r *http.Request) {
-	_, impersonateJWT, ok := utils.RequireAuth(r, w)
+	userID, accessToken, ok := utils.RequireAuth(r, w)
 	if !ok {
 		return
 	}
@@ -1009,7 +1074,7 @@ func (s *Server) GetMessages(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	client := s.supabase.GetAuthenticatedClient(impersonateJWT)
+	client := s.supabase.GetAuthenticatedClient(accessToken)
 
 	var messageRows []messageRow
 	_, err := client.From("messages").
@@ -1117,13 +1182,73 @@ func (s *Server) GetMessages(w http.ResponseWriter, r *http.Request) {
 		messages = append(messages, msg)
 	}
 
+	// 自分が送信者でないメッセージを既読にする
+	unreadMessageIDs := make([]string, 0)
+	for _, row := range messageRows {
+		if row.SenderUserID != userID {
+			unreadMessageIDs = append(unreadMessageIDs, row.ID)
+		}
+	}
+
+	if len(unreadMessageIDs) > 0 {
+		// 既存の既読レコードを確認
+		type messageReadCheck struct {
+			MessageID string `json:"message_id"`
+		}
+		var existingReads []messageReadCheck
+		_, err = client.From("message_reads").
+			Select("message_id", "", false).
+			In("message_id", unreadMessageIDs).
+			Eq("user_id", userID).
+			ExecuteTo(&existingReads)
+
+		if err != nil {
+			log.Printf("[GetMessages] Failed to check existing reads: %v", err)
+		} else {
+			// 既存の既読メッセージIDのセットを作成
+			existingReadSet := make(map[string]bool)
+			for _, read := range existingReads {
+				existingReadSet[read.MessageID] = true
+			}
+
+			// まだ既読になっていないメッセージのみを既読にする
+			type messageReadInsert struct {
+				MessageID string `json:"message_id"`
+				UserID    string `json:"user_id"`
+				ReadAt    string `json:"read_at"`
+			}
+			readsToInsert := make([]messageReadInsert, 0)
+			for _, msgID := range unreadMessageIDs {
+				if !existingReadSet[msgID] {
+					readsToInsert = append(readsToInsert, messageReadInsert{
+						MessageID: msgID,
+						UserID:    userID,
+						ReadAt:    time.Now().UTC().Format(time.RFC3339),
+					})
+				}
+			}
+
+			if len(readsToInsert) > 0 {
+				_, _, err = client.From("message_reads").
+					Insert(readsToInsert, false, "", "", "").
+					Execute()
+
+				if err != nil {
+					log.Printf("[GetMessages] Failed to mark messages as read: %v", err)
+				} else {
+					log.Printf("[GetMessages] Marked %d messages as read", len(readsToInsert))
+				}
+			}
+		}
+	}
+
 	log.Printf("[GetMessages] Returning %d messages", len(messages))
 	response.Success(w, http.StatusOK, messages)
 }
 
 // SendMessage sends a new message in a thread
 func (s *Server) SendMessage(w http.ResponseWriter, r *http.Request) {
-	userID, impersonateJWT, ok := utils.RequireAuth(r, w)
+	userID, accessToken, ok := utils.RequireAuth(r, w)
 	if !ok {
 		return
 	}
@@ -1133,7 +1258,7 @@ func (s *Server) SendMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client := s.supabase.GetAuthenticatedClient(impersonateJWT)
+	client := s.supabase.GetAuthenticatedClient(accessToken)
 
 	type threadRowSimple struct {
 		CreatedBy string `json:"created_by"`
@@ -1464,12 +1589,13 @@ func (s *Server) UploadContractDocument(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// スレッドの参加者であることを確認
-	client, err := s.supabase.GetImpersonateClient(userID)
-	if err != nil {
-		log.Printf("[UploadContractDocument] Failed to get impersonate client: %v", err)
-		response.Error(w, http.StatusInternalServerError, "Failed to verify thread access")
+	accessToken, ok := r.Context().Value("access_token").(string)
+	if !ok {
+		log.Printf("[UploadContractDocument] Failed to get access token from context")
+		response.Error(w, http.StatusUnauthorized, "Authentication required")
 		return
 	}
+	client := s.supabase.GetAuthenticatedClient(accessToken)
 
 	var participantCheck []struct {
 		UserID string `json:"user_id"`
@@ -1604,17 +1730,19 @@ func (s *Server) GetThreadContractDocuments(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	client, err := s.supabase.GetImpersonateClient(userID)
-	if err != nil {
-		log.Printf("[GetThreadContractDocuments] Failed to get impersonate client: %v", err)
-		response.Error(w, http.StatusInternalServerError, "Failed to fetch contract documents")
+	accessToken, ok := r.Context().Value("access_token").(string)
+	if !ok {
+		log.Printf("[GetThreadContractDocuments] Failed to get access token from context")
+		response.Error(w, http.StatusUnauthorized, "Authentication required")
 		return
 	}
+	client := s.supabase.GetAuthenticatedClient(accessToken)
 
 	// スレッドの参加者であることを確認
 	var participantCheck []struct {
 		UserID string `json:"user_id"`
 	}
+	var err error
 	_, err = client.From("thread_participants").
 		Select("user_id", "", false).
 		Eq("thread_id", threadID).
@@ -1795,12 +1923,13 @@ func (s *Server) UpdateContract(w http.ResponseWriter, r *http.Request) {
 		contentType = "application/pdf" // デフォルトでPDFと仮定
 	}
 
-	client, err := s.supabase.GetImpersonateClient(userID)
-	if err != nil {
-		log.Printf("[UpdateContract] Failed to get impersonate client: %v", err)
-		response.Error(w, http.StatusInternalServerError, "Failed to update contract")
+	accessToken, ok := r.Context().Value("access_token").(string)
+	if !ok {
+		log.Printf("[UpdateContract] Failed to get access token from context")
+		response.Error(w, http.StatusUnauthorized, "Authentication required")
 		return
 	}
+	client := s.supabase.GetAuthenticatedClient(accessToken)
 
 	// 既存の契約書情報を取得
 	type contractDoc struct {
@@ -1918,12 +2047,13 @@ func (s *Server) AddContractSignature(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client, err := s.supabase.GetImpersonateClient(userID)
-	if err != nil {
-		log.Printf("[AddContractSignature] Failed to get impersonate client: %v", err)
-		response.Error(w, http.StatusInternalServerError, "Failed to add signature")
+	accessToken, ok := r.Context().Value("access_token").(string)
+	if !ok {
+		log.Printf("[AddContractSignature] Failed to get access token from context")
+		response.Error(w, http.StatusUnauthorized, "Authentication required")
 		return
 	}
+	client := s.supabase.GetAuthenticatedClient(accessToken)
 
 	// 既存の契約書情報を取得
 	type contractDoc struct {
@@ -1932,6 +2062,7 @@ func (s *Server) AddContractSignature(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var existingContract []contractDoc
+	var err error
 	_, err = client.From("thread_contract_documents").
 		Select("id, thread_id", "", false).
 		Eq("id", contractID).
@@ -2003,17 +2134,19 @@ func (s *Server) CreateSaleRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client, err := s.supabase.GetImpersonateClient(userID)
-	if err != nil {
-		log.Printf("[CreateSaleRequest] Failed to get impersonate client: %v", err)
-		response.Error(w, http.StatusInternalServerError, "Failed to create sale request")
+	accessToken, ok := r.Context().Value("access_token").(string)
+	if !ok {
+		log.Printf("[CreateSaleRequest] Failed to get access token from context")
+		response.Error(w, http.StatusUnauthorized, "Authentication required")
 		return
 	}
+	client := s.supabase.GetAuthenticatedClient(accessToken)
 
 	// スレッドの参加者であることを確認
 	var participantCheck []struct {
 		UserID string `json:"user_id"`
 	}
+	var err error
 	_, err = client.From("thread_participants").
 		Select("user_id", "", false).
 		Eq("thread_id", req.ThreadID).
@@ -2232,15 +2365,17 @@ func (s *Server) VerifyPayment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client, err := s.supabase.GetImpersonateClient(userID)
-	if err != nil {
-		log.Printf("[VerifyPayment] Failed to get impersonate client: %v", err)
-		response.Error(w, http.StatusInternalServerError, "Failed to verify payment")
+	accessToken, ok := r.Context().Value("access_token").(string)
+	if !ok {
+		log.Printf("[VerifyPayment] Failed to get access token from context")
+		response.Error(w, http.StatusUnauthorized, "Authentication required")
 		return
 	}
+	client := s.supabase.GetAuthenticatedClient(accessToken)
 
 	// DBから sale_request を取得
 	var saleRequests []models.SaleRequest
+	var err error
 	_, err = client.From("sale_requests").
 		Select("*", "", false).
 		Eq("id", saleRequestID).
@@ -2308,12 +2443,13 @@ func (s *Server) RefundSaleRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client, err := s.supabase.GetImpersonateClient(userID)
-	if err != nil {
-		log.Printf("[RefundSaleRequest] Failed to get impersonate client: %v", err)
-		response.Error(w, http.StatusInternalServerError, "Failed to process refund")
+	accessToken, ok := r.Context().Value("access_token").(string)
+	if !ok {
+		log.Printf("[RefundSaleRequest] Failed to get access token from context")
+		response.Error(w, http.StatusUnauthorized, "Authentication required")
 		return
 	}
+	client := s.supabase.GetAuthenticatedClient(accessToken)
 
 	// 売却リクエストを取得
 	var saleRequests []struct {
@@ -2325,6 +2461,7 @@ func (s *Server) RefundSaleRequest(w http.ResponseWriter, r *http.Request) {
 		Status          string `json:"status"`
 	}
 
+	var err error
 	_, err = client.From("sale_requests").
 		Select("*", "", false).
 		Eq("id", req.SaleRequestID).
@@ -2399,17 +2536,19 @@ func (s *Server) GetSaleRequests(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client, err := s.supabase.GetImpersonateClient(userID)
-	if err != nil {
-		log.Printf("[GetSaleRequests] Failed to get impersonate client: %v", err)
-		response.Error(w, http.StatusInternalServerError, "Failed to fetch sale requests")
+	accessToken, ok := r.Context().Value("access_token").(string)
+	if !ok {
+		log.Printf("[GetSaleRequests] Failed to get access token from context")
+		response.Error(w, http.StatusUnauthorized, "Authentication required")
 		return
 	}
+	client := s.supabase.GetAuthenticatedClient(accessToken)
 
 	// スレッドの参加者であることを確認
 	var participantCheck []struct {
 		UserID string `json:"user_id"`
 	}
+	var err error
 	_, err = client.From("thread_participants").
 		Select("user_id", "", false).
 		Eq("thread_id", threadID).
@@ -2490,15 +2629,17 @@ func (s *Server) ConfirmSaleRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client, err := s.supabase.GetImpersonateClient(userID)
-	if err != nil {
-		log.Printf("[ConfirmSaleRequest] Failed to get impersonate client: %v", err)
-		response.Error(w, http.StatusInternalServerError, "Failed to confirm sale request")
+	accessToken, ok := r.Context().Value("access_token").(string)
+	if !ok {
+		log.Printf("[ConfirmSaleRequest] Failed to get access token from context")
+		response.Error(w, http.StatusUnauthorized, "Authentication required")
 		return
 	}
+	client := s.supabase.GetAuthenticatedClient(accessToken)
 
 	// 売却リクエストを取得
 	var saleRequests []models.SaleRequest
+	var err error
 	_, err = client.From("sale_requests").
 		Select("*", "", false).
 		Eq("id", req.SaleRequestID).

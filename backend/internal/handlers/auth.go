@@ -264,7 +264,7 @@ func (s *Server) CreateProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// contextからユーザーIDとimpersonate JWTを取得（ミドルウェアで設定済み）
+	// contextからユーザーIDとaccess tokenを取得（ミドルウェアで設定済み）
 	userID, ok := r.Context().Value("user_id").(string)
 	if !ok || userID == "" {
 		fmt.Printf("[ERROR] CreateProfile: User ID not found in context\n")
@@ -273,13 +273,13 @@ func (s *Server) CreateProfile(w http.ResponseWriter, r *http.Request) {
 	}
 	fmt.Printf("[DEBUG] CreateProfile: UserID from context: %s\n", userID)
 
-	impersonateJWT, ok := r.Context().Value("impersonate_jwt").(string)
-	if !ok || impersonateJWT == "" {
-		fmt.Printf("[ERROR] CreateProfile: Impersonate JWT not found in context\n")
+	accessToken, ok := r.Context().Value("access_token").(string)
+	if !ok || accessToken == "" {
+		fmt.Printf("[ERROR] CreateProfile: Access token not found in context\n")
 		response.Error(w, http.StatusUnauthorized, "Unauthorized")
 		return
 	}
-	fmt.Printf("[DEBUG] CreateProfile: Using impersonate JWT for RLS operations\n")
+	fmt.Printf("[DEBUG] CreateProfile: Using access token for RLS operations\n")
 
 	var req models.CreateProfileRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -307,10 +307,10 @@ func (s *Server) CreateProfile(w http.ResponseWriter, r *http.Request) {
 	}
 	fmt.Printf("[DEBUG] CreateProfile: Profile to insert: %+v\n", profile)
 
-	// impersonate JWTでプロフィールを挿入（RLSが自動的にチェック）
-	impersonateClient := s.supabase.GetAuthenticatedClient(impersonateJWT)
-	fmt.Printf("[DEBUG] CreateProfile: Attempting to insert profile into database with impersonate JWT\n")
-	_, _, err := impersonateClient.From("profiles").Insert(profile, false, "", "", "").Execute()
+	// access tokenでプロフィールを挿入（RLSが自動的にチェック）
+	authClient := s.supabase.GetAuthenticatedClient(accessToken)
+	fmt.Printf("[DEBUG] CreateProfile: Attempting to insert profile into database with access token\n")
+	_, _, err := authClient.From("profiles").Insert(profile, false, "", "", "").Execute()
 	if err != nil {
 		fmt.Printf("[ERROR] CreateProfile: Failed to insert profile: %v\n", err)
 		response.Error(w, http.StatusInternalServerError, fmt.Sprintf("Failed to create profile: %v", err))
@@ -319,7 +319,7 @@ func (s *Server) CreateProfile(w http.ResponseWriter, r *http.Request) {
 
 	// 作成されたプロフィールを取得（タイムスタンプを含む完全なデータ）
 	var profiles []models.Profile
-	_, err = impersonateClient.From("profiles").Select("*", "", false).Eq("id", userID).ExecuteTo(&profiles)
+	_, err = authClient.From("profiles").Select("*", "", false).Eq("id", userID).ExecuteTo(&profiles)
 	if err != nil || len(profiles) == 0 {
 		fmt.Printf("[ERROR] CreateProfile: Failed to fetch created profile: %v\n", err)
 		response.Error(w, http.StatusInternalServerError, "Failed to fetch profile")
@@ -340,7 +340,7 @@ func (s *Server) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// contextからユーザーIDとimpersonate JWTを取得（ミドルウェアで設定済み）
+	// contextからユーザーIDとaccess tokenを取得（ミドルウェアで設定済み）
 	userID, ok := r.Context().Value("user_id").(string)
 	if !ok || userID == "" {
 		fmt.Printf("[UPDATE PROFILE] ❌ ERROR: User ID not found in context\n")
@@ -350,14 +350,14 @@ func (s *Server) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	}
 	fmt.Printf("[UPDATE PROFILE] ✓ User ID from context: %s\n", userID)
 
-	impersonateJWT, ok := r.Context().Value("impersonate_jwt").(string)
-	if !ok || impersonateJWT == "" {
-		fmt.Printf("[UPDATE PROFILE] ❌ ERROR: Impersonate JWT not found in context\n")
+	accessToken, ok := r.Context().Value("access_token").(string)
+	if !ok || accessToken == "" {
+		fmt.Printf("[UPDATE PROFILE] ❌ ERROR: Access token not found in context\n")
 		fmt.Printf("========== UPDATE PROFILE END (FAILED) ==========\n\n")
 		response.Error(w, http.StatusUnauthorized, "Unauthorized")
 		return
 	}
-	fmt.Printf("[UPDATE PROFILE] ✓ Impersonate JWT found (length: %d)\n", len(impersonateJWT))
+	fmt.Printf("[UPDATE PROFILE] ✓ Access token found (length: %d)\n", len(accessToken))
 
 	var req models.UpdateProfileRequest
 	fmt.Printf("[UPDATE PROFILE] Decoding request body...\n")
@@ -440,9 +440,9 @@ func (s *Server) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	if len(updateData) == 0 {
 		fmt.Printf("[UPDATE PROFILE] ⚠️ No fields to update\n")
 		// 現在のプロフィールを取得して返す
-		impersonateClient := s.supabase.GetAuthenticatedClient(impersonateJWT)
+		authClient := s.supabase.GetAuthenticatedClient(accessToken)
 		var profiles []models.Profile
-		_, err := impersonateClient.From("profiles").Select("*", "", false).Eq("id", userID).ExecuteTo(&profiles)
+		_, err := authClient.From("profiles").Select("*", "", false).Eq("id", userID).ExecuteTo(&profiles)
 		if err != nil {
 			fmt.Printf("[UPDATE PROFILE] ❌ ERROR: Failed to fetch profile: %v\n", err)
 			fmt.Printf("========== UPDATE PROFILE END (FAILED) ==========\n\n")
@@ -473,10 +473,10 @@ func (s *Server) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 
 	fmt.Printf("[UPDATE PROFILE] Updating profile with data: %+v\n", updateData)
 
-	// impersonate JWTでプロフィールを更新（RLSが自動的にチェック）
-	impersonateClient := s.supabase.GetAuthenticatedClient(impersonateJWT)
+	// access tokenでプロフィールを更新（RLSが自動的にチェック）
+	authClient := s.supabase.GetAuthenticatedClient(accessToken)
 	fmt.Printf("[UPDATE PROFILE] Executing update query...\n")
-	_, _, err := impersonateClient.From("profiles").
+	_, _, err := authClient.From("profiles").
 		Update(updateData, "", "").
 		Eq("id", userID).
 		Execute()
@@ -493,7 +493,7 @@ func (s *Server) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	// 更新されたプロフィールを取得
 	fmt.Printf("[UPDATE PROFILE] Fetching updated profile...\n")
 	var profiles []models.Profile
-	_, profileErr := impersonateClient.From("profiles").Select("*", "", false).Eq("id", userID).ExecuteTo(&profiles)
+	_, profileErr := authClient.From("profiles").Select("*", "", false).Eq("id", userID).ExecuteTo(&profiles)
 	if profileErr != nil {
 		fmt.Printf("[UPDATE PROFILE] ❌ ERROR: Failed to fetch updated profile: %v\n", profileErr)
 		fmt.Printf("========== UPDATE PROFILE END (FAILED) ==========\n\n")
@@ -534,7 +534,7 @@ func (s *Server) GetProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// contextからユーザーIDとimpersonate JWTを取得（ミドルウェアで設定済み）
+	// contextからユーザーIDとaccess tokenを取得（ミドルウェアで設定済み）
 	userID, ok := r.Context().Value("user_id").(string)
 	if !ok || userID == "" {
 		fmt.Printf("[GET PROFILE] ❌ ERROR: User ID not found in context\n")
@@ -544,19 +544,19 @@ func (s *Server) GetProfile(w http.ResponseWriter, r *http.Request) {
 	}
 	fmt.Printf("[GET PROFILE] ✓ User ID from context: %s\n", userID)
 
-	impersonateJWT, ok := r.Context().Value("impersonate_jwt").(string)
-	if !ok || impersonateJWT == "" {
-		fmt.Printf("[GET PROFILE] ❌ ERROR: Impersonate JWT not found in context\n")
+	accessToken, ok := r.Context().Value("access_token").(string)
+	if !ok || accessToken == "" {
+		fmt.Printf("[GET PROFILE] ❌ ERROR: Access token not found in context\n")
 		fmt.Printf("========== GET PROFILE END (FAILED) ==========\n\n")
 		response.Error(w, http.StatusUnauthorized, "Unauthorized")
 		return
 	}
 
-	// impersonate JWTでプロフィールを取得
-	impersonateClient := s.supabase.GetAuthenticatedClient(impersonateJWT)
+	// access tokenでプロフィールを取得
+	authClient := s.supabase.GetAuthenticatedClient(accessToken)
 	fmt.Printf("[GET PROFILE] Fetching profile from database...\n")
 	var profiles []models.Profile
-	_, err := impersonateClient.From("profiles").Select("*", "", false).Eq("id", userID).ExecuteTo(&profiles)
+	_, err := authClient.From("profiles").Select("*", "", false).Eq("id", userID).ExecuteTo(&profiles)
 	if err != nil {
 		fmt.Printf("[GET PROFILE] ❌ ERROR: Failed to fetch profile: %v\n", err)
 		fmt.Printf("========== GET PROFILE END (FAILED) ==========\n\n")

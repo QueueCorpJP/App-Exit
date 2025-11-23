@@ -45,8 +45,16 @@ func (s *Server) CreateActiveView(w http.ResponseWriter, r *http.Request, postID
 	}
 	fmt.Printf("[CREATE ACTIVE VIEW] User ID: %s\n", userID)
 
+	// 🔒 SECURITY: Use access token to enforce RLS
+	accessToken, ok := r.Context().Value("access_token").(string)
+	if !ok || accessToken == "" {
+		fmt.Println("[CREATE ACTIVE VIEW] ❌ Access token not found in context")
+		response.Error(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+	client := s.supabase.GetAuthenticatedClient(accessToken)
+
 	// Check if post exists
-	client := s.supabase.GetServiceClient()
 	var posts []models.Post
 	_, err := client.From("posts").
 		Select("id", "", false).
@@ -151,8 +159,16 @@ func (s *Server) DeleteActiveView(w http.ResponseWriter, r *http.Request, postID
 	}
 	fmt.Printf("[DELETE ACTIVE VIEW] User ID: %s\n", userID)
 
+	// 🔒 SECURITY: Use access token to enforce RLS
+	accessToken, ok := r.Context().Value("access_token").(string)
+	if !ok || accessToken == "" {
+		fmt.Println("[DELETE ACTIVE VIEW] ❌ Access token not found in context")
+		response.Error(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+	client := s.supabase.GetAuthenticatedClient(accessToken)
+
 	// Check if active view exists
-	client := s.supabase.GetServiceClient()
 	var existingViews []models.ProductActiveView
 	_, err := client.From("product_active_views").
 		Select("*", "", false).
@@ -228,8 +244,16 @@ func (s *Server) GetActiveViewStatus(w http.ResponseWriter, r *http.Request, pos
 	}
 	fmt.Printf("[GET ACTIVE VIEW STATUS] User ID: %s\n", userID)
 
+	// 🔒 SECURITY: Use access token to enforce RLS
+	accessToken, ok := r.Context().Value("access_token").(string)
+	if !ok || accessToken == "" {
+		fmt.Println("[GET ACTIVE VIEW STATUS] ❌ Access token not found in context")
+		response.Error(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+	client := s.supabase.GetAuthenticatedClient(accessToken)
+
 	// Check if active view exists
-	client := s.supabase.GetServiceClient()
 	var existingViews []models.ProductActiveView
 	_, err := client.From("product_active_views").
 		Select("id", "", false).

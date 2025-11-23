@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	supabase "github.com/supabase-community/supabase-go"
 	"github.com/yourusername/appexit-backend/internal/models"
 	"github.com/yourusername/appexit-backend/internal/utils"
 	"github.com/yourusername/appexit-backend/pkg/response"
@@ -92,12 +93,11 @@ func (s *Server) ListPostsWithAuth(w http.ResponseWriter, r *http.Request) {
 }
 
 // checkNDAAgreement checks if the user/organization has signed NDA with the seller
-func (s *Server) checkNDAAgreement(buyerUserID string, sellerUserID string, sellerOrgID *string) (bool, error) {
+// 🔒 SECURITY: Now accepts client as parameter to enforce RLS
+func (s *Server) checkNDAAgreement(client *supabase.Client, buyerUserID string, sellerUserID string, sellerOrgID *string) (bool, error) {
 	if buyerUserID == "" {
 		return false, nil
 	}
-
-	client := s.supabase.GetServiceClient()
 
 	// Check if buyer user has signed NDA with seller (user-level)
 	var ndaAgreements []struct {
@@ -258,8 +258,15 @@ func (s *Server) ListPosts(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("[ListPosts] Search params: keyword=%v, categories=%v, postTypes=%v, price=%v-%v, revenue=%v-%v, techStacks=%v\n",
 		params.SearchKeyword, params.Categories, params.PostTypes, params.PriceMin, params.PriceMax, params.RevenueMin, params.RevenueMax, params.TechStacks)
 
-	// Use Supabase service client for querying posts
-	client := s.supabase.GetServiceClient()
+	// 🔒 SECURITY: Use access token if authenticated, otherwise use Anon Client to enforce RLS
+	var client *supabase.Client
+	if accessToken, ok := r.Context().Value("access_token").(string); ok && accessToken != "" {
+		// Authenticated user - can see more posts based on RLS policies
+		client = s.supabase.GetAuthenticatedClient(accessToken)
+	} else {
+		// Unauthenticated user - can only see public posts
+		client = s.supabase.GetAnonClient()
+	}
 	query := client.From("posts").
 		Select("*", "", false).
 		Order("created_at", nil)
@@ -465,7 +472,7 @@ func (s *Server) ListPosts(w http.ResponseWriter, r *http.Request) {
 				post.PerformanceURL = nil
 			} else {
 				// Check NDA agreement
-				hasNDA, err := s.checkNDAAgreement(currentUserID, post.AuthorUserID, post.AuthorOrgID)
+				hasNDA, err := s.checkNDAAgreement(client, currentUserID, post.AuthorUserID, post.AuthorOrgID)
 				if err != nil {
 					fmt.Printf("[ListPosts] ⚠️ Warning: Failed to check NDA for post %s: %v\n", post.ID, err)
 				}
@@ -554,8 +561,15 @@ func (s *Server) GetPost(w http.ResponseWriter, r *http.Request, postID string) 
 		fmt.Printf("[GET /api/posts/%s] Current user ID: %s\n", postID, currentUserID)
 	}
 
-	// Use Supabase service client for querying post
-	client := s.supabase.GetServiceClient()
+	// 🔒 SECURITY: Use access token if authenticated, otherwise use Anon Client to enforce RLS
+	var client *supabase.Client
+	if accessToken, ok := r.Context().Value("access_token").(string); ok && accessToken != "" {
+		// Authenticated user - can see more details based on RLS policies
+		client = s.supabase.GetAuthenticatedClient(accessToken)
+	} else {
+		// Unauthenticated user - can only see public posts
+		client = s.supabase.GetAnonClient()
+	}
 	var postsData []models.Post
 
 	_, err := client.From("posts").
@@ -589,7 +603,7 @@ func (s *Server) GetPost(w http.ResponseWriter, r *http.Request, postID string) 
 		}
 
 		// Check NDA agreement
-		hasNDA, err := s.checkNDAAgreement(currentUserID, post.AuthorUserID, post.AuthorOrgID)
+		hasNDA, err := s.checkNDAAgreement(client, currentUserID, post.AuthorUserID, post.AuthorOrgID)
 		if err != nil {
 			fmt.Printf("[GET /api/posts/%s] ❌ ERROR: Failed to check NDA: %v\n", postID, err)
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -667,15 +681,15 @@ func (s *Server) CreatePost(w http.ResponseWriter, r *http.Request) {
 	}
 	fmt.Printf("[POST /api/posts] ✓ User ID from context: %s\n", userID)
 
-	// Get impersonate JWT from context (set by auth middleware)
-	impersonateJWT, ok := r.Context().Value("impersonate_jwt").(string)
-	if !ok || impersonateJWT == "" {
-		fmt.Printf("[POST /api/posts] ❌ ERROR: Impersonate JWT not found in context\n")
+	// Get access token from context (set by auth middleware)
+	accessToken, ok := r.Context().Value("access_token").(string)
+	if !ok || accessToken == "" {
+		fmt.Printf("[POST /api/posts] ❌ ERROR: Access token not found in context\n")
 		fmt.Printf("========== CREATE POST END (FAILED) ==========\n\n")
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
-	fmt.Printf("[POST /api/posts] ✓ Impersonate JWT found (length: %d)\n", len(impersonateJWT))
+	fmt.Printf("[POST /api/posts] ✓ Access token found (length: %d)\n", len(accessToken))
 
 	var req models.CreatePostRequest
 	fmt.Printf("[POST /api/posts] Decoding request body...\n")
@@ -830,9 +844,9 @@ func (s *Server) CreatePost(w http.ResponseWriter, r *http.Request) {
 	
 	fmt.Printf("[POST /api/posts] ✓ Validation passed\n")
 
-	// Create a new Supabase client with impersonate JWT (for RLS)
-	fmt.Printf("[POST /api/posts] Creating Supabase client with impersonate JWT...\n")
-	impersonateClient := s.supabase.GetAuthenticatedClient(impersonateJWT)
+	// Create a new Supabase client with access token (for RLS)
+	fmt.Printf("[POST /api/posts] Creating Supabase client with access token...\n")
+	authClient := s.supabase.GetAuthenticatedClient(accessToken)
 	fmt.Printf("[POST /api/posts] ✓ Supabase client created\n")
 
 	// Get user's organization if they have one
@@ -843,7 +857,7 @@ func (s *Server) CreatePost(w http.ResponseWriter, r *http.Request) {
 	var orgMemberships []OrgMembership
 	var authorOrgID *string
 
-	_, err := impersonateClient.From("org_memberships").
+	_, err := authClient.From("org_memberships").
 		Select("org_id", "", false).
 		Eq("user_id", userID).
 		Limit(1, "").
@@ -898,11 +912,11 @@ func (s *Server) CreatePost(w http.ResponseWriter, r *http.Request) {
 		postData["subscribe"] = req.Subscribe
 	}
 
-	// Insert post with impersonate JWT (RLS will automatically check permissions)
+	// Insert post with access token (RLS will automatically check permissions)
 	fmt.Printf("[POST /api/posts] Inserting post into database...\n")
 	fmt.Printf("[POST /api/posts] Post data: %+v\n", postData)
 	var createdPosts []models.Post
-	_, err = impersonateClient.From("posts").
+	_, err = authClient.From("posts").
 		Insert(postData, false, "", "", "").
 		ExecuteTo(&createdPosts)
 
@@ -939,15 +953,15 @@ func (s *Server) CreatePost(w http.ResponseWriter, r *http.Request) {
 
 // UpdatePost updates an existing post using Supabase
 func (s *Server) UpdatePost(w http.ResponseWriter, r *http.Request, postID string) {
-	// Get user ID and impersonate JWT from context
+	// Get user ID and access token from context
 	userID, ok := r.Context().Value("user_id").(string)
 	if !ok {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 
-	impersonateJWT, ok := r.Context().Value("impersonate_jwt").(string)
-	if !ok || impersonateJWT == "" {
+	accessToken, ok := r.Context().Value("access_token").(string)
+	if !ok || accessToken == "" {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
@@ -964,8 +978,8 @@ func (s *Server) UpdatePost(w http.ResponseWriter, r *http.Request, postID strin
 		return
 	}
 
-	// Use impersonate client (RLS will check permissions automatically)
-	client := s.supabase.GetAuthenticatedClient(impersonateJWT)
+	// Use authenticated client (RLS will check permissions automatically)
+	client := s.supabase.GetAuthenticatedClient(accessToken)
 
 	// Check if post exists and get its type
 	type PostInfo struct {
@@ -1098,21 +1112,21 @@ func (s *Server) UpdatePost(w http.ResponseWriter, r *http.Request, postID strin
 
 // DeletePost deletes a post (soft delete by setting is_active to false) using Supabase
 func (s *Server) DeletePost(w http.ResponseWriter, r *http.Request, postID string) {
-	// Get user ID and impersonate JWT from context
+	// Get user ID and access token from context
 	userID, ok := r.Context().Value("user_id").(string)
 	if !ok {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 
-	impersonateJWT, ok := r.Context().Value("impersonate_jwt").(string)
-	if !ok || impersonateJWT == "" {
+	accessToken, ok := r.Context().Value("access_token").(string)
+	if !ok || accessToken == "" {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 
-	// Use impersonate client (RLS will check permissions automatically)
-	client := s.supabase.GetAuthenticatedClient(impersonateJWT)
+	// Use authenticated client (RLS will check permissions automatically)
+	client := s.supabase.GetAuthenticatedClient(accessToken)
 
 	// Check if post exists and user is the author
 	type PostInfo struct {
@@ -1194,7 +1208,14 @@ func (s *Server) HandlePostDislikes(w http.ResponseWriter, r *http.Request) {
 // GetPostLikes returns like count and whether current user liked the post
 func (s *Server) GetPostLikes(w http.ResponseWriter, r *http.Request, postID string) {
 	userID, _ := r.Context().Value("user_id").(string)
-	client := s.supabase.GetServiceClient()
+
+	// 🔒 SECURITY: Use access token if authenticated, otherwise use Anon Client to enforce RLS
+	var client *supabase.Client
+	if accessToken, ok := r.Context().Value("access_token").(string); ok && accessToken != "" {
+		client = s.supabase.GetAuthenticatedClient(accessToken)
+	} else {
+		client = s.supabase.GetAnonClient()
+	}
 
 	type Row struct {
 		PostID string `json:"post_id"`
@@ -1239,12 +1260,12 @@ func (s *Server) TogglePostLike(w http.ResponseWriter, r *http.Request, postID s
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
-	impersonateJWT, ok := r.Context().Value("impersonate_jwt").(string)
-	if !ok || impersonateJWT == "" {
+	accessToken, ok := r.Context().Value("access_token").(string)
+	if !ok || accessToken == "" {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
-	client := s.supabase.GetAuthenticatedClient(impersonateJWT)
+	client := s.supabase.GetAuthenticatedClient(accessToken)
 
 	// Check existing
 	type Row struct {
@@ -1289,7 +1310,14 @@ func (s *Server) TogglePostLike(w http.ResponseWriter, r *http.Request, postID s
 // GetPostDislikes returns dislike count and whether current user disliked the post
 func (s *Server) GetPostDislikes(w http.ResponseWriter, r *http.Request, postID string) {
 	userID, _ := r.Context().Value("user_id").(string)
-	client := s.supabase.GetServiceClient()
+
+	// 🔒 SECURITY: Use access token if authenticated, otherwise use Anon Client to enforce RLS
+	var client *supabase.Client
+	if accessToken, ok := r.Context().Value("access_token").(string); ok && accessToken != "" {
+		client = s.supabase.GetAuthenticatedClient(accessToken)
+	} else {
+		client = s.supabase.GetAnonClient()
+	}
 
 	type Row struct {
 		PostID string `json:"post_id"`
@@ -1334,12 +1362,12 @@ func (s *Server) TogglePostDislike(w http.ResponseWriter, r *http.Request, postI
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
-	impersonateJWT, ok := r.Context().Value("impersonate_jwt").(string)
-	if !ok || impersonateJWT == "" {
+	accessToken, ok := r.Context().Value("access_token").(string)
+	if !ok || accessToken == "" {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
-	client := s.supabase.GetAuthenticatedClient(impersonateJWT)
+	client := s.supabase.GetAuthenticatedClient(accessToken)
 
 	// Check existing
 	type Row struct {
@@ -1391,7 +1419,14 @@ func (s *Server) GetPostsMetadata(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userID, _ := r.Context().Value("user_id").(string)
-	client := s.supabase.GetServiceClient()
+
+	// 🔒 SECURITY: Use access token if authenticated, otherwise use Anon Client to enforce RLS
+	var client *supabase.Client
+	if accessToken, ok := r.Context().Value("access_token").(string); ok && accessToken != "" {
+		client = s.supabase.GetAuthenticatedClient(accessToken)
+	} else {
+		client = s.supabase.GetAnonClient()
+	}
 
 	// Parse post IDs from query parameters
 	postIDs := r.URL.Query()["post_ids[]"]
@@ -1531,7 +1566,14 @@ func (s *Server) HandleBoardSidebar(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fmt.Printf("\n========== BOARD SIDEBAR START ==========\n")
-	client := s.supabase.GetServiceClient()
+
+	// 🔒 SECURITY: Use access token if authenticated, otherwise use Anon Client to enforce RLS
+	var client *supabase.Client
+	if accessToken, ok := r.Context().Value("access_token").(string); ok && accessToken != "" {
+		client = s.supabase.GetAuthenticatedClient(accessToken)
+	} else {
+		client = s.supabase.GetAnonClient()
+	}
 
 	// Get all board posts
 	var boardPosts []models.Post

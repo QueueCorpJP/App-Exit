@@ -8,35 +8,35 @@ import (
 	"github.com/yourusername/appexit-backend/pkg/response"
 )
 
-// GetAuthContext extracts user_id and impersonate_jwt from request context
+// GetAuthContext extracts user_id and access_token from request context
 // Returns empty strings if not found
-func GetAuthContext(r *http.Request) (userID, impersonateJWT string) {
+func GetAuthContext(r *http.Request) (userID, accessToken string) {
 	userID, _ = r.Context().Value("user_id").(string)
-	impersonateJWT, _ = r.Context().Value("impersonate_jwt").(string)
-	return userID, impersonateJWT
+	accessToken, _ = r.Context().Value("access_token").(string)
+	return userID, accessToken
 }
 
 // RequireAuth extracts and validates authentication information from request context
 // If authentication fails, it writes an error response and returns ok=false
 // Usage:
-//   userID, impersonateJWT, ok := utils.RequireAuth(r, w)
+//   userID, accessToken, ok := utils.RequireAuth(r, w)
 //   if !ok {
 //       return // Error response already sent
 //   }
-func RequireAuth(r *http.Request, w http.ResponseWriter) (userID, impersonateJWT string, ok bool) {
+func RequireAuth(r *http.Request, w http.ResponseWriter) (userID, accessToken string, ok bool) {
 	userID, ok1 := r.Context().Value("user_id").(string)
 	if !ok1 || userID == "" {
 		response.Error(w, http.StatusUnauthorized, "Unauthorized")
 		return "", "", false
 	}
 
-	impersonateJWT, ok2 := r.Context().Value("impersonate_jwt").(string)
-	if !ok2 || impersonateJWT == "" {
+	accessToken, ok2 := r.Context().Value("access_token").(string)
+	if !ok2 || accessToken == "" {
 		response.Error(w, http.StatusUnauthorized, "Unauthorized")
 		return "", "", false
 	}
 
-	return userID, impersonateJWT, true
+	return userID, accessToken, true
 }
 
 // RequireUserID extracts and validates user_id from request context

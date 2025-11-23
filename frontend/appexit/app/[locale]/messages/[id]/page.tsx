@@ -33,7 +33,7 @@ export default async function Messages({ params }: PageProps) {
         `${bffUrl}/bff/thread-and-messages?thread_id=${id}&limit=50&offset=0`,
         {
           headers: {
-            Authorization: `Bearer ${authToken.value}`,
+            Cookie: `access_token=${authToken.value}`, // 🔥 Go APIのCookie優先に合わせる
           },
           next: { revalidate: 0 }, // キャッシュしない
         }

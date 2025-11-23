@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strings"
 
+	supabase "github.com/supabase-community/supabase-go"
 	"github.com/yourusername/appexit-backend/internal/models"
 	"github.com/yourusername/appexit-backend/pkg/response"
 )
@@ -56,8 +57,17 @@ func (s *Server) GetUserByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Fetch profile from Supabase using service role key (public read)
-	client := s.supabase.GetServiceClient()
+	// 🔒 SECURITY: Use access token if authenticated, otherwise use Anon Client to enforce RLS
+	// Try to get access token from context (optional authentication)
+	var client *supabase.Client
+	if accessToken, ok := r.Context().Value("access_token").(string); ok && accessToken != "" {
+		// Authenticated user - can see more details based on RLS policies
+		client = s.supabase.GetAuthenticatedClient(accessToken)
+	} else {
+		// Unauthenticated user - can only see public information
+		client = s.supabase.GetAnonClient()
+	}
+
 	if client == nil {
 		response.Error(w, http.StatusInternalServerError, "Internal server error")
 		return

@@ -10,24 +10,15 @@ import (
 	"sync"
 	"time"
 
-	"github.com/golang-jwt/jwt/v5"
 	storage_go "github.com/supabase-community/storage-go"
 	"github.com/supabase-community/supabase-go"
 	"github.com/yourusername/appexit-backend/config"
 )
 
-// ImpersonateJWTCache はimpersonate JWTのキャッシュエントリ
-type ImpersonateJWTCache struct {
-	Token     string
-	ExpiresAt time.Time
-}
-
 type SupabaseService struct {
 	anonClient    *supabase.Client                // RLSが効くクライアント
 	serviceClient *supabase.Client                // RLSを回避するクライアント（admin操作用）
 	cfg           *config.Config                  // 設定を保持
-	jwtCache      map[string]*ImpersonateJWTCache // userID -> impersonate JWT cache
-	cacheMutex    sync.RWMutex                    // キャッシュ用のミューテックス
 	bucketCache   map[string]bool                 // bucketName -> isPublic cache
 	bucketCacheMutex sync.RWMutex                 // バケットキャッシュ用のミューテックス
 }
@@ -49,7 +40,6 @@ func NewSupabaseService(cfg *config.Config) *SupabaseService {
 		anonClient:      anonClient,
 		serviceClient:   serviceClient,
 		cfg:             cfg,
-		jwtCache:        make(map[string]*ImpersonateJWTCache),
 		bucketCache:     make(map[string]bool),
 	}
 }
@@ -90,68 +80,6 @@ func (s *SupabaseService) GetAuthenticatedClient(token string) *supabase.Client 
 		panic("Failed to create authenticated client: " + err.Error())
 	}
 	return client
-}
-
-// GenerateImpersonateJWT generates an impersonate JWT for the given user ID
-// This JWT will be used for RLS-protected operations and cached for 1 hour
-func (s *SupabaseService) GenerateImpersonateJWT(userID string) (string, error) {
-	// キャッシュをチェック
-	s.cacheMutex.RLock()
-	cached, exists := s.jwtCache[userID]
-	s.cacheMutex.RUnlock()
-
-	if exists && time.Now().Before(cached.ExpiresAt) {
-		fmt.Printf("[DEBUG] Using cached impersonate JWT for user: %s\n", userID)
-		return cached.Token, nil
-	}
-
-	// キャッシュが無効またはなければ新規生成
-	fmt.Printf("[DEBUG] Generating new impersonate JWT for user: %s\n", userID)
-
-	// 有効期限は1時間
-	expiresAt := time.Now().Add(1 * time.Hour)
-	claims := jwt.MapClaims{
-		"sub":  userID,
-		"role": "authenticated",
-		"iat":  time.Now().Unix(),
-		"exp":  expiresAt.Unix(),
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString([]byte(s.cfg.SupabaseJWTSecret))
-	if err != nil {
-		return "", fmt.Errorf("failed to sign impersonate JWT: %w", err)
-	}
-
-	// キャッシュに保存
-	s.cacheMutex.Lock()
-	s.jwtCache[userID] = &ImpersonateJWTCache{
-		Token:     tokenString,
-		ExpiresAt: expiresAt,
-	}
-	s.cacheMutex.Unlock()
-
-	fmt.Printf("[DEBUG] Generated and cached impersonate JWT for user: %s (expires: %s)\n", userID, expiresAt)
-	return tokenString, nil
-}
-
-// GetImpersonateClient creates a client with impersonate JWT for RLS-protected operations
-func (s *SupabaseService) GetImpersonateClient(userID string) (*supabase.Client, error) {
-	impersonateJWT, err := s.GenerateImpersonateJWT(userID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate impersonate JWT: %w", err)
-	}
-
-	client, err := supabase.NewClient(s.cfg.SupabaseURL, s.cfg.SupabaseAnonKey, &supabase.ClientOptions{
-		Headers: map[string]string{
-			"Authorization": "Bearer " + impersonateJWT,
-		},
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to create impersonate client: %w", err)
-	}
-
-	return client, nil
 }
 
 func (s *SupabaseService) getAdminAuthRequest(method, path string, body io.Reader) (*http.Request, error) {

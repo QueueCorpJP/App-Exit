@@ -181,23 +181,11 @@ func AuthWithSupabase(supabaseJWTSecret string, supabaseService *services.Supaba
 			userID := claims.Sub
 			fmt.Printf("[AUTH] ✓ Token verified for user: %s (email: %s, role: %s)\n", userID, claims.Email, claims.Role)
 
-			// Generate impersonate JWT for RLS operations
-			fmt.Printf("[AUTH] Generating impersonate JWT for RLS operations...\n")
-			impersonateJWT, err := supabaseService.GenerateImpersonateJWT(userID)
-			if err != nil {
-				fmt.Printf("[AUTH] ❌ ERROR: Failed to generate impersonate JWT: %v\n", err)
-				fmt.Printf("========== AUTH MIDDLEWARE END (FAILED) ==========\n\n")
-				response.Error(w, http.StatusInternalServerError, "Failed to generate authentication token")
-				return
-			}
-
-			fmt.Printf("[AUTH] ✓ Generated impersonate JWT (length: %d)\n", len(impersonateJWT))
-
-			// Extract user info from token and add to context (including impersonate JWT)
+			// Extract user info from token and add to context (using original access token)
 			ctx := context.WithValue(r.Context(), "user_id", userID)
 			ctx = context.WithValue(ctx, "email", claims.Email)
 			ctx = context.WithValue(ctx, "role", claims.Role)
-			ctx = context.WithValue(ctx, "impersonate_jwt", impersonateJWT)
+			ctx = context.WithValue(ctx, "access_token", tokenString)
 			r = r.WithContext(ctx)
 
 			fmt.Printf("[AUTH] ✓ Context populated with user info\n")
@@ -269,19 +257,11 @@ func OptionalAuthWithSupabase(supabaseJWTSecret string, supabaseService *service
 
 			userID := claims.Sub
 
-			// Generate impersonate JWT for RLS operations
-			impersonateJWT, err := supabaseService.GenerateImpersonateJWT(userID)
-			if err != nil {
-				// JWT生成失敗の場合もそのまま通す（ユーザーIDは設定しない）
-				next(w, r)
-				return
-			}
-
-			// 認証成功 - コンテキストにユーザー情報を追加
+			// 認証成功 - コンテキストにユーザー情報を追加（オリジナルのアクセストークンを使用）
 			ctx := context.WithValue(r.Context(), "user_id", userID)
 			ctx = context.WithValue(ctx, "email", claims.Email)
 			ctx = context.WithValue(ctx, "role", claims.Role)
-			ctx = context.WithValue(ctx, "impersonate_jwt", impersonateJWT)
+			ctx = context.WithValue(ctx, "access_token", tokenString)
 			r = r.WithContext(ctx)
 
 			next(w, r)

@@ -10,9 +10,8 @@ import (
 
 // GetProfileByUserID fetches a single profile by user ID
 // Returns error if profile not found
-func (s *Server) GetProfileByUserID(userID string) (*models.Profile, error) {
-	client := s.supabase.GetServiceClient()
-
+// 🔒 SECURITY: Now accepts client as parameter to enforce RLS
+func (s *Server) GetProfileByUserID(client *supabase.Client, userID string) (*models.Profile, error) {
 	var profiles []models.Profile
 	_, err := client.From("profiles").
 		Select("*", "", false).
@@ -32,12 +31,11 @@ func (s *Server) GetProfileByUserID(userID string) (*models.Profile, error) {
 
 // GetProfilesByUserIDs fetches multiple profiles by user IDs using a single query
 // Returns a map of userID -> Profile for easy lookup
-func (s *Server) GetProfilesByUserIDs(userIDs []string) (map[string]*models.Profile, error) {
+// 🔒 SECURITY: Now accepts client as parameter to enforce RLS
+func (s *Server) GetProfilesByUserIDs(client *supabase.Client, userIDs []string) (map[string]*models.Profile, error) {
 	if len(userIDs) == 0 {
 		return make(map[string]*models.Profile), nil
 	}
-
-	client := s.supabase.GetServiceClient()
 
 	var profiles []models.Profile
 	_, err := client.From("profiles").

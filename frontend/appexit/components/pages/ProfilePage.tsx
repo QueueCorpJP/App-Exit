@@ -70,20 +70,40 @@ export default function ProfilePage({ pageDict = {} }: ProfilePageProps) {
 
         // ⚡ BFF経由でプロフィールと投稿を並列取得
         // 初期表示は少数の投稿のみ取得してパフォーマンス向上
-        const bffUrl = process.env.NEXT_PUBLIC_BFF_URL || 'http://localhost:8080';
+        const bffUrl = process.env.NEXT_PUBLIC_BFF_URL || 'http://localhost:8082';
+
+        // Cookieから認証トークンを取得
+        const authToken = document.cookie
+          .split('; ')
+          .find(row => row.startsWith('access_token='))
+          ?.split('=')[1];
+
         const response = await fetch(
-          `${bffUrl}/bff/profile-and-posts?limit=${INITIAL_POSTS}&offset=0`
+          `${bffUrl}/bff/profile-and-posts?limit=${INITIAL_POSTS}&offset=0`,
+          {
+            credentials: 'include', // 🔥 Cookieを送信するために必須
+            headers: authToken ? {
+              'Authorization': `Bearer ${authToken}`
+            } : {}
+          }
         );
 
+        console.log('[ProfilePage] BFF Response status:', response.status);
+
         if (!response.ok) {
+          console.error('[ProfilePage] BFF request failed:', response.status, response.statusText);
           throw new Error('Failed to fetch profile and posts');
         }
 
         const data = await response.json();
+        console.log('[ProfilePage] BFF Response data:', data);
 
         // プロフィールの結果を処理
         if (isMounted && data.profile) {
+          console.log('[ProfilePage] Setting profile:', data.profile);
           setProfile(data.profile);
+        } else {
+          console.warn('[ProfilePage] No profile data received');
         }
 
         // 投稿の結果を処理
@@ -93,6 +113,7 @@ export default function ProfilePage({ pageDict = {} }: ProfilePageProps) {
           setHasMorePosts(data.posts.length >= INITIAL_POSTS);
         }
       } catch (error) {
+        console.error('[ProfilePage] Error fetching profile data:', error);
         // Failed to fetch profile data - continue without data
       } finally {
         if (isMounted) {
@@ -375,7 +396,7 @@ export default function ProfilePage({ pageDict = {} }: ProfilePageProps) {
               </svg>
             </button>
             <div className="flex-1">
-              <h1 className="text-xl font-bold text-gray-900" title={profile.display_name}>{truncateDisplayName(profile.display_name, 'header')}</h1>
+              <h1 className="text-xl font-bold text-gray-900" title={profile.display_name || ''}>{truncateDisplayName(profile.display_name || '', 'header')}</h1>
               <p className="text-sm text-gray-500">{posts.length} {tp('posts')}</p>
             </div>
             <div className="flex items-center space-x-2">
@@ -402,14 +423,14 @@ export default function ProfilePage({ pageDict = {} }: ProfilePageProps) {
             {avatarUrl ? (
               <Image
                 src={avatarUrl}
-                alt={profile.display_name}
+                alt={profile.display_name || 'Profile'}
                 width={128}
                 height={128}
                 className="w-full h-full object-cover"
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-4xl">
-                {profile.display_name.charAt(0).toUpperCase()}
+                {profile.display_name?.charAt(0).toUpperCase() || '?'}
               </div>
             )}
           </div>
@@ -426,7 +447,7 @@ export default function ProfilePage({ pageDict = {} }: ProfilePageProps) {
         {/* プロフィール詳細 */}
         <div className="pb-4 border-b border-gray-200">
           <div className="flex items-center space-x-2 mb-1">
-            <h2 className="text-2xl font-bold text-gray-900" title={profile.display_name}>{truncateDisplayName(profile.display_name, 'profile')}</h2>
+            <h2 className="text-2xl font-bold text-gray-900" title={profile.display_name || ''}>{truncateDisplayName(profile.display_name || '', 'profile')}</h2>
             {profile.public === true && (
               <svg className="w-5 h-5 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
@@ -610,13 +631,13 @@ export default function ProfilePage({ pageDict = {} }: ProfilePageProps) {
                       {profile.icon_url ? (
                         <Image
                           src={profile.icon_url}
-                          alt={profile.display_name}
+                          alt={profile.display_name || 'Profile'}
                           width={48}
                           height={48}
                           className="w-full h-full object-cover"
                         />
                       ) : (
-                        <span className="text-lg">{profile.display_name.charAt(0).toUpperCase()}</span>
+                        <span className="text-lg">{profile.display_name?.charAt(0).toUpperCase() || '?'}</span>
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -624,7 +645,7 @@ export default function ProfilePage({ pageDict = {} }: ProfilePageProps) {
                         {/* デスクトップ: 横並び */}
                         <div className="hidden sm:flex items-center">
                           <div className="flex items-center space-x-2">
-                            <span className="font-semibold text-gray-900" title={profile.display_name}>{truncateDisplayName(profile.display_name, 'post')}</span>
+                            <span className="font-semibold text-gray-900" title={profile.display_name || ''}>{truncateDisplayName(profile.display_name || '', 'post')}</span>
                             <span className="text-gray-500 text-sm">@{profile.id.substring(0, 8)}</span>
                             <span className="text-gray-500 text-sm">·</span>
                             <span className="text-gray-500 text-sm">{formatDate(post.created_at)}</span>
@@ -635,7 +656,7 @@ export default function ProfilePage({ pageDict = {} }: ProfilePageProps) {
                         <div className="sm:hidden">
                           <div className="flex items-center mb-1">
                             <div className="flex items-center space-x-2">
-                              <span className="font-semibold text-gray-900" title={profile.display_name}>{truncateDisplayName(profile.display_name, 'post')}</span>
+                              <span className="font-semibold text-gray-900" title={profile.display_name || ''}>{truncateDisplayName(profile.display_name || '', 'post')}</span>
                               <span className="text-gray-500 text-sm">@{profile.id.substring(0, 8)}</span>
                             </div>
                           </div>

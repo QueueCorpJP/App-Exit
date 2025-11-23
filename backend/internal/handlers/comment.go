@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 
+	supabase "github.com/supabase-community/supabase-go"
 	"github.com/yourusername/appexit-backend/internal/models"
 	"github.com/yourusername/appexit-backend/internal/utils"
 	"github.com/yourusername/appexit-backend/pkg/response"
@@ -151,7 +152,13 @@ func (s *Server) ListPostComments(w http.ResponseWriter, r *http.Request, postID
 	// Get user ID if authenticated (for checking likes)
 	userID, _ := r.Context().Value("user_id").(string)
 
-	client := s.supabase.GetServiceClient()
+	// 🔒 SECURITY: Use access token if authenticated, otherwise use Anon Client to enforce RLS
+	var client *supabase.Client
+	if accessToken, ok := r.Context().Value("access_token").(string); ok && accessToken != "" {
+		client = s.supabase.GetAuthenticatedClient(accessToken)
+	} else {
+		client = s.supabase.GetAnonClient()
+	}
 
 	// Fetch comments with limit for performance
 	var comments []models.PostComment
@@ -359,8 +366,8 @@ func (s *Server) CreatePostComment(w http.ResponseWriter, r *http.Request, postI
 		return
 	}
 
-	impersonateJWT, ok := r.Context().Value("impersonate_jwt").(string)
-	if !ok || impersonateJWT == "" {
+	accessToken, ok := r.Context().Value("access_token").(string)
+	if !ok || accessToken == "" {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
@@ -388,7 +395,7 @@ func (s *Server) CreatePostComment(w http.ResponseWriter, r *http.Request, postI
 		fmt.Printf("[CreatePostComment] WARNING: Comment contains malicious content: %v\n", contentResult.Errors)
 	}
 
-	client := s.supabase.GetAuthenticatedClient(impersonateJWT)
+	client := s.supabase.GetAuthenticatedClient(accessToken)
 
 	commentData := map[string]interface{}{
 		"post_id":  postID,
@@ -441,7 +448,13 @@ func (s *Server) CreatePostComment(w http.ResponseWriter, r *http.Request, postI
 
 // GetComment retrieves a single comment by ID
 func (s *Server) GetComment(w http.ResponseWriter, r *http.Request, commentID string) {
-	client := s.supabase.GetServiceClient()
+	// 🔒 SECURITY: Use access token if authenticated, otherwise use Anon Client to enforce RLS
+	var client *supabase.Client
+	if accessToken, ok := r.Context().Value("access_token").(string); ok && accessToken != "" {
+		client = s.supabase.GetAuthenticatedClient(accessToken)
+	} else {
+		client = s.supabase.GetAnonClient()
+	}
 
 	var comments []models.PostComment
 	_, err := client.From("post_comments").
@@ -536,8 +549,8 @@ func (s *Server) UpdateComment(w http.ResponseWriter, r *http.Request, commentID
 		return
 	}
 
-	impersonateJWT, ok := r.Context().Value("impersonate_jwt").(string)
-	if !ok || impersonateJWT == "" {
+	accessToken, ok := r.Context().Value("access_token").(string)
+	if !ok || accessToken == "" {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
@@ -553,7 +566,7 @@ func (s *Server) UpdateComment(w http.ResponseWriter, r *http.Request, commentID
 		return
 	}
 
-	client := s.supabase.GetAuthenticatedClient(impersonateJWT)
+	client := s.supabase.GetAuthenticatedClient(accessToken)
 
 	// Check if comment exists and user is the author
 	type CommentInfo struct {
@@ -613,13 +626,13 @@ func (s *Server) DeleteComment(w http.ResponseWriter, r *http.Request, commentID
 		return
 	}
 
-	impersonateJWT, ok := r.Context().Value("impersonate_jwt").(string)
-	if !ok || impersonateJWT == "" {
+	accessToken, ok := r.Context().Value("access_token").(string)
+	if !ok || accessToken == "" {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 
-	client := s.supabase.GetAuthenticatedClient(impersonateJWT)
+	client := s.supabase.GetAuthenticatedClient(accessToken)
 
 	// Check if comment exists and user is the author
 	type CommentInfo struct {
@@ -658,7 +671,14 @@ func (s *Server) DeleteComment(w http.ResponseWriter, r *http.Request, commentID
 // ListCommentReplies retrieves all replies for a comment
 func (s *Server) ListCommentReplies(w http.ResponseWriter, r *http.Request, commentID string) {
 	userID, _ := r.Context().Value("user_id").(string)
-	client := s.supabase.GetServiceClient()
+
+	// 🔒 SECURITY: Use access token if authenticated, otherwise use Anon Client to enforce RLS
+	var client *supabase.Client
+	if accessToken, ok := r.Context().Value("access_token").(string); ok && accessToken != "" {
+		client = s.supabase.GetAuthenticatedClient(accessToken)
+	} else {
+		client = s.supabase.GetAnonClient()
+	}
 
 	var replies []models.CommentReply
 	_, err := client.From("comment_replies").
@@ -814,8 +834,8 @@ func (s *Server) CreateCommentReply(w http.ResponseWriter, r *http.Request, comm
 		return
 	}
 
-	impersonateJWT, ok := r.Context().Value("impersonate_jwt").(string)
-	if !ok || impersonateJWT == "" {
+	accessToken, ok := r.Context().Value("access_token").(string)
+	if !ok || accessToken == "" {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
@@ -843,7 +863,7 @@ func (s *Server) CreateCommentReply(w http.ResponseWriter, r *http.Request, comm
 		fmt.Printf("[CreateCommentReply] WARNING: Reply contains malicious content: %v\n", contentResult.Errors)
 	}
 
-	client := s.supabase.GetAuthenticatedClient(impersonateJWT)
+	client := s.supabase.GetAuthenticatedClient(accessToken)
 
 	replyData := map[string]interface{}{
 		"comment_id": commentID,
@@ -898,8 +918,8 @@ func (s *Server) UpdateReply(w http.ResponseWriter, r *http.Request, replyID str
 		return
 	}
 
-	impersonateJWT, ok := r.Context().Value("impersonate_jwt").(string)
-	if !ok || impersonateJWT == "" {
+	accessToken, ok := r.Context().Value("access_token").(string)
+	if !ok || accessToken == "" {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
@@ -915,7 +935,7 @@ func (s *Server) UpdateReply(w http.ResponseWriter, r *http.Request, replyID str
 		return
 	}
 
-	client := s.supabase.GetAuthenticatedClient(impersonateJWT)
+	client := s.supabase.GetAuthenticatedClient(accessToken)
 
 	// Check if reply exists and user is the author
 	type ReplyInfo struct {
@@ -1008,13 +1028,13 @@ func (s *Server) DeleteReply(w http.ResponseWriter, r *http.Request, replyID str
 		return
 	}
 
-	impersonateJWT, ok := r.Context().Value("impersonate_jwt").(string)
-	if !ok || impersonateJWT == "" {
+	accessToken, ok := r.Context().Value("access_token").(string)
+	if !ok || accessToken == "" {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 
-	client := s.supabase.GetAuthenticatedClient(impersonateJWT)
+	client := s.supabase.GetAuthenticatedClient(accessToken)
 
 	// Check if reply exists and user is the author
 	type ReplyInfo struct {
@@ -1054,7 +1074,13 @@ func (s *Server) DeleteReply(w http.ResponseWriter, r *http.Request, replyID str
 func (s *Server) GetCommentLikes(w http.ResponseWriter, r *http.Request, commentID string) {
 	userID, _ := r.Context().Value("user_id").(string)
 
-	client := s.supabase.GetServiceClient()
+	// 🔒 SECURITY: Use access token if authenticated, otherwise use Anon Client to enforce RLS
+	var client *supabase.Client
+	if accessToken, ok := r.Context().Value("access_token").(string); ok && accessToken != "" {
+		client = s.supabase.GetAuthenticatedClient(accessToken)
+	} else {
+		client = s.supabase.GetAnonClient()
+	}
 
 	// Count total likes
 	type LikeRow struct {
@@ -1108,13 +1134,13 @@ func (s *Server) ToggleCommentLike(w http.ResponseWriter, r *http.Request, comme
 		return
 	}
 
-	impersonateJWT, ok := r.Context().Value("impersonate_jwt").(string)
-	if !ok || impersonateJWT == "" {
+	accessToken, ok := r.Context().Value("access_token").(string)
+	if !ok || accessToken == "" {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 
-	client := s.supabase.GetAuthenticatedClient(impersonateJWT)
+	client := s.supabase.GetAuthenticatedClient(accessToken)
 
 	// Check if like already exists
 	type LikeRow struct {
@@ -1165,7 +1191,13 @@ func (s *Server) ToggleCommentLike(w http.ResponseWriter, r *http.Request, comme
 func (s *Server) GetCommentDislikes(w http.ResponseWriter, r *http.Request, commentID string) {
 	userID, _ := r.Context().Value("user_id").(string)
 
-	client := s.supabase.GetServiceClient()
+	// 🔒 SECURITY: Use access token if authenticated, otherwise use Anon Client to enforce RLS
+	var client *supabase.Client
+	if accessToken, ok := r.Context().Value("access_token").(string); ok && accessToken != "" {
+		client = s.supabase.GetAuthenticatedClient(accessToken)
+	} else {
+		client = s.supabase.GetAnonClient()
+	}
 
 	// Count total dislikes
 	type Row struct {
@@ -1217,13 +1249,13 @@ func (s *Server) ToggleCommentDislike(w http.ResponseWriter, r *http.Request, co
 		return
 	}
 
-	impersonateJWT, ok := r.Context().Value("impersonate_jwt").(string)
-	if !ok || impersonateJWT == "" {
+	accessToken, ok := r.Context().Value("access_token").(string)
+	if !ok || accessToken == "" {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 
-	client := s.supabase.GetAuthenticatedClient(impersonateJWT)
+	client := s.supabase.GetAuthenticatedClient(accessToken)
 
 	// Check if dislike already exists
 	type Row struct {
@@ -1310,7 +1342,14 @@ func (s *Server) HandleReplyDislikes(w http.ResponseWriter, r *http.Request) {
 // GetReplyLikes retrieves like count and user's like status for a reply
 func (s *Server) GetReplyLikes(w http.ResponseWriter, r *http.Request, replyID string) {
 	userID, _ := r.Context().Value("user_id").(string)
-	client := s.supabase.GetServiceClient()
+
+	// 🔒 SECURITY: Use access token if authenticated, otherwise use Anon Client to enforce RLS
+	var client *supabase.Client
+	if accessToken, ok := r.Context().Value("access_token").(string); ok && accessToken != "" {
+		client = s.supabase.GetAuthenticatedClient(accessToken)
+	} else {
+		client = s.supabase.GetAnonClient()
+	}
 
 	// Count total likes
 	type LikeRow struct {
@@ -1364,13 +1403,13 @@ func (s *Server) ToggleReplyLike(w http.ResponseWriter, r *http.Request, replyID
 		return
 	}
 
-	impersonateJWT, ok := r.Context().Value("impersonate_jwt").(string)
-	if !ok || impersonateJWT == "" {
+	accessToken, ok := r.Context().Value("access_token").(string)
+	if !ok || accessToken == "" {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 
-	client := s.supabase.GetAuthenticatedClient(impersonateJWT)
+	client := s.supabase.GetAuthenticatedClient(accessToken)
 
 	// Check if like already exists
 	type LikeRow struct {
@@ -1420,7 +1459,14 @@ func (s *Server) ToggleReplyLike(w http.ResponseWriter, r *http.Request, replyID
 // GetReplyDislikes retrieves dislike count and user's dislike status for a reply
 func (s *Server) GetReplyDislikes(w http.ResponseWriter, r *http.Request, replyID string) {
 	userID, _ := r.Context().Value("user_id").(string)
-	client := s.supabase.GetServiceClient()
+
+	// 🔒 SECURITY: Use access token if authenticated, otherwise use Anon Client to enforce RLS
+	var client *supabase.Client
+	if accessToken, ok := r.Context().Value("access_token").(string); ok && accessToken != "" {
+		client = s.supabase.GetAuthenticatedClient(accessToken)
+	} else {
+		client = s.supabase.GetAnonClient()
+	}
 
 	// Count total dislikes
 	type Row struct {
@@ -1474,13 +1520,13 @@ func (s *Server) ToggleReplyDislike(w http.ResponseWriter, r *http.Request, repl
 		return
 	}
 
-	impersonateJWT, ok := r.Context().Value("impersonate_jwt").(string)
-	if !ok || impersonateJWT == "" {
+	accessToken, ok := r.Context().Value("access_token").(string)
+	if !ok || accessToken == "" {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 
-	client := s.supabase.GetAuthenticatedClient(impersonateJWT)
+	client := s.supabase.GetAuthenticatedClient(accessToken)
 
 	// Check if dislike already exists
 	type Row struct {

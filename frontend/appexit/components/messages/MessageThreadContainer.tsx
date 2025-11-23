@@ -77,7 +77,10 @@ function MessageThreadContainer({ threadId, onBack, initialData }: MessageThread
           // 開発環境: http://localhost:8082/bff/...
           const bffUrl = process.env.NEXT_PUBLIC_BFF_URL || 'http://localhost:8082';
           const response = await fetch(
-            `${bffUrl}/bff/thread-and-messages?thread_id=${currentThreadId}&limit=${MESSAGES_PER_PAGE}&offset=0`
+            `${bffUrl}/bff/thread-and-messages?thread_id=${currentThreadId}&limit=${MESSAGES_PER_PAGE}&offset=0`,
+            {
+              credentials: 'include' // 🔥 Cookieを送信するために必須
+            }
           );
 
           if (!response.ok) {
